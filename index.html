@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Media Tracker Pro 🎬</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        themePrimary: 'var(--theme-primary)',
+                        themeHover: 'var(--theme-hover)',
+                        darkBg: '#0b0a10',
+                        cardBg: '#14121f',
+                        inputBg: '#0e0d17',
+                        borderSubtle: 'rgba(217, 70, 239, 0.15)'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome & html2canvas -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --theme-primary: #d946ef;
+            --theme-hover: #c026d3;
+            --theme-glow: rgba(217, 70, 239, 0.3);
+        }
+        body.theme-magenta { --theme-primary: #d946ef; --theme-hover: #c026d3; }
+        body.theme-pink { --theme-primary: #ec4899; --theme-hover: #db2777; }
+        body.theme-purple { --theme-primary: #a855f7; --theme-hover: #9333ea; }
+        body.theme-blue { --theme-primary: #3b82f6; --theme-hover: #2563eb; }
+        body.theme-emerald { --theme-primary: #10b981; --theme-hover: #059669; }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .media-card {
+            background-color: #14121f;
+            border: 1px solid rgba(217, 70, 239, 0.15);
+            transition: all 0.2s ease;
+        }
+        .media-card:hover {
+            border-color: var(--theme-primary);
+        }
+    </style>
+</head>
+<body class="theme-magenta bg-darkBg text-slate-100 min-h-screen font-sans antialiased selection:bg-themePrimary selection:text-white pb-28 md:pb-10">
+
+    <div class="max-w-6xl mx-auto px-3 sm:px-4 py-4 md:py-8">
+        <!-- Cabeçalho -->
+        <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-5 pb-4 border-b border-borderSubtle gap-3">
+            <div>
+                <h1 class="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2 text-themePrimary">
+                    <i class="fa-solid fa-clapperboard"></i> Media Tracker Pro
+                </h1>
+                <p class="text-slate-400 text-xs sm:text-sm mt-0.5">Gerenciador avançado de animes, séries e filmes.</p>
+            </div>
+            
+            <div class="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start flex-wrap">
+                <!-- Seletor de Tema -->
+                <div class="flex items-center gap-1 bg-cardBg border border-borderSubtle px-2 py-1.5 rounded-xl">
+                    <i class="fa-solid fa-palette text-themePrimary text-xs px-1"></i>
+                    <select id="theme-selector" onchange="changeTheme(this.value)" class="bg-transparent text-xs text-slate-300 focus:outline-none cursor-pointer">
+                        <option value="magenta">Magenta</option>
+                        <option value="pink">Rosa</option>
+                        <option value="purple">Roxo</option>
+                        <option value="blue">Azul</option>
+                        <option value="emerald">Esmeralda</option>
+                    </select>
+                </div>
+
+                <!-- Botões de Ação -->
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <button onclick="toggleScheduleModal()" class="bg-cardBg hover:bg-slate-800 text-slate-300 border border-borderSubtle px-3 py-2 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer" title="Agenda Semanal">
+                        <i class="fa-solid fa-calendar-week text-themePrimary"></i> <span class="hidden sm:inline">Agenda</span>
+                    </button>
+                    <button onclick="toggleStatsModal()" class="bg-cardBg hover:bg-slate-800 text-slate-300 border border-borderSubtle px-3 py-2 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer" title="Estatísticas">
+                        <i class="fa-solid fa-chart-pie text-themePrimary"></i> <span class="hidden md:inline">Estatísticas</span>
+                    </button>
+                    <button onclick="exportBackup()" class="bg-cardBg hover:bg-slate-800 text-slate-300 border border-borderSubtle px-3 py-2 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer" title="Exportar Backup JSON">
+                        <i class="fa-solid fa-download text-themePrimary"></i> <span class="hidden md:inline">Exportar</span>
+                    </button>
+                    <label class="bg-cardBg hover:bg-slate-800 text-slate-300 border border-borderSubtle px-3 py-2 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer" title="Importar Backup JSON">
+                        <i class="fa-solid fa-upload text-themePrimary"></i> <span class="hidden md:inline">Importar</span>
+                        <input type="file" accept=".json" onchange="importBackup(event)" class="hidden">
+                    </label>
+                    <button onclick="openModal()" class="bg-themePrimary hover:bg-themeHover text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-lg transition-all flex items-center gap-1.5 cursor-pointer">
+                        <i class="fa-solid fa-plus"></i> Nova Obra
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Estatísticas Rápidas -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3 mb-5">
+            <div class="media-card p-3 rounded-xl flex items-center gap-2.5">
+                <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-themePrimary/10 text-themePrimary flex items-center justify-center text-sm sm:text-base shrink-0 border border-themePrimary/20">
+                    <i class="fa-solid fa-film"></i>
+                </div>
+                <div class="min-w-0">
+                    <p class="text-slate-400 text-[10px] font-semibold uppercase tracking-wider truncate">Obras</p>
+                    <p id="stat-total" class="text-lg sm:text-xl font-bold">0</p>
+                </div>
+            </div>
+            <div class="media-card p-3 rounded-xl flex items-center gap-2.5">
+                <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center text-sm sm:text-base shrink-0 border border-blue-500/20">
+                    <i class="fa-solid fa-play"></i>
+                </div>
+                <div class="min-w-0">
+                    <p class="text-slate-400 text-[10px] font-semibold uppercase tracking-wider truncate">Assistindo</p>
+                    <p id="stat-watching" class="text-lg sm:text-xl font-bold">0</p>
+                </div>
+            </div>
+            <div class="media-card p-3 rounded-xl flex items-center gap-2.5">
+                <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-sm sm:text-base shrink-0 border border-amber-500/20">
+                    <i class="fa-solid fa-clock"></i>
+                </div>
+                <div class="min-w-0">
+                    <p class="text-slate-400 text-[10px] font-semibold uppercase tracking-wider truncate">Quero Ver</p>
+                    <p id="stat-planned" class="text-lg sm:text-xl font-bold">0</p>
+                </div>
+            </div>
+            <div class="media-card p-3 rounded-xl flex items-center gap-2.5">
+                <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-sm sm:text-base shrink-0 border border-emerald-500/20">
+                    <i class="fa-solid fa-check"></i>
+                </div>
+                <div class="min-w-0">
+                    <p class="text-slate-400 text-[10px] font-semibold uppercase tracking-wider truncate">Concluídas</p>
+                    <p id="stat-completed" class="text-lg sm:text-xl font-bold">0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barra de Ferramentas -->
+        <div class="flex flex-col md:flex-row gap-2.5 mb-5 justify-between items-stretch md:items-center">
+            <div class="flex gap-1.5 overflow-x-auto no-scrollbar pb-1 -mx-3 px-3 md:mx-0 md:px-0">
+                <button onclick="filterStatus('all')" id="btn-status-all" class="filter-btn shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold bg-themePrimary text-white transition-all cursor-pointer">Todos</button>
+                <button onclick="filterStatus('watching')" id="btn-status-watching" class="filter-btn shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-cardBg transition-all cursor-pointer">Assistindo</button>
+                <button onclick="filterStatus('planned')" id="btn-status-planned" class="filter-btn shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-cardBg transition-all cursor-pointer">Quero Ver</button>
+                <button onclick="filterStatus('completed')" id="btn-status-completed" class="filter-btn shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-cardBg transition-all cursor-pointer">Concluídos</button>
+            </div>
+            
+            <div class="flex gap-2 flex-wrap sm:flex-nowrap">
+                <select id="filter-category" onchange="renderMedia()" class="bg-cardBg border border-borderSubtle rounded-xl px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-themePrimary">
+                    <option value="all">Categorias</option>
+                    <option value="Anime">Anime</option>
+                    <option value="Filme">Filme</option>
+                    <option value="Série">Série</option>
+                </select>
+
+                <select id="sort-order" onchange="renderMedia()" class="bg-cardBg border border-borderSubtle rounded-xl px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-themePrimary">
+                    <option value="recent">Mais Recentes</option>
+                    <option value="title">Título (A-Z)</option>
+                    <option value="rating">Melhor Nota</option>
+                    <option value="progress">Maior Progresso</option>
+                </select>
+
+                <!-- Alternador de Modo de Exibição -->
+                <div class="flex items-center bg-cardBg border border-borderSubtle rounded-xl p-0.5">
+                    <button onclick="setViewMode('cards')" id="btn-view-cards" class="px-2.5 py-1 rounded-lg text-xs text-white bg-themePrimary transition-all cursor-pointer" title="Modo Grade/Cards"><i class="fa-solid fa-grip"></i></button>
+                    <button onclick="setViewMode('list')" id="btn-view-list" class="px-2.5 py-1 rounded-lg text-xs text-slate-400 hover:text-white transition-all cursor-pointer" title="Modo Lista Compacta"><i class="fa-solid fa-list-ul"></i></button>
+                </div>
+
+                <div class="relative flex-1 sm:w-44">
+                    <i class="fa-solid fa-search absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+                    <input type="text" id="search-input" oninput="renderMedia()" placeholder="Buscar..." class="w-full bg-cardBg border border-borderSubtle rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-themePrimary">
+                </div>
+            </div>
+        </div>
+
+        <!-- Conteúdo Principal de Mídias (Cards ou Lista Otimizada) -->
+        <div id="media-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+        <div id="media-list" class="hidden space-y-2"></div>
+
+        <!-- Estado Vazio -->
+        <div id="empty-state" class="hidden text-center py-16">
+            <div class="text-slate-600 text-3xl mb-2"><i class="fa-solid fa-ghost"></i></div>
+            <p class="text-slate-400 text-xs font-medium">Nenhuma obra encontrada.</p>
+        </div>
+    </div>
+
+    <!-- Modal Adicionar / Editar Obra -->
+    <div id="media-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="media-card border-t sm:border border-borderSubtle w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-4 sm:p-5 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-3">
+                <h2 id="modal-title" class="text-sm sm:text-base font-bold flex items-center gap-2 text-slate-100">
+                    <i class="fa-solid fa-circle-plus text-themePrimary"></i> Adicionar Obra
+                </h2>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1 text-sm"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <form id="media-form" onsubmit="saveMedia(event)">
+                <input type="hidden" id="media-id">
+
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center gap-2 bg-inputBg p-2.5 rounded-xl border border-borderSubtle">
+                        <label class="text-[10px] font-semibold text-slate-400 uppercase">Fonte de Busca:</label>
+                        <select id="search-source" class="bg-cardBg text-xs text-slate-200 border border-borderSubtle rounded-lg px-2.5 py-1 focus:outline-none focus:border-themePrimary cursor-pointer">
+                            <option value="mal">MyAnimeList (MAL)</option>
+                            <option value="anilist">AniList (Anime)</option>
+                            <option value="imdb">Séries / IMDb / TMDB</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Título da Obra Principal</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="input-title" required class="min-w-0 flex-1 bg-inputBg border border-borderSubtle rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-themePrimary" placeholder="Ex: Diários de uma Apotecária...">
+                            <button type="button" onclick="searchMediaFromSource()" id="btn-search-source" class="bg-themePrimary/15 hover:bg-themePrimary/25 text-themePrimary border border-themePrimary/30 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shrink-0">
+                                <i class="fa-solid fa-magnifying-glass"></i> Buscar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="update-old-card-container" class="hidden">
+                        <button type="button" onclick="updateExistingCardData(event)" class="w-full bg-themePrimary/20 hover:bg-themePrimary/30 border border-themePrimary/40 text-themePrimary text-xs py-2 rounded-xl font-semibold transition-all cursor-pointer flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-rotate"></i> Atualizar card com dados mais recentes
+                        </button>
+                    </div>
+
+                    <div id="media-results" class="hidden bg-inputBg border border-borderSubtle rounded-xl p-2 max-h-40 overflow-y-auto space-y-1"></div>
+
+                    <div id="loaded-info" class="hidden text-[11px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                        <i class="fa-solid fa-check-circle"></i> <span id="loaded-info-text">Obra carregada!</span>
+                    </div>
+
+                    <!-- Temporadas Faltantes -->
+                    <div class="bg-inputBg border border-borderSubtle p-3 rounded-xl space-y-2.5">
+                        <label class="block text-[10px] font-semibold text-themePrimary uppercase flex items-center gap-1.5">
+                            <i class="fa-solid fa-plus-circle"></i> Adicionar Temporada / OVA Faltante
+                        </label>
+                        
+                        <div class="flex flex-col sm:flex-row gap-1.5">
+                            <input type="text" id="input-missing-season" placeholder="Nome da temporada/OVA..." class="min-w-0 flex-1 bg-cardBg border border-borderSubtle rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-themePrimary">
+                            <div class="flex gap-1.5">
+                                <button type="button" onclick="searchSeasonFromSource()" id="btn-search-season" class="flex-1 sm:flex-initial bg-themePrimary/20 hover:bg-themePrimary/30 text-themePrimary border border-themePrimary/30 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer shrink-0 flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-magnifying-glass"></i> Buscar
+                                </button>
+                                <button type="button" onclick="addCustomSeasonManual()" class="flex-1 sm:flex-initial bg-cardBg hover:bg-slate-800 text-slate-300 border border-borderSubtle px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer shrink-0 flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-plus"></i> Manual
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="season-results" class="hidden bg-cardBg border border-borderSubtle rounded-xl p-2 max-h-36 overflow-y-auto space-y-1"></div>
+                        <div id="preview-seasons-list" class="space-y-1.5 pt-1"></div>
+                    </div>
+
+                    <!-- Configurações Extras (Tags & Calendário) -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Tags (Separadas por vírgula)</label>
+                            <input type="text" id="input-tags" placeholder="Ex: Live, Maratona, Favoritos" class="w-full bg-inputBg border border-borderSubtle rounded-xl px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-themePrimary">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Dia de Lançamento</label>
+                            <select id="input-air-day" class="w-full bg-inputBg border border-borderSubtle rounded-xl px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-themePrimary">
+                                <option value="">Nenhum / Finalizado</option>
+                                <option value="Segunda">Segunda-feira</option>
+                                <option value="Terça">Terça-feira</option>
+                                <option value="Quarta">Quarta-feira</option>
+                                <option value="Quinta">Quinta-feira</option>
+                                <option value="Sexta">Sexta-feira</option>
+                                <option value="Sábado">Sábado</option>
+                                <option value="Domingo">Domingo</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Anotações / Diário</label>
+                        <textarea id="input-notes" rows="2" placeholder="Anote lembretes, teorias ou impressões..." class="w-full bg-inputBg border border-borderSubtle rounded-xl p-2 text-xs text-slate-200 focus:outline-none focus:border-themePrimary resize-none"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Categoria</label>
+                            <select id="input-category" class="w-full bg-inputBg border border-borderSubtle rounded-xl px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-themePrimary">
+                                <option value="Anime">Anime</option>
+                                <option value="Filme">Filme</option>
+                                <option value="Série">Série</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Status</label>
+                            <select id="input-status" class="w-full bg-inputBg border border-borderSubtle rounded-xl px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-themePrimary">
+                                <option value="watching">Assistindo</option>
+                                <option value="planned">Quero Ver</option>
+                                <option value="completed">Concluído</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Avaliação</label>
+                        <select id="input-rating" class="w-full bg-inputBg border border-borderSubtle rounded-xl px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-themePrimary">
+                            <option value="0">Sem nota</option>
+                            <option value="1">⭐ 1 Estrela</option>
+                            <option value="2">⭐⭐ 2 Estrelas</option>
+                            <option value="3">⭐⭐⭐ 3 Estrelas</option>
+                            <option value="4">⭐⭐⭐⭐ 4 Estrelas</option>
+                            <option value="5">⭐⭐⭐⭐⭐ 5 Estrelas</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 mt-4 pt-2 border-t border-borderSubtle">
+                    <button type="button" onclick="closeModal()" class="w-1/2 sm:w-auto px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white bg-inputBg transition-all cursor-pointer">Cancelar</button>
+                    <button type="submit" class="w-1/2 sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold bg-themePrimary hover:bg-themeHover text-white shadow-md transition-all cursor-pointer">Salvar Obra</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Agenda de Lançamentos da Semana -->
+    <div id="schedule-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="media-card border border-borderSubtle w-full max-w-2xl rounded-2xl p-4 sm:p-5 shadow-2xl relative max-h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b border-borderSubtle">
+                <h3 class="text-sm sm:text-base font-bold text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-calendar-week text-themePrimary"></i> Agenda de Lançamentos da Semana
+                </h3>
+                <button onclick="toggleScheduleModal()" class="text-slate-400 hover:text-white p-1 text-sm cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div id="schedule-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                <!-- Preenchido via JS -->
+            </div>
+
+            <div class="flex justify-end pt-3 mt-4 border-t border-borderSubtle">
+                <button onclick="toggleScheduleModal()" class="px-4 py-1.5 rounded-xl text-xs font-semibold bg-inputBg text-slate-300 hover:text-white transition-all cursor-pointer">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Sinopse & Diário -->
+    <div id="synopsis-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="media-card border border-borderSubtle w-full max-w-md rounded-2xl p-4 sm:p-5 shadow-2xl relative max-h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-start mb-3">
+                <h3 id="synopsis-title" class="text-sm sm:text-base font-bold text-slate-100 pr-4">Título</h3>
+                <button onclick="closeSynopsisModal()" class="text-slate-400 hover:text-white p-1 text-sm cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex gap-3 mb-3 flex-col sm:flex-row items-center sm:items-start">
+                <img id="synopsis-cover" src="" alt="Capa" class="w-24 h-36 object-cover rounded-xl border border-borderSubtle shrink-0">
+                <div class="flex-1 min-w-0">
+                    <div id="synopsis-genres" class="flex flex-wrap gap-1 mb-2"></div>
+                    <p id="synopsis-text" class="text-xs text-slate-300 leading-relaxed max-h-36 overflow-y-auto pr-1">Descrição...</p>
+                </div>
+            </div>
+            <div id="synopsis-notes-container" class="mt-3 pt-2 border-t border-borderSubtle hidden">
+                <p class="text-[10px] font-bold text-themePrimary uppercase mb-1"><i class="fa-solid fa-note-sticky"></i> Anotações / Diário:</p>
+                <p id="synopsis-notes-text" class="text-xs text-slate-300 italic bg-inputBg p-2 rounded-xl border border-borderSubtle"></p>
+            </div>
+            <div class="flex justify-end pt-3 mt-3 border-t border-borderSubtle">
+                <button onclick="closeSynopsisModal()" class="px-4 py-1.5 rounded-xl text-xs font-medium bg-inputBg hover:bg-slate-800 text-slate-300 transition-all cursor-pointer">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Gerenciador de Temporadas e Episódios -->
+    <div id="seasons-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="media-card border border-borderSubtle w-full max-w-lg rounded-2xl p-4 sm:p-5 shadow-2xl relative max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center mb-3 pb-2 border-b border-borderSubtle">
+                <div>
+                    <h3 id="seasons-modal-title" class="text-sm sm:text-base font-bold text-slate-100">Gerenciar Temporadas</h3>
+                    <p id="seasons-modal-subtitle" class="text-[11px] text-slate-400">Navegue pelas abas ou ajuste as configurações</p>
+                </div>
+                <button onclick="closeSeasonsModal()" class="text-slate-400 hover:text-white p-1 text-sm cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div id="seasons-tabs" class="flex gap-1.5 overflow-x-auto no-scrollbar pb-2 mb-3 border-b border-borderSubtle whitespace-nowrap"></div>
+            
+            <div class="mb-3 bg-inputBg p-2.5 rounded-xl border border-borderSubtle grid grid-cols-1 sm:grid-cols-4 gap-2">
+                <div class="sm:col-span-2">
+                    <label class="block text-[9px] font-semibold text-slate-400 uppercase mb-0.5">Nome da Temporada:</label>
+                    <input type="text" id="input-rename-season" oninput="renameActiveSeason(this.value)" class="w-full bg-cardBg border border-borderSubtle rounded-lg px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-themePrimary" placeholder="Nome...">
+                </div>
+                <div>
+                    <label class="block text-[9px] font-semibold text-slate-400 uppercase mb-0.5">Tipo de Mídia:</label>
+                    <select id="input-type-season" onchange="changeActiveSeasonType(this.value)" class="w-full bg-cardBg border border-borderSubtle rounded-lg px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-themePrimary">
+                        <option value="TV">TV</option>
+                        <option value="OVA">OVA</option>
+                        <option value="Filme">Filme</option>
+                        <option value="Especial">Especial</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[9px] font-semibold text-slate-400 uppercase mb-0.5">Total Eps:</label>
+                    <input type="number" id="input-eps-season" min="1" oninput="changeActiveSeasonTotalEps(this.value)" class="w-full bg-cardBg border border-borderSubtle rounded-lg px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-themePrimary">
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3">
+                <div id="season-status-badge" class="text-[11px] font-semibold"></div>
+                <div class="flex gap-1.5 w-full sm:w-auto">
+                    <button onclick="markCurrentSeason(true)" class="flex-1 sm:flex-initial bg-themePrimary/10 hover:bg-themePrimary/20 text-themePrimary border border-themePrimary/30 text-[11px] px-2.5 py-1.5 rounded-lg font-medium transition-all cursor-pointer">
+                        <i class="fa-solid fa-check-double"></i> Concluir Temporada
+                    </button>
+                    <button onclick="markCurrentSeason(false)" class="flex-1 sm:flex-initial bg-inputBg hover:bg-slate-800 text-slate-400 border border-borderSubtle text-[11px] px-2.5 py-1.5 rounded-lg font-medium transition-all cursor-pointer">
+                        Desmarcar
+                    </button>
+                </div>
+            </div>
+
+            <div id="episodes-grid" class="grid grid-cols-6 sm:grid-cols-8 gap-1.5 sm:gap-2 overflow-y-auto p-1 flex-1 max-h-56"></div>
+
+            <div class="flex justify-end pt-3 mt-3 border-t border-borderSubtle">
+                <button onclick="closeSeasonsModal()" class="px-4 py-1.5 rounded-xl text-xs font-semibold bg-themePrimary hover:bg-themeHover text-white transition-all cursor-pointer">Salvar & Concluir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Estatísticas Avançadas -->
+    <div id="stats-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="media-card border border-borderSubtle w-full max-w-lg rounded-2xl p-4 sm:p-5 shadow-2xl relative max-h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b border-borderSubtle">
+                <h3 class="text-sm sm:text-base font-bold text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie text-themePrimary"></i> Estatísticas Detalhadas
+                </h3>
+                <button onclick="toggleStatsModal()" class="text-slate-400 hover:text-white p-1 text-sm cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="space-y-4">
+                <div class="bg-inputBg p-3 rounded-xl border border-borderSubtle flex items-center justify-between">
+                    <div>
+                        <p class="text-[10px] font-semibold text-slate-400 uppercase">Tempo Total Assistido Estimado</p>
+                        <p id="stats-total-time" class="text-lg font-bold text-themePrimary">0 Horas</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-xl bg-themePrimary/10 border border-themePrimary/20 flex items-center justify-center text-themePrimary text-lg">
+                        <i class="fa-solid fa-hourglass-half"></i>
+                    </div>
+                </div>
+
+                <div>
+                    <p class="text-xs font-bold text-slate-300 mb-2">Distribuição por Categoria:</p>
+                    <div id="stats-categories-bar" class="w-full h-3 bg-inputBg rounded-full overflow-hidden flex border border-borderSubtle"></div>
+                    <div id="stats-categories-legend" class="flex gap-3 text-[11px] text-slate-400 mt-1.5 flex-wrap"></div>
+                </div>
+
+                <div>
+                    <p class="text-xs font-bold text-slate-300 mb-2">Gêneros Mais Populares:</p>
+                    <div id="stats-genres-list" class="space-y-1.5"></div>
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-3 mt-4 border-t border-borderSubtle">
+                <button onclick="toggleStatsModal()" class="px-4 py-1.5 rounded-xl text-xs font-semibold bg-inputBg text-slate-300 hover:text-white transition-all cursor-pointer">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Gerador de Card de Compartilhamento -->
+    <div id="share-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="media-card border border-borderSubtle w-full max-w-sm rounded-2xl p-4 shadow-2xl relative">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-xs font-bold text-slate-200 flex items-center gap-2">
+                    <i class="fa-solid fa-share-nodes text-themePrimary"></i> Card de Compartilhamento
+                </h3>
+                <button onclick="closeShareModal()" class="text-slate-400 hover:text-white p-1 text-sm cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div id="share-card-export" class="bg-darkBg p-4 rounded-2xl border border-themePrimary/40 flex flex-col items-center text-center relative overflow-hidden">
+                <img id="share-cover" src="" class="w-28 h-40 object-cover rounded-xl border border-borderSubtle mb-3 shadow-lg">
+                <h4 id="share-title" class="font-bold text-sm text-slate-100 mb-1 line-clamp-1"></h4>
+                <div id="share-status" class="mb-2"></div>
+                <p id="share-progress" class="text-xs text-slate-400 mb-2"></p>
+                <div id="share-stars" class="text-xs text-amber-400 mb-2"></div>
+                <div class="text-[9px] text-slate-500 uppercase tracking-widest pt-2 border-t border-borderSubtle w-full">Tracked via Media Tracker</div>
+            </div>
+
+            <div class="flex gap-2 mt-4">
+                <button onclick="downloadShareCardImage()" class="flex-1 bg-themePrimary hover:bg-themeHover text-white py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-download"></i> Baixar Imagem
+                </button>
+                <button onclick="copyShareCardHTML()" class="flex-1 bg-inputBg hover:bg-slate-800 text-slate-300 border border-borderSubtle py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-copy"></i> Copiar HTML
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script JavaScript Completo Atualizado -->
+    <script>
+        let mediaList = JSON.parse(localStorage.getItem('media_tracker_data')) || [
+            { 
+                id: 1, 
+                title: 'Diários de uma Apotecária', 
+                category: 'Anime', 
+                status: 'watching', 
+                rating: 5, 
+                tags: ['Anime', 'TV', 'Drama', 'Ação'],
+                airDay: 'Sexta',
+                notes: 'Ansioso pelos próximos episódios no palácio!',
+                coverImage: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx161645-8A1zMshL4I6L.jpg', 
+                description: 'Maomao, uma jovem apotecária no bairro da luz vermelha, é sequestrada e vendida como serva no Palácio Imperial.', 
+                genres: ['Drama', 'Mystery'],
+                seasons: [
+                    { name: '1ª Temporada', type: 'TV', totalEps: 24, watched: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24] },
+                    { name: '2ª Temporada', type: 'TV', totalEps: 24, watched: [1,2,3,4,5] }
+                ]
+            }
+        ];
+
+        let currentTheme = localStorage.getItem('media_tracker_theme') || 'magenta';
+        let viewMode = localStorage.getItem('media_tracker_view_mode') || 'cards';
+        changeTheme(currentTheme, false);
+
+        function changeTheme(themeName, save = true) {
+            currentTheme = themeName;
+            document.body.className = `theme-${themeName} bg-darkBg text-slate-100 min-h-screen font-sans antialiased selection:bg-themePrimary selection:text-white pb-28 md:pb-10`;
+            document.getElementById('theme-selector').value = themeName;
+            if (save) localStorage.setItem('media_tracker_theme', themeName);
+        }
+
+        function setViewMode(mode) {
+            viewMode = mode;
+            localStorage.setItem('media_tracker_view_mode', mode);
+            document.getElementById('btn-view-cards').className = mode === 'cards' ? 'px-2.5 py-1 rounded-lg text-xs text-white bg-themePrimary transition-all cursor-pointer' : 'px-2.5 py-1 rounded-lg text-xs text-slate-400 hover:text-white transition-all cursor-pointer';
+            document.getElementById('btn-view-list').className = mode === 'list' ? 'px-2.5 py-1 rounded-lg text-xs text-white bg-themePrimary transition-all cursor-pointer' : 'px-2.5 py-1 rounded-lg text-xs text-slate-400 hover:text-white transition-all cursor-pointer';
+            renderMedia();
+        }
+
+        let currentStatusFilter = 'all';
+        let tempObraData = { coverImage: '', description: '', genres: [], seasons: [], tags: [], airDay: '' };
+        let activeEditingObraId = null;
+        let activeSeasonIndex = 0;
+        let activeShareMediaId = null;
+
+        function cleanHtmlText(html) {
+            if (!html) return '';
+            let doc = new DOMParser().parseFromString(html, 'text/html');
+            return doc.body.textContent || "";
+        }
+
+        const mapDayToPortuguese = (dayStr) => {
+            if (!dayStr) return '';
+            const d = dayStr.toLowerCase();
+            if (d.includes('monday') || d.includes('mondays')) return 'Segunda';
+            if (d.includes('tuesday') || d.includes('tuesdays')) return 'Terça';
+            if (d.includes('wednesday') || d.includes('wednesdays')) return 'Quarta';
+            if (d.includes('thursday') || d.includes('thursdays')) return 'Quinta';
+            if (d.includes('friday') || d.includes('fridays')) return 'Sexta';
+            if (d.includes('saturday') || d.includes('saturdays')) return 'Sábado';
+            if (d.includes('sunday') || d.includes('sundays')) return 'Domingo';
+            return '';
+        };
+
+        // BUSCA MULTI-FONTE (COM TAGS E DIAS DE LANÇAMENTO)
+        async function searchMediaFromSource() {
+            const query = document.getElementById('input-title').value.trim();
+            const source = document.getElementById('search-source').value;
+            const btn = document.getElementById('btn-search-source');
+            const resultsBox = document.getElementById('media-results');
+
+            if (!query) return alert('Digite um título para buscar.');
+
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
+            btn.disabled = true;
+            resultsBox.innerHTML = '';
+
+            try {
+                if (source === 'mal') {
+                    const res = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&limit=5`);
+                    const json = await res.json();
+                    if (json.data && json.data.length > 0) {
+                        json.data.forEach(anime => {
+                            const title = anime.title_english || anime.title;
+                            const cover = anime.images?.jpg?.large_image_url || '';
+                            const desc = anime.synopsis || 'Sem descrição.';
+                            const genres = anime.genres ? anime.genres.map(g => g.name) : [];
+                            const score = anime.score ? Math.round((anime.score / 10) * 5) : 0;
+                            const airDay = anime.broadcast?.day ? mapDayToPortuguese(anime.broadcast.day) : '';
+                            const tags = ['Anime', anime.type || 'TV', ...genres.slice(0, 3)];
+
+                            const seasons = [{ name: '1ª Temporada', type: anime.type || 'TV', totalEps: anime.episodes || 12, watched: [] }];
+                            appendResultItem(resultsBox, title, 1, cover, desc, genres, score, seasons, tags, airDay);
+                        });
+                        resultsBox.classList.remove('hidden');
+                    }
+                } else if (source === 'anilist') {
+                    const graphqlQuery = `
+                        query ($search: String) {
+                            Page (perPage: 5) {
+                                media (search: $search, type: ANIME, sort: SEARCH_MATCH) {
+                                    title { english romaji }
+                                    episodes averageScore description coverImage { large } genres format
+                                    nextAiringEpisode { timeUntilAiring episode }
+                                    relations { edges { relationType node { title { english romaji } episodes format } } }
+                                }
+                            }
+                        }
+                    `;
+                    const res = await fetch('https://graphql.anilist.co', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify({ query: graphqlQuery, variables: { search: query } })
+                    });
+                    const json = await res.json();
+                    if (json.data && json.data.Page && json.data.Page.media.length > 0) {
+                        json.data.Page.media.forEach(anime => {
+                            const title = anime.title.english || anime.title.romaji;
+                            const cover = anime.coverImage ? anime.coverImage.large : '';
+                            const desc = cleanHtmlText(anime.description) || 'Sem descrição.';
+                            const genres = anime.genres || [];
+                            const score = anime.averageScore ? Math.round((anime.averageScore / 100) * 5) : 0;
+                            const tags = ['Anime', anime.format || 'TV', ...genres.slice(0, 3)];
+
+                            let seasons = [{ name: '1ª Temporada', type: anime.format || 'TV', totalEps: anime.episodes || 12, watched: [] }];
+                            if (anime.relations && anime.relations.edges) {
+                                let sCount = 2;
+                                anime.relations.edges.forEach(edge => {
+                                    if (['SEQUEL', 'PARENT'].includes(edge.relationType) && edge.node) {
+                                        seasons.push({ name: `${sCount}ª Temporada`, type: edge.node.format || 'TV', totalEps: edge.node.episodes || 12, watched: [] });
+                                        sCount++;
+                                    }
+                                });
+                            }
+                            appendResultItem(resultsBox, title, seasons.length, cover, desc, genres, score, seasons, tags, '');
+                        });
+                        resultsBox.classList.remove('hidden');
+                    }
+                } else if (source === 'imdb') {
+                    const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=3d451372e90f2bf61a6b0db664b92b67&query=${encodeURIComponent(query)}`);
+                    const json = await res.json();
+                    if (json.results && json.results.length > 0) {
+                        json.results.filter(item => item.media_type === 'tv' || item.media_type === 'movie').forEach(item => {
+                            const title = item.name || item.title;
+                            const cover = item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '';
+                            const desc = item.overview || 'Sem descrição.';
+                            const category = item.media_type === 'tv' ? 'Série' : 'Filme';
+                            const seasonsCount = item.number_of_seasons || 1;
+                            const eps = item.number_of_episodes || 12;
+
+                            let seasons = [];
+                            if (category === 'Filme') {
+                                seasons.push({ name: 'Filme', type: 'Filme', totalEps: 1, watched: [] });
+                            } else {
+                                for(let i=1; i<=Math.min(seasonsCount, 5); i++) {
+                                    seasons.push({ name: `${i}ª Temporada`, type: 'TV', totalEps: Math.round(eps / seasonsCount) || 10, watched: [] });
+                                }
+                            }
+
+                            const itemBtn = document.createElement('button');
+                            itemBtn.type = 'button';
+                            itemBtn.className = "w-full text-left p-2 hover:bg-themePrimary/15 rounded-lg text-xs flex justify-between items-center transition-all cursor-pointer";
+                            itemBtn.innerHTML = `<span class="font-medium truncate pr-2 text-slate-200">${title} (${category})</span><span class="text-[10px] text-themePrimary font-semibold shrink-0">${seasons.length} Temp.</span>`;
+                            itemBtn.onclick = () => {
+                                document.getElementById('input-title').value = title;
+                                document.getElementById('input-category').value = category;
+                                document.getElementById('input-tags').value = category;
+                                tempObraData = { coverImage: cover, description: desc, genres: [], seasons: seasons, tags: [category], airDay: '' };
+                                updatePreviewSeasonsList();
+                                document.getElementById('loaded-info-text').innerText = `${category} carregada com sucesso!`;
+                                document.getElementById('loaded-info').classList.remove('hidden');
+                                resultsBox.classList.add('hidden');
+                            };
+                            resultsBox.appendChild(itemBtn);
+                        });
+                        resultsBox.classList.remove('hidden');
+                    }
+                }
+            } catch (err) {
+                resultsBox.innerHTML = `<p class="text-[11px] text-rose-400 p-2 text-center">Erro ao conectar com a API.</p>`;
+                resultsBox.classList.remove('hidden');
+            } finally {
+                btn.innerHTML = `<i class="fa-solid fa-magnifying-glass"></i> Buscar`;
+                btn.disabled = false;
+            }
+        }
+
+        function appendResultItem(box, title, count, cover, desc, genres, score, seasons, tags = [], airDay = '') {
+            const itemBtn = document.createElement('button');
+            itemBtn.type = 'button';
+            itemBtn.className = "w-full text-left p-2 hover:bg-themePrimary/15 rounded-lg text-xs flex justify-between items-center transition-all cursor-pointer";
+            itemBtn.innerHTML = `<span class="font-medium truncate pr-2 text-slate-200">${title}</span><span class="text-[10px] text-themePrimary font-semibold shrink-0">${count} Temp.</span>`;
+            itemBtn.onclick = () => {
+                document.getElementById('input-title').value = title;
+                document.getElementById('input-category').value = 'Anime';
+                if (score > 0) document.getElementById('input-rating').value = score;
+                if (tags.length > 0) document.getElementById('input-tags').value = tags.join(', ');
+                if (airDay) document.getElementById('input-air-day').value = airDay;
+
+                tempObraData = { coverImage: cover, description: desc, genres: genres, seasons: seasons, tags: tags, airDay: airDay };
+                updatePreviewSeasonsList();
+                document.getElementById('loaded-info-text').innerText = `Obra carregada com ${seasons.length} temporada(s)!`;
+                document.getElementById('loaded-info').classList.remove('hidden');
+                box.classList.add('hidden');
+            };
+            box.appendChild(itemBtn);
+        }
+
+        // CORREÇÃO: FUNÇÃO DE ATUALIZAR CARD EXISTENTE
+        async function updateExistingCardData(e) {
+            if (e) e.preventDefault();
+            if (activeEditingObraId === null) return;
+
+            const title = document.getElementById('input-title').value.trim();
+            const source = document.getElementById('search-source').value;
+            if (!title) return alert('Digite um título para atualizar.');
+
+            const btn = e.target;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Atualizando...`;
+
+            try {
+                if (source === 'mal') {
+                    const res = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(title)}&limit=1`);
+                    const json = await res.json();
+                    if (json.data && json.data.length > 0) {
+                        const anime = json.data[0];
+                        const cover = anime.images?.jpg?.large_image_url || tempObraData.coverImage;
+                        const desc = anime.synopsis || tempObraData.description;
+                        const genres = anime.genres ? anime.genres.map(g => g.name) : tempObraData.genres;
+                        const airDay = anime.broadcast?.day ? mapDayToPortuguese(anime.broadcast.day) : tempObraData.airDay;
+                        const tags = ['Anime', anime.type || 'TV', ...genres.slice(0, 3)];
+
+                        document.getElementById('input-tags').value = tags.join(', ');
+                        if (airDay) document.getElementById('input-air-day').value = airDay;
+
+                        tempObraData.coverImage = cover;
+                        tempObraData.description = desc;
+                        tempObraData.genres = genres;
+                        tempObraData.airDay = airDay;
+                        tempObraData.tags = tags;
+
+                        alert('Dados atualizados via MyAnimeList!');
+                    }
+                } else {
+                    const graphqlQuery = `
+                        query ($search: String) {
+                            Page (perPage: 1) {
+                                media (search: $search, type: ANIME, sort: SEARCH_MATCH) {
+                                    title { english romaji } episodes description coverImage { large } genres format
+                                }
+                            }
+                        }
+                    `;
+                    const response = await fetch('https://graphql.anilist.co', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify({ query: graphqlQuery, variables: { search: title } })
+                    });
+                    const json = await response.json();
+                    if (json.data && json.data.Page && json.data.Page.media.length > 0) {
+                        const anime = json.data.Page.media[0];
+                        tempObraData.coverImage = anime.coverImage ? anime.coverImage.large : tempObraData.coverImage;
+                        tempObraData.description = cleanHtmlText(anime.description) || tempObraData.description;
+                        tempObraData.genres = anime.genres || tempObraData.genres;
+                        alert('Card atualizado com sucesso!');
+                    }
+                }
+            } catch (err) {
+                alert('Erro ao atualizar dados.');
+            } finally {
+                btn.innerHTML = originalText;
+            }
+        }
+
+        async function searchSeasonFromSource() {
+            const query = document.getElementById('input-missing-season').value.trim();
+            const source = document.getElementById('search-source').value;
+            const btn = document.getElementById('btn-search-season');
+            const resultsBox = document.getElementById('season-results');
+
+            if (!query) return alert('Digite o nome da temporada/OVA.');
+
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
+            btn.disabled = true;
+            resultsBox.innerHTML = '';
+
+            try {
+                if (source === 'mal') {
+                    const res = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&limit=4`);
+                    const json = await res.json();
+                    if (json.data && json.data.length > 0) {
+                        json.data.forEach(anime => {
+                            appendSeasonResultItem(resultsBox, anime.title_english || anime.title, anime.episodes || 12);
+                        });
+                        resultsBox.classList.remove('hidden');
+                    }
+                } else if (source === 'anilist') {
+                    const graphqlQuery = `query ($search: String) { Page (perPage: 4) { media (search: $search, type: ANIME, sort: SEARCH_MATCH) { title { english romaji } episodes } } }`;
+                    const res = await fetch('https://graphql.anilist.co', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify({ query: graphqlQuery, variables: { search: query } })
+                    });
+                    const json = await res.json();
+                    if (json.data && json.data.Page && json.data.Page.media.length > 0) {
+                        json.data.Page.media.forEach(anime => {
+                            appendSeasonResultItem(resultsBox, anime.title.english || anime.title.romaji, anime.episodes || 12);
+                        });
+                        resultsBox.classList.remove('hidden');
+                    }
+                } else {
+                    addCustomSeasonManual();
+                }
+            } catch(e) {
+                addCustomSeasonManual();
+            } finally {
+                btn.innerHTML = `<i class="fa-solid fa-magnifying-glass"></i> Buscar`;
+                btn.disabled = false;
+            }
+        }
+
+        function appendSeasonResultItem(box, title, eps) {
+            const itemBtn = document.createElement('button');
+            itemBtn.type = 'button';
+            itemBtn.className = "w-full text-left p-1.5 hover:bg-themePrimary/20 rounded text-[11px] flex justify-between items-center transition-all cursor-pointer";
+            itemBtn.innerHTML = `<span class="font-medium truncate pr-2 text-slate-200">${title}</span><span class="text-[10px] text-themePrimary font-semibold shrink-0">${eps} eps</span>`;
+            itemBtn.onclick = () => {
+                if (!tempObraData.seasons) tempObraData.seasons = [];
+                tempObraData.seasons.push({ name: title, type: 'TV', totalEps: eps, watched: [] });
+                updatePreviewSeasonsList();
+                box.classList.add('hidden');
+                document.getElementById('input-missing-season').value = '';
+            };
+            box.appendChild(itemBtn);
+        }
+
+        function addCustomSeasonManual() {
+            const nameInput = document.getElementById('input-missing-season');
+            const name = nameInput.value.trim();
+            if (!name) return alert('Digite o nome da temporada.');
+            if (!tempObraData.seasons) tempObraData.seasons = [];
+            tempObraData.seasons.push({ name: name, type: 'TV', totalEps: 12, watched: [] });
+            nameInput.value = '';
+            updatePreviewSeasonsList();
+        }
+
+        function updatePreviewSeasonsList() {
+            const container = document.getElementById('preview-seasons-list');
+            container.innerHTML = '';
+
+            if (!tempObraData.seasons || tempObraData.seasons.length === 0) {
+                container.innerHTML = '<span class="text-[10px] text-slate-500 italic">Nenhuma temporada cadastrada.</span>';
+                return;
+            }
+
+            tempObraData.seasons.forEach((season, idx) => {
+                const row = document.createElement('div');
+                row.className = "flex items-center gap-1.5 bg-cardBg p-1.5 rounded-lg border border-borderSubtle";
+                row.innerHTML = `
+                    <input type="text" value="${season.name}" oninput="tempObraData.seasons[${idx}].name = this.value" class="min-w-0 flex-1 bg-inputBg border border-borderSubtle rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-themePrimary">
+                    <select onchange="tempObraData.seasons[${idx}].type = this.value" class="bg-inputBg border border-borderSubtle rounded px-1 py-1 text-[10px] text-slate-300 focus:outline-none">
+                        <option value="TV" ${season.type === 'TV' ? 'selected' : ''}>TV</option>
+                        <option value="OVA" ${season.type === 'OVA' ? 'selected' : ''}>OVA</option>
+                        <option value="Filme" ${season.type === 'Filme' ? 'selected' : ''}>Filme</option>
+                        <option value="Especial" ${season.type === 'Especial' ? 'selected' : ''}>Especial</option>
+                    </select>
+                    <input type="number" min="1" value="${season.totalEps}" oninput="tempObraData.seasons[${idx}].totalEps = parseInt(this.value) || 1" class="w-12 bg-inputBg border border-borderSubtle rounded px-1 py-1 text-xs text-slate-200 focus:outline-none focus:border-themePrimary text-center">
+                    <span class="text-[10px] text-slate-400">eps</span>
+                    <button type="button" onclick="removeTempSeason(${idx})" class="text-slate-500 hover:text-rose-400 px-1 py-0.5 text-xs transition-colors cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function removeTempSeason(index) {
+            if (tempObraData.seasons && tempObraData.seasons[index]) {
+                tempObraData.seasons.splice(index, 1);
+                updatePreviewSeasonsList();
+            }
+        }
+
+        function quickIncrementEpisode(id) {
+            const item = mediaList.find(m => m.id === id);
+            if (!item || !item.seasons) return;
+
+            let currentSeason = item.seasons.find(s => (s.watched || []).length < s.totalEps);
+            if (!currentSeason) currentSeason = item.seasons[item.seasons.length - 1];
+
+            if (currentSeason) {
+                if (!currentSeason.watched) currentSeason.watched = [];
+                for (let i = 1; i <= currentSeason.totalEps; i++) {
+                    if (!currentSeason.watched.includes(i)) {
+                        currentSeason.watched.push(i);
+                        break;
+                    }
+                }
+                updateObraOverallStatus(item);
+                saveData();
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('media_tracker_data', JSON.stringify(mediaList));
+            updateStats();
+            renderMedia();
+        }
+
+        function exportBackup() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(mediaList, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `media-tracker-backup-${new Date().toISOString().slice(0, 10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importBackup(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (Array.isArray(importedData)) {
+                        if (confirm(`Substituir dados atuais por este backup (${importedData.length} itens)?`)) {
+                            mediaList = importedData;
+                            saveData();
+                            alert('Backup restaurado com sucesso!');
+                        }
+                    } else {
+                        alert('Arquivo de backup inválido.');
+                    }
+                } catch (err) {
+                    alert('Erro ao ler arquivo JSON.');
+                }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function updateStats() {
+            document.getElementById('stat-total').innerText = mediaList.length;
+            document.getElementById('stat-watching').innerText = mediaList.filter(m => m.status === 'watching').length;
+            document.getElementById('stat-planned').innerText = mediaList.filter(m => m.status === 'planned').length;
+            document.getElementById('stat-completed').innerText = mediaList.filter(m => m.status === 'completed').length;
+        }
+
+        function filterStatus(status) {
+            currentStatusFilter = status;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.className = "filter-btn shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-cardBg transition-all cursor-pointer";
+            });
+            document.getElementById(`btn-status-${status}`).className = "filter-btn shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold bg-themePrimary text-white transition-all cursor-pointer";
+            renderMedia();
+        }
+
+        function renderMedia() {
+            const grid = document.getElementById('media-grid');
+            const listView = document.getElementById('media-list');
+            const emptyState = document.getElementById('empty-state');
+            const categoryFilter = document.getElementById('filter-category').value;
+            const sortOrder = document.getElementById('sort-order').value;
+            const searchQuery = document.getElementById('search-input').value.toLowerCase();
+
+            let filtered = mediaList.filter(item => {
+                const matchStatus = currentStatusFilter === 'all' || item.status === currentStatusFilter;
+                const matchCategory = categoryFilter === 'all' || item.category === categoryFilter;
+                const matchSearch = item.title.toLowerCase().includes(searchQuery) || (item.tags && item.tags.some(t => t.toLowerCase().includes(searchQuery)));
+                return matchStatus && matchCategory && matchSearch;
+            });
+
+            filtered.sort((a, b) => {
+                if (sortOrder === 'title') return a.title.localeCompare(b.title);
+                if (sortOrder === 'rating') return (b.rating || 0) - (a.rating || 0);
+                if (sortOrder === 'progress') return getProgressPct(b) - getProgressPct(a);
+                return b.id - a.id;
+            });
+
+            grid.innerHTML = '';
+            listView.innerHTML = '';
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove('hidden');
+                grid.classList.add('hidden');
+                listView.classList.add('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            if (viewMode === 'cards') {
+                grid.classList.remove('hidden');
+                listView.classList.add('hidden');
+
+                filtered.forEach(item => {
+                    const statusBadge = {
+                        watching: '<span class="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded text-[10px] font-semibold">Assistindo</span>',
+                        planned: '<span class="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded text-[10px] font-semibold">Quero Ver</span>',
+                        completed: '<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded text-[10px] font-semibold">Concluído</span>'
+                    }[item.status];
+
+                    const catBadge = {
+                        Anime: 'text-themePrimary bg-themePrimary/10 border border-themePrimary/20',
+                        Filme: 'text-rose-400 bg-rose-500/10 border border-rose-500/20',
+                        Série: 'text-sky-400 bg-sky-500/10 border border-sky-500/20'
+                    }[item.category];
+
+                    const stars = item.rating > 0 ? '⭐'.repeat(item.rating) : '<span class="text-slate-600 text-[11px]">Sem nota</span>';
+                    
+                    let totalEpsAll = 0, watchedEpsAll = 0;
+                    if (item.seasons) {
+                        item.seasons.forEach(s => { totalEpsAll += s.totalEps || 0; watchedEpsAll += (s.watched || []).length; });
+                    }
+                    const progressPct = totalEpsAll > 0 ? Math.min(100, Math.round((watchedEpsAll / totalEpsAll) * 100)) : 0;
+
+                    const card = document.createElement('div');
+                    card.className = "media-card rounded-2xl overflow-hidden flex flex-col justify-between relative";
+                    
+                    let coverHtml = '';
+                    if (item.coverImage) {
+                        coverHtml = `
+                            <div class="h-36 w-full relative overflow-hidden bg-inputBg">
+                                <img src="${item.coverImage}" alt="${item.title}" class="w-full h-full object-cover opacity-85 hover:scale-105 transition-transform duration-300">
+                                <div class="absolute inset-0 bg-gradient-to-t from-cardBg via-transparent to-transparent"></div>
+                                ${item.airDay ? `<span class="absolute top-2 left-2 bg-darkBg/80 backdrop-blur-md text-amber-400 text-[9px] font-bold px-2 py-0.5 rounded border border-amber-500/30"><i class="fa-solid fa-calendar-day"></i> ${item.airDay}</span>` : ''}
+                            </div>
+                        `;
+                    }
+
+                    let tagsHtml = '';
+                    if (item.tags && item.tags.length > 0) {
+                        tagsHtml = `<div class="flex flex-wrap gap-1 mt-1.5">${item.tags.map(t => `<span class="text-[9px] bg-inputBg text-slate-400 border border-borderSubtle px-1.5 py-0.5 rounded">${t}</span>`).join('')}</div>`;
+                    }
+
+                    card.innerHTML = `
+                        <div>
+                            ${coverHtml}
+                            <div class="p-3">
+                                <div class="flex justify-between items-start gap-2 mb-1.5">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${catBadge}">${item.category}</span>
+                                    ${statusBadge}
+                                </div>
+                                <h3 class="font-bold text-sm text-slate-100 mb-1 leading-snug line-clamp-2">${item.title}</h3>
+                                ${tagsHtml}
+                                <div class="text-xs text-slate-400 my-2 flex justify-between items-center">
+                                    <span>${stars}</span>
+                                    ${(item.description || item.notes) ? `<button onclick="openSynopsisModal(${item.id})" class="text-themePrimary hover:opacity-80 text-[11px] font-medium flex items-center gap-1 cursor-pointer"><i class="fa-solid fa-book-open"></i> Detalhes</button>` : ''}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="p-3 pt-0">
+                            ${item.status !== 'planned' ? `
+                                <div class="mb-2.5">
+                                    <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+                                        <span>Progresso: <b class="text-slate-200">${watchedEpsAll}</b> / ${totalEpsAll} eps</span>
+                                        <span class="font-semibold text-themePrimary">${progressPct}%</span>
+                                    </div>
+                                    <div class="w-full bg-inputBg h-1.5 rounded-full overflow-hidden border border-borderSubtle">
+                                        <div class="bg-themePrimary h-full transition-all duration-300" style="width: ${progressPct}%"></div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-1.5 mb-2">
+                                    <button onclick="openSeasonsModal(${item.id})" class="flex-1 bg-inputBg hover:bg-themePrimary/15 border border-borderSubtle hover:border-themePrimary/40 text-xs font-semibold py-1.5 rounded-xl text-slate-200 transition-all cursor-pointer flex items-center justify-center gap-1.5">
+                                        <i class="fa-solid fa-layer-group text-themePrimary"></i> Temporadas (${item.seasons ? item.seasons.length : 1})
+                                    </button>
+                                    <button onclick="quickIncrementEpisode(${item.id})" class="bg-themePrimary/20 hover:bg-themePrimary/30 border border-themePrimary/40 text-themePrimary px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer" title="Adicionar +1 Episódio Assistido">+1 Ep</button>
+                                </div>
+                            ` : ''}
+
+                            <div class="flex justify-between items-center pt-2 border-t border-borderSubtle">
+                                <button onclick="openShareModal(${item.id})" class="text-slate-400 hover:text-themePrimary text-xs cursor-pointer flex items-center gap-1" title="Compartilhar"><i class="fa-solid fa-share-nodes"></i> <span class="text-[10px]">Card</span></button>
+                                <div class="flex gap-2">
+                                    <button onclick="openModal(${item.id})" class="text-slate-400 hover:text-themePrimary p-1 text-xs transition-all cursor-pointer" title="Editar"><i class="fa-solid fa-pen"></i></button>
+                                    <button onclick="deleteMedia(${item.id})" class="text-slate-400 hover:text-rose-400 p-1 text-xs transition-all cursor-pointer" title="Excluir"><i class="fa-solid fa-trash"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            } else {
+                // Modo Lista Otimizado para Mobile e Desktop
+                grid.classList.add('hidden');
+                listView.classList.remove('hidden');
+
+                filtered.forEach(item => {
+                    let totalEpsAll = 0, watchedEpsAll = 0;
+                    if (item.seasons) {
+                        item.seasons.forEach(s => { totalEpsAll += s.totalEps || 0; watchedEpsAll += (s.watched || []).length; });
+                    }
+                    const progressPct = totalEpsAll > 0 ? Math.min(100, Math.round((watchedEpsAll / totalEpsAll) * 100)) : 0;
+
+                    const row = document.createElement('div');
+                    row.className = "media-card p-2.5 rounded-xl flex items-center justify-between gap-2.5";
+                    row.innerHTML = `
+                        <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                            ${item.coverImage ? `<img src="${item.coverImage}" class="w-10 h-14 object-cover rounded-lg border border-borderSubtle shrink-0">` : ''}
+                            <div class="min-w-0 flex-1">
+                                <h4 class="font-bold text-xs text-slate-100 truncate">${item.title}</h4>
+                                <div class="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
+                                    <span class="text-themePrimary font-medium">${item.category}</span>
+                                    <span>•</span>
+                                    <span>${watchedEpsAll}/${totalEpsAll} eps (${progressPct}%)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <button onclick="quickIncrementEpisode(${item.id})" class="bg-themePrimary/20 text-themePrimary hover:bg-themePrimary/30 border border-themePrimary/30 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer">+1 Ep</button>
+                            <button onclick="openSeasonsModal(${item.id})" class="text-slate-400 hover:text-white p-1.5 text-xs"><i class="fa-solid fa-layer-group"></i></button>
+                            <button onclick="openModal(${item.id})" class="text-slate-400 hover:text-white p-1.5 text-xs"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deleteMedia(${item.id})" class="text-slate-400 hover:text-rose-400 p-1.5 text-xs"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    `;
+                    listView.appendChild(row);
+                });
+            }
+        }
+
+        function getProgressPct(item) {
+            let total = 0, watched = 0;
+            if (item.seasons) {
+                item.seasons.forEach(s => { total += s.totalEps || 0; watched += (s.watched || []).length; });
+            }
+            return total > 0 ? (watched / total) * 100 : 0;
+        }
+
+        function openModal(id = null) {
+            document.getElementById('media-modal').classList.remove('hidden');
+            document.getElementById('media-results').classList.add('hidden');
+            document.getElementById('season-results').classList.add('hidden');
+            document.getElementById('loaded-info').classList.add('hidden');
+            document.getElementById('update-old-card-container').classList.add('hidden');
+            tempObraData = { coverImage: '', description: '', genres: [], seasons: [], tags: [], airDay: '' };
+
+            if (id !== null && id !== undefined) {
+                activeEditingObraId = id;
+                document.getElementById('modal-title').innerHTML = '<i class="fa-solid fa-pen-to-square text-themePrimary"></i> Editar / Atualizar Obra';
+                document.getElementById('update-old-card-container').classList.remove('hidden');
+                
+                const item = mediaList.find(m => m.id === id);
+                if (item) {
+                    document.getElementById('media-id').value = item.id;
+                    document.getElementById('input-title').value = item.title;
+                    document.getElementById('input-category').value = item.category;
+                    document.getElementById('input-status').value = item.status;
+                    document.getElementById('input-rating').value = item.rating;
+                    document.getElementById('input-tags').value = item.tags ? item.tags.join(', ') : '';
+                    document.getElementById('input-air-day').value = item.airDay || '';
+                    document.getElementById('input-notes').value = item.notes || '';
+                    
+                    tempObraData = {
+                        coverImage: item.coverImage || '',
+                        description: item.description || '',
+                        genres: item.genres || [],
+                        seasons: item.seasons ? JSON.parse(JSON.stringify(item.seasons)) : [],
+                        tags: item.tags || [],
+                        airDay: item.airDay || ''
+                    };
+                    updatePreviewSeasonsList();
+                }
+            } else {
+                activeEditingObraId = null;
+                document.getElementById('modal-title').innerHTML = '<i class="fa-solid fa-circle-plus text-themePrimary"></i> Adicionar Obra';
+                document.getElementById('media-form').reset();
+                document.getElementById('media-id').value = '';
+                updatePreviewSeasonsList();
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('media-modal').classList.add('hidden');
+            document.getElementById('media-results').classList.add('hidden');
+            document.getElementById('season-results').classList.add('hidden');
+            document.getElementById('loaded-info').classList.add('hidden');
+            document.getElementById('update-old-card-container').classList.add('hidden');
+            activeEditingObraId = null;
+        }
+
+        // AGENDA SEMANAL INTERATIVA
+        function toggleScheduleModal() {
+            const modal = document.getElementById('schedule-modal');
+            if (modal.classList.contains('hidden')) {
+                renderScheduleGrid();
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        function renderScheduleGrid() {
+            const grid = document.getElementById('schedule-grid');
+            grid.innerHTML = '';
+
+            const days = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+            
+            days.forEach(day => {
+                const dayAnimes = mediaList.filter(m => m.status === 'watching' && m.airDay === day);
+
+                const col = document.createElement('div');
+                col.className = "bg-inputBg p-3 rounded-xl border border-borderSubtle flex flex-col gap-2";
+                col.innerHTML = `
+                    <h4 class="font-bold text-xs text-themePrimary border-b border-borderSubtle pb-1.5 flex items-center justify-between">
+                        <span>${day}-feira</span>
+                        <span class="text-[10px] text-slate-500 font-normal">${dayAnimes.length} obra(s)</span>
+                    </h4>
+                `;
+
+                if (dayAnimes.length === 0) {
+                    col.innerHTML += `<p class="text-[11px] text-slate-600 italic py-2">Sem lançamentos.</p>`;
+                } else {
+                    dayAnimes.forEach(anime => {
+                        let total = 0, watched = 0;
+                        if (anime.seasons) {
+                            anime.seasons.forEach(s => { total += s.totalEps || 0; watched += (s.watched || []).length; });
+                        }
+
+                        col.innerHTML += `
+                            <div class="bg-cardBg p-2 rounded-lg border border-borderSubtle flex items-center justify-between gap-2">
+                                <div class="min-w-0 flex-1">
+                                    <p class="font-semibold text-xs text-slate-200 truncate">${anime.title}</p>
+                                    <p class="text-[10px] text-slate-400">Episódio: ${watched} / ${total}</p>
+                                </div>
+                                <button onclick="quickIncrementEpisode(${anime.id}); renderScheduleGrid();" class="bg-themePrimary/20 text-themePrimary hover:bg-themePrimary/30 text-[10px] px-2 py-1 rounded font-bold transition-all cursor-pointer">+1 Ep</button>
+                            </div>
+                        `;
+                    });
+                }
+                grid.appendChild(col);
+            });
+        }
+
+        function openSynopsisModal(id) {
+            const item = mediaList.find(m => m.id === id);
+            if (!item) return;
+
+            document.getElementById('synopsis-title').innerText = item.title;
+            document.getElementById('synopsis-text').innerText = item.description || 'Nenhuma descrição disponível.';
+            
+            const coverImg = document.getElementById('synopsis-cover');
+            if (item.coverImage) {
+                coverImg.src = item.coverImage;
+                coverImg.classList.remove('hidden');
+            } else {
+                coverImg.classList.add('hidden');
+            }
+
+            const genresBox = document.getElementById('synopsis-genres');
+            genresBox.innerHTML = '';
+            if (item.genres && item.genres.length > 0) {
+                item.genres.forEach(g => {
+                    const tag = document.createElement('span');
+                    tag.className = "bg-themePrimary/10 text-themePrimary border border-themePrimary/20 px-2 py-0.5 rounded text-[10px] font-medium";
+                    tag.innerText = g;
+                    genresBox.appendChild(tag);
+                });
+            }
+
+            const notesContainer = document.getElementById('synopsis-notes-container');
+            const notesText = document.getElementById('synopsis-notes-text');
+            if (item.notes) {
+                notesText.innerText = item.notes;
+                notesContainer.classList.remove('hidden');
+            } else {
+                notesContainer.classList.add('hidden');
+            }
+
+            document.getElementById('synopsis-modal').classList.remove('hidden');
+        }
+
+        function closeSynopsisModal() {
+            document.getElementById('synopsis-modal').classList.add('hidden');
+        }
+
+        function openSeasonsModal(id) {
+            activeEditingObraId = id;
+            const item = mediaList.find(m => m.id === id);
+            if (!item) return;
+
+            document.getElementById('seasons-modal-title').innerText = item.title;
+            if (!item.seasons || item.seasons.length === 0) {
+                item.seasons = [{ name: '1ª Temporada', type: 'TV', totalEps: 12, watched: [] }];
+            }
+
+            activeSeasonIndex = 0;
+            renderSeasonTabs(item);
+            renderEpisodesForSeason(item, activeSeasonIndex);
+
+            document.getElementById('seasons-modal').classList.remove('hidden');
+        }
+
+        function closeSeasonsModal() {
+            document.getElementById('seasons-modal').classList.add('hidden');
+            activeEditingObraId = null;
+            saveData();
+        }
+
+        function renderSeasonTabs(item) {
+            const tabsContainer = document.getElementById('seasons-tabs');
+            tabsContainer.innerHTML = '';
+
+            item.seasons.forEach((season, idx) => {
+                const isWatchedAll = season.watched.length >= season.totalEps && season.totalEps > 0;
+                const isPartial = season.watched.length > 0 && !isWatchedAll;
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all cursor-pointer flex items-center gap-1.5 ${
+                    idx === activeSeasonIndex 
+                        ? 'bg-themePrimary text-white shadow-sm' 
+                        : 'bg-inputBg text-slate-400 hover:text-white border border-borderSubtle'
+                }`;
+                btn.innerHTML = `
+                    <span>${season.name} (${season.type || 'TV'})</span>
+                    ${isWatchedAll ? '<i class="fa-solid fa-check text-emerald-400 text-[10px]"></i>' : (isPartial ? '<i class="fa-solid fa-circle text-amber-400 text-[6px]"></i>' : '')}
+                `;
+                btn.onclick = () => {
+                    activeSeasonIndex = idx;
+                    renderSeasonTabs(item);
+                    renderEpisodesForSeason(item, idx);
+                };
+                tabsContainer.appendChild(btn);
+            });
+
+            const renameInput = document.getElementById('input-rename-season');
+            const epsInput = document.getElementById('input-eps-season');
+            const typeInput = document.getElementById('input-type-season');
+            if (item.seasons[activeSeasonIndex]) {
+                renameInput.value = item.seasons[activeSeasonIndex].name;
+                epsInput.value = item.seasons[activeSeasonIndex].totalEps;
+                typeInput.value = item.seasons[activeSeasonIndex].type || 'TV';
+            }
+        }
+
+        function renameActiveSeason(newName) {
+            const item = mediaList.find(m => m.id === activeEditingObraId);
+            if (!item || !item.seasons[activeSeasonIndex]) return;
+            item.seasons[activeSeasonIndex].name = newName;
+            renderSeasonTabs(item);
+        }
+
+        function changeActiveSeasonType(newType) {
+            const item = mediaList.find(m => m.id === activeEditingObraId);
+            if (!item || !item.seasons[activeSeasonIndex]) return;
+            item.seasons[activeSeasonIndex].type = newType;
+            renderSeasonTabs(item);
+        }
+
+        function changeActiveSeasonTotalEps(newTotal) {
+            const item = mediaList.find(m => m.id === activeEditingObraId);
+            if (!item || !item.seasons[activeSeasonIndex]) return;
+
+            const total = parseInt(newTotal) || 1;
+            item.seasons[activeSeasonIndex].totalEps = total;
+            if (item.seasons[activeSeasonIndex].watched) {
+                item.seasons[activeSeasonIndex].watched = item.seasons[activeSeasonIndex].watched.filter(ep => ep <= total);
+            }
+            renderEpisodesForSeason(item, activeSeasonIndex);
+        }
+
+        function renderEpisodesForSeason(item, sIndex) {
+            const season = item.seasons[sIndex];
+            if (!season) return;
+
+            const grid = document.getElementById('episodes-grid');
+            grid.innerHTML = '';
+
+            const badge = document.getElementById('season-status-badge');
+            const watchedCount = season.watched.length;
+            if (watchedCount >= season.totalEps && season.totalEps > 0) {
+                badge.innerHTML = `<span class="text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Temporada Assistida (${watchedCount}/${season.totalEps})</span>`;
+            } else if (watchedCount > 0) {
+                badge.innerHTML = `<span class="text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">Em Progresso (${watchedCount}/${season.totalEps})</span>`;
+            } else {
+                badge.innerHTML = `<span class="text-slate-400 bg-inputBg px-2 py-0.5 rounded border border-borderSubtle">Não Assistida (0/${season.totalEps})</span>`;
+            }
+
+            for (let i = 1; i <= season.totalEps; i++) {
+                const isWatched = season.watched.includes(i);
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                    isWatched 
+                        ? 'bg-themePrimary text-white border-themePrimary shadow-sm' 
+                        : 'bg-inputBg text-slate-400 border-borderSubtle hover:border-themePrimary'
+                }`;
+                btn.innerText = i;
+                btn.onclick = () => toggleSeasonEpisode(sIndex, i);
+                grid.appendChild(btn);
+            }
+        }
+
+        function toggleSeasonEpisode(sIndex, epNum) {
+            const item = mediaList.find(m => m.id === activeEditingObraId);
+            if (!item || !item.seasons[sIndex]) return;
+
+            const season = item.seasons[sIndex];
+            if (!season.watched) season.watched = [];
+
+            const index = season.watched.indexOf(epNum);
+            if (index > -1) season.watched.splice(index, 1);
+            else season.watched.push(epNum);
+
+            updateObraOverallStatus(item);
+            renderSeasonTabs(item);
+            renderEpisodesForSeason(item, sIndex);
+        }
+
+        function markCurrentSeason(status) {
+            const item = mediaList.find(m => m.id === activeEditingObraId);
+            if (!item || !item.seasons[activeSeasonIndex]) return;
+
+            const season = item.seasons[activeSeasonIndex];
+            if (status) {
+                season.watched = [];
+                for (let i = 1; i <= season.totalEps; i++) season.watched.push(i);
+            } else {
+                season.watched = [];
+            }
+
+            updateObraOverallStatus(item);
+            renderSeasonTabs(item);
+            renderEpisodesForSeason(item, activeSeasonIndex);
+        }
+
+        function updateObraOverallStatus(item) {
+            let totalEps = 0, totalWatched = 0;
+            item.seasons.forEach(s => {
+                totalEps += s.totalEps;
+                totalWatched += (s.watched || []).length;
+            });
+
+            if (totalEps > 0 && totalWatched >= totalEps) item.status = 'completed';
+            else if (totalWatched > 0) item.status = 'watching';
+        }
+
+        function saveMedia(event) {
+            event.preventDefault();
+            const id = document.getElementById('media-id').value;
+            const title = document.getElementById('input-title').value;
+            const category = document.getElementById('input-category').value;
+            const status = document.getElementById('input-status').value;
+            const rating = parseInt(document.getElementById('input-rating').value) || 0;
+            const tagsInput = document.getElementById('input-tags').value;
+            const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(t => t !== '') : [];
+            const airDay = document.getElementById('input-air-day').value;
+            const notes = document.getElementById('input-notes').value;
+
+            if (id !== "") {
+                const index = mediaList.findIndex(m => m.id == id);
+                if (index !== -1) {
+                    mediaList[index] = { 
+                        ...mediaList[index],
+                        id: Number(id), title, category, status, rating, tags, airDay, notes,
+                        coverImage: tempObraData.coverImage || mediaList[index].coverImage, 
+                        description: tempObraData.description || mediaList[index].description, 
+                        genres: tempObraData.genres.length > 0 ? tempObraData.genres : mediaList[index].genres,
+                        seasons: tempObraData.seasons.length > 0 ? tempObraData.seasons : mediaList[index].seasons
+                    };
+                }
+            } else {
+                const newId = mediaList.length > 0 ? Math.max(...mediaList.map(m => m.id)) + 1 : 1;
+                const defaultSeasons = tempObraData.seasons.length > 0 
+                    ? tempObraData.seasons 
+                    : [{ name: '1ª Temporada', type: 'TV', totalEps: 12, watched: [] }];
+
+                mediaList.push({ 
+                    id: newId, title, category, status, rating, tags, airDay, notes,
+                    coverImage: tempObraData.coverImage, 
+                    description: tempObraData.description, 
+                    genres: tempObraData.genres,
+                    seasons: defaultSeasons
+                });
+            }
+
+            saveData();
+            closeModal();
+        }
+
+        function deleteMedia(id) {
+            if (confirm('Tem certeza que deseja remover esta obra completa?')) {
+                mediaList = mediaList.filter(m => m.id !== id);
+                saveData();
+            }
+        }
+
+        function toggleStatsModal() {
+            const modal = document.getElementById('stats-modal');
+            if (modal.classList.contains('hidden')) {
+                calculateAndRenderStats();
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        function calculateAndRenderStats() {
+            let totalEpsWatched = 0;
+            let genresMap = {};
+            let categoriesMap = { Anime: 0, Filme: 0, Série: 0 };
+
+            mediaList.forEach(m => {
+                categoriesMap[m.category] = (categoriesMap[m.category] || 0) + 1;
+                if (m.genres) m.genres.forEach(g => { genresMap[g] = (genresMap[g] || 0) + 1; });
+                if (m.seasons) m.seasons.forEach(s => { totalEpsWatched += (s.watched || []).length; });
+            });
+
+            const totalHours = Math.round((totalEpsWatched * 24) / 60);
+            document.getElementById('stats-total-time').innerText = `${totalHours} Horas (${Math.round(totalHours / 24)} Dias)`;
+
+            const totalItems = mediaList.length || 1;
+            const barContainer = document.getElementById('stats-categories-bar');
+            const legendContainer = document.getElementById('stats-categories-legend');
+            barContainer.innerHTML = '';
+            legendContainer.innerHTML = '';
+
+            const colors = { Anime: 'bg-themePrimary', Filme: 'bg-rose-500', Série: 'bg-sky-500' };
+            Object.keys(categoriesMap).forEach(cat => {
+                const pct = Math.round((categoriesMap[cat] / totalItems) * 100);
+                if (pct > 0) {
+                    const segment = document.createElement('div');
+                    segment.className = `${colors[cat]} h-full`;
+                    segment.style.width = `${pct}%`;
+                    barContainer.appendChild(segment);
+                    legendContainer.innerHTML += `<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full ${colors[cat]}"></span> ${cat}: ${pct}%</span>`;
+                }
+            });
+
+            const genresList = document.getElementById('stats-genres-list');
+            genresList.innerHTML = '';
+            const sortedGenres = Object.keys(genresMap).sort((a,b) => genresMap[b] - genresMap[a]).slice(0, 5);
+
+            sortedGenres.forEach(g => {
+                genresList.innerHTML += `
+                    <div class="flex justify-between text-xs text-slate-300">
+                        <span>${g}</span>
+                        <span class="font-bold text-themePrimary">${genresMap[g]} obras</span>
+                    </div>
+                `;
+            });
+        }
+
+        function openShareModal(id) {
+            activeShareMediaId = id;
+            const item = mediaList.find(m => m.id === id);
+            if (!item) return;
+
+            document.getElementById('share-title').innerText = item.title;
+            document.getElementById('share-cover').src = item.coverImage || '';
+            document.getElementById('share-status').innerHTML = `<span class="bg-themePrimary/20 text-themePrimary border border-themePrimary/40 px-2 py-0.5 rounded text-[10px] font-bold uppercase">${item.status}</span>`;
+            
+            let total = 0, watched = 0;
+            if (item.seasons) item.seasons.forEach(s => { total += s.totalEps || 0; watched += (s.watched || []).length; });
+            document.getElementById('share-progress').innerText = `Progresso: ${watched} / ${total} episódios`;
+            document.getElementById('share-stars').innerText = item.rating > 0 ? '⭐'.repeat(item.rating) : 'Sem nota';
+
+            document.getElementById('share-modal').classList.remove('hidden');
+        }
+
+        function closeShareModal() {
+            document.getElementById('share-modal').classList.add('hidden');
+        }
+
+        function downloadShareCardImage() {
+            const cardNode = document.getElementById('share-card-export');
+            html2canvas(cardNode, { backgroundColor: '#0b0a10' }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `media-tracker-card-${activeShareMediaId}.png`;
+                link.href = canvas.toDataURL();
+                link.click();
+            });
+        }
+
+        function copyShareCardHTML() {
+            const item = mediaList.find(m => m.id === activeShareMediaId);
+            if (!item) return;
+
+            const htmlSnippet = `🎬 **${item.title}** - Status: ${item.status.toUpperCase()} (${item.rating > 0 ? '⭐'.repeat(item.rating) : ''}) via Media Tracker`;
+            navigator.clipboard.writeText(htmlSnippet).then(() => alert('HTML/Texto copiado!'));
+        }
+
+        updateStats();
+        renderMedia();
+    </script>
+</body>
+</html>
