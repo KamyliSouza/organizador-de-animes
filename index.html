@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>KamyList</title>
+    <title>Kamy-List 🎬</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -64,7 +64,7 @@
         <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-5 pb-4 border-b border-borderSubtle gap-3">
             <div>
                 <h1 class="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2 text-themePrimary">
-                    <i class="fa-solid fa-clapperboard"></i> Media Tracker Pro
+                    <i class="fa-solid fa-clapperboard"></i> Kamy-List
                 </h1>
                 <p class="text-slate-400 text-xs sm:text-sm mt-0.5">Gerenciador avançado de animes, séries e filmes.</p>
             </div>
@@ -474,7 +474,7 @@
                 <div id="share-status" class="mb-2"></div>
                 <p id="share-progress" class="text-xs text-slate-400 mb-2"></p>
                 <div id="share-stars" class="text-xs text-amber-400 mb-2"></div>
-                <div class="text-[9px] text-slate-500 uppercase tracking-widest pt-2 border-t border-borderSubtle w-full">Tracked via Media Tracker</div>
+                <div class="text-[9px] text-slate-500 uppercase tracking-widest pt-2 border-t border-borderSubtle w-full">Tracked via Kamy-List</div>
             </div>
 
             <div class="flex gap-2 mt-4">
@@ -911,7 +911,7 @@
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(mediaList, null, 2));
             const downloadAnchor = document.createElement('a');
             downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `media-tracker-backup-${new Date().toISOString().slice(0, 10)}.json`);
+            downloadAnchor.setAttribute("download", `kamy-list-backup-${new Date().toISOString().slice(0, 10)}.json`);
             document.body.appendChild(downloadAnchor);
             downloadAnchor.click();
             downloadAnchor.remove();
@@ -1592,7 +1592,7 @@
             const cardNode = document.getElementById('share-card-export');
             html2canvas(cardNode, { backgroundColor: '#0b0a10' }).then(canvas => {
                 const link = document.createElement('a');
-                link.download = `media-tracker-card-${activeShareMediaId}.png`;
+                link.download = `kamy-list-card-${activeShareMediaId}.png`;
                 link.href = canvas.toDataURL();
                 link.click();
             });
@@ -1602,7 +1602,7 @@
             const item = mediaList.find(m => m.id === activeShareMediaId);
             if (!item) return;
 
-            const htmlSnippet = `🎬 **${item.title}** - Status: ${item.status.toUpperCase()} (${item.rating > 0 ? '⭐'.repeat(item.rating) : ''}) via KamyList`;
+            const htmlSnippet = `🎬 **${item.title}** - Status: ${item.status.toUpperCase()} (${item.rating > 0 ? '⭐'.repeat(item.rating) : ''}) via Kamy-List`;
             navigator.clipboard.writeText(htmlSnippet).then(() => alert('HTML/Texto copiado!'));
         }
 
