@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Media Tracker Pro 🎬</title>
+    <title>KamyList</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -49,6 +49,12 @@
         .media-card:hover {
             border-color: var(--theme-primary);
         }
+
+        /* Remove qualquer foco branco padrão do navegador */
+        input:focus, select:focus, textarea:focus, button:focus {
+            outline: none !important;
+            box-shadow: none !important;
+        }
     </style>
 </head>
 <body class="theme-magenta bg-darkBg text-slate-100 min-h-screen font-sans antialiased selection:bg-themePrimary selection:text-white pb-28 md:pb-10">
@@ -68,11 +74,11 @@
                 <div class="flex items-center gap-1 bg-cardBg border border-borderSubtle px-2 py-1.5 rounded-xl">
                     <i class="fa-solid fa-palette text-themePrimary text-xs px-1"></i>
                     <select id="theme-selector" onchange="changeTheme(this.value)" class="bg-transparent text-xs text-slate-300 focus:outline-none cursor-pointer">
-                        <option value="magenta">Magenta</option>
-                        <option value="pink">Rosa</option>
-                        <option value="purple">Roxo</option>
-                        <option value="blue">Azul</option>
-                        <option value="emerald">Esmeralda</option>
+                        <option value="magenta" class="bg-cardBg">Magenta</option>
+                        <option value="pink" class="bg-cardBg">Rosa</option>
+                        <option value="purple" class="bg-cardBg">Roxo</option>
+                        <option value="blue" class="bg-cardBg">Azul</option>
+                        <option value="emerald" class="bg-cardBg">Esmeralda</option>
                     </select>
                 </div>
 
@@ -149,17 +155,17 @@
             
             <div class="flex gap-2 flex-wrap sm:flex-nowrap">
                 <select id="filter-category" onchange="renderMedia()" class="bg-cardBg border border-borderSubtle rounded-xl px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-themePrimary">
-                    <option value="all">Categorias</option>
-                    <option value="Anime">Anime</option>
-                    <option value="Filme">Filme</option>
-                    <option value="Série">Série</option>
+                    <option value="all" class="bg-cardBg">Categorias</option>
+                    <option value="Anime" class="bg-cardBg">Anime</option>
+                    <option value="Filme" class="bg-cardBg">Filme</option>
+                    <option value="Série" class="bg-cardBg">Série</option>
                 </select>
 
                 <select id="sort-order" onchange="renderMedia()" class="bg-cardBg border border-borderSubtle rounded-xl px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-themePrimary">
-                    <option value="recent">Mais Recentes</option>
-                    <option value="title">Título (A-Z)</option>
-                    <option value="rating">Melhor Nota</option>
-                    <option value="progress">Maior Progresso</option>
+                    <option value="recent" class="bg-cardBg">Mais Recentes</option>
+                    <option value="title" class="bg-cardBg">Título (A-Z)</option>
+                    <option value="rating" class="bg-cardBg">Melhor Nota</option>
+                    <option value="progress" class="bg-cardBg">Maior Progresso</option>
                 </select>
 
                 <!-- Alternador de Modo de Exibição -->
@@ -202,10 +208,10 @@
                 <div class="space-y-3">
                     <div class="flex justify-between items-center gap-2 bg-inputBg p-2.5 rounded-xl border border-borderSubtle">
                         <label class="text-[10px] font-semibold text-slate-400 uppercase">Fonte de Busca:</label>
-                        <select id="search-source" class="bg-cardBg text-xs text-slate-200 border border-borderSubtle rounded-lg px-2.5 py-1 focus:outline-none focus:border-themePrimary cursor-pointer">
-                            <option value="mal">MyAnimeList (MAL)</option>
-                            <option value="anilist">AniList (Anime)</option>
-                            <option value="imdb">Séries / IMDb / TMDB</option>
+                        <select id="search-source" onchange="changeSearchSource(this.value)" class="bg-cardBg text-xs text-slate-200 border border-borderSubtle rounded-lg px-2.5 py-1 focus:outline-none focus:border-themePrimary cursor-pointer">
+                            <option value="mal" id="opt-mal" class="bg-cardBg">MyAnimeList (MAL)</option>
+                            <option value="anilist" id="opt-anilist" class="bg-cardBg">AniList (Anime)</option>
+                            <option value="imdb" id="opt-imdb" class="bg-cardBg">Séries / IMDb / TMDB</option>
                         </select>
                     </div>
 
@@ -262,14 +268,14 @@
                         <div>
                             <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Dia de Lançamento</label>
                             <select id="input-air-day" class="w-full bg-inputBg border border-borderSubtle rounded-xl px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-themePrimary">
-                                <option value="">Nenhum / Finalizado</option>
-                                <option value="Segunda">Segunda-feira</option>
-                                <option value="Terça">Terça-feira</option>
-                                <option value="Quarta">Quarta-feira</option>
-                                <option value="Quinta">Quinta-feira</option>
-                                <option value="Sexta">Sexta-feira</option>
-                                <option value="Sábado">Sábado</option>
-                                <option value="Domingo">Domingo</option>
+                                <option value="" class="bg-cardBg">Nenhum / Finalizado</option>
+                                <option value="Segunda" class="bg-cardBg">Segunda-feira</option>
+                                <option value="Terça" class="bg-cardBg">Terça-feira</option>
+                                <option value="Quarta" class="bg-cardBg">Quarta-feira</option>
+                                <option value="Quinta" class="bg-cardBg">Quinta-feira</option>
+                                <option value="Sexta" class="bg-cardBg">Sexta-feira</option>
+                                <option value="Sábado" class="bg-cardBg">Sábado</option>
+                                <option value="Domingo" class="bg-cardBg">Domingo</option>
                             </select>
                         </div>
                     </div>
@@ -283,17 +289,17 @@
                         <div>
                             <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Categoria</label>
                             <select id="input-category" class="w-full bg-inputBg border border-borderSubtle rounded-xl px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-themePrimary">
-                                <option value="Anime">Anime</option>
-                                <option value="Filme">Filme</option>
-                                <option value="Série">Série</option>
+                                <option value="Anime" class="bg-cardBg">Anime</option>
+                                <option value="Filme" class="bg-cardBg">Filme</option>
+                                <option value="Série" class="bg-cardBg">Série</option>
                             </select>
                         </div>
                         <div>
                             <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Status</label>
                             <select id="input-status" class="w-full bg-inputBg border border-borderSubtle rounded-xl px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-themePrimary">
-                                <option value="watching">Assistindo</option>
-                                <option value="planned">Quero Ver</option>
-                                <option value="completed">Concluído</option>
+                                <option value="watching" class="bg-cardBg">Assistindo</option>
+                                <option value="planned" class="bg-cardBg">Quero Ver</option>
+                                <option value="completed" class="bg-cardBg">Concluído</option>
                             </select>
                         </div>
                     </div>
@@ -301,12 +307,12 @@
                     <div>
                         <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Avaliação</label>
                         <select id="input-rating" class="w-full bg-inputBg border border-borderSubtle rounded-xl px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-themePrimary">
-                            <option value="0">Sem nota</option>
-                            <option value="1">⭐ 1 Estrela</option>
-                            <option value="2">⭐⭐ 2 Estrelas</option>
-                            <option value="3">⭐⭐⭐ 3 Estrelas</option>
-                            <option value="4">⭐⭐⭐⭐ 4 Estrelas</option>
-                            <option value="5">⭐⭐⭐⭐⭐ 5 Estrelas</option>
+                            <option value="0" class="bg-cardBg">Sem nota</option>
+                            <option value="1" class="bg-cardBg">⭐ 1 Estrela</option>
+                            <option value="2" class="bg-cardBg">⭐⭐ 2 Estrelas</option>
+                            <option value="3" class="bg-cardBg">⭐⭐⭐ 3 Estrelas</option>
+                            <option value="4" class="bg-cardBg">⭐⭐⭐⭐ 4 Estrelas</option>
+                            <option value="5" class="bg-cardBg">⭐⭐⭐⭐⭐ 5 Estrelas</option>
                         </select>
                     </div>
                 </div>
@@ -328,9 +334,7 @@
                 <button onclick="toggleScheduleModal()" class="text-slate-400 hover:text-white p-1 text-sm cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
-            <div id="schedule-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                <!-- Preenchido via JS -->
-            </div>
+            <div id="schedule-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"></div>
 
             <div class="flex justify-end pt-3 mt-4 border-t border-borderSubtle">
                 <button onclick="toggleScheduleModal()" class="px-4 py-1.5 rounded-xl text-xs font-semibold bg-inputBg text-slate-300 hover:text-white transition-all cursor-pointer">Fechar</button>
@@ -383,10 +387,10 @@
                 <div>
                     <label class="block text-[9px] font-semibold text-slate-400 uppercase mb-0.5">Tipo de Mídia:</label>
                     <select id="input-type-season" onchange="changeActiveSeasonType(this.value)" class="w-full bg-cardBg border border-borderSubtle rounded-lg px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-themePrimary">
-                        <option value="TV">TV</option>
-                        <option value="OVA">OVA</option>
-                        <option value="Filme">Filme</option>
-                        <option value="Especial">Especial</option>
+                        <option value="TV" class="bg-cardBg">TV</option>
+                        <option value="OVA" class="bg-cardBg">OVA</option>
+                        <option value="Filme" class="bg-cardBg">Filme</option>
+                        <option value="Especial" class="bg-cardBg">Especial</option>
                     </select>
                 </div>
                 <div>
@@ -484,37 +488,50 @@
         </div>
     </div>
 
-    <!-- Script JavaScript Completo Atualizado -->
+    <!-- Script JavaScript Completo -->
     <script>
-        let mediaList = JSON.parse(localStorage.getItem('media_tracker_data')) || [
-            { 
-                id: 1, 
-                title: 'Diários de uma Apotecária', 
-                category: 'Anime', 
-                status: 'watching', 
-                rating: 5, 
-                tags: ['Anime', 'TV', 'Drama', 'Ação'],
-                airDay: 'Sexta',
-                notes: 'Ansioso pelos próximos episódios no palácio!',
-                coverImage: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx161645-8A1zMshL4I6L.jpg', 
-                description: 'Maomao, uma jovem apotecária no bairro da luz vermelha, é sequestrada e vendida como serva no Palácio Imperial.', 
-                genres: ['Drama', 'Mystery'],
-                seasons: [
-                    { name: '1ª Temporada', type: 'TV', totalEps: 24, watched: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24] },
-                    { name: '2ª Temporada', type: 'TV', totalEps: 24, watched: [1,2,3,4,5] }
-                ]
-            }
-        ];
+        let mediaList = JSON.parse(localStorage.getItem('media_tracker_data')) || [];
 
         let currentTheme = localStorage.getItem('media_tracker_theme') || 'magenta';
         let viewMode = localStorage.getItem('media_tracker_view_mode') || 'cards';
+        let lastSearchSource = localStorage.getItem('media_tracker_last_source') || 'mal';
+
         changeTheme(currentTheme, false);
+        checkConnectivity();
+        window.addEventListener('online', checkConnectivity);
+        window.addEventListener('offline', checkConnectivity);
+
+        function checkConnectivity() {
+            const isOnline = navigator.onLine;
+            const optMal = document.getElementById('opt-mal');
+            const optAnilist = document.getElementById('opt-anilist');
+            const optImdb = document.getElementById('opt-imdb');
+            
+            if (!isOnline) {
+                if (optMal) { optMal.disabled = true; optMal.text = "MyAnimeList (Offline)"; }
+                if (optAnilist) { optAnilist.disabled = true; optAnilist.text = "AniList (Offline)"; }
+                if (optImdb) { optImdb.disabled = true; optImdb.text = "IMDb/TMDB (Offline)"; }
+            }
+        }
+
+        function disableServiceOption(sourceValue, reason = "Indisponível") {
+            const opt = document.querySelector(`#search-source option[value="${sourceValue}"]`);
+            if (opt) {
+                opt.disabled = true;
+                if (!opt.text.includes(reason)) opt.text += ` (${reason})`;
+            }
+        }
 
         function changeTheme(themeName, save = true) {
             currentTheme = themeName;
             document.body.className = `theme-${themeName} bg-darkBg text-slate-100 min-h-screen font-sans antialiased selection:bg-themePrimary selection:text-white pb-28 md:pb-10`;
             document.getElementById('theme-selector').value = themeName;
             if (save) localStorage.setItem('media_tracker_theme', themeName);
+        }
+
+        function changeSearchSource(source) {
+            lastSearchSource = source;
+            localStorage.setItem('media_tracker_last_source', source);
         }
 
         function setViewMode(mode) {
@@ -550,7 +567,6 @@
             return '';
         };
 
-        // BUSCA MULTI-FONTE (COM TAGS E DIAS DE LANÇAMENTO)
         async function searchMediaFromSource() {
             const query = document.getElementById('input-title').value.trim();
             const source = document.getElementById('search-source').value;
@@ -566,6 +582,7 @@
             try {
                 if (source === 'mal') {
                     const res = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&limit=5`);
+                    if (!res.ok) throw new Error('MAL API Indisponível');
                     const json = await res.json();
                     if (json.data && json.data.length > 0) {
                         json.data.forEach(anime => {
@@ -589,7 +606,6 @@
                                 media (search: $search, type: ANIME, sort: SEARCH_MATCH) {
                                     title { english romaji }
                                     episodes averageScore description coverImage { large } genres format
-                                    nextAiringEpisode { timeUntilAiring episode }
                                     relations { edges { relationType node { title { english romaji } episodes format } } }
                                 }
                             }
@@ -600,6 +616,7 @@
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                         body: JSON.stringify({ query: graphqlQuery, variables: { search: query } })
                     });
+                    if (!res.ok) throw new Error('AniList API Indisponível');
                     const json = await res.json();
                     if (json.data && json.data.Page && json.data.Page.media.length > 0) {
                         json.data.Page.media.forEach(anime => {
@@ -626,6 +643,7 @@
                     }
                 } else if (source === 'imdb') {
                     const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=3d451372e90f2bf61a6b0db664b92b67&query=${encodeURIComponent(query)}`);
+                    if (!res.ok) throw new Error('TMDB API Indisponível');
                     const json = await res.json();
                     if (json.results && json.results.length > 0) {
                         json.results.filter(item => item.media_type === 'tv' || item.media_type === 'movie').forEach(item => {
@@ -665,7 +683,8 @@
                     }
                 }
             } catch (err) {
-                resultsBox.innerHTML = `<p class="text-[11px] text-rose-400 p-2 text-center">Erro ao conectar com a API.</p>`;
+                disableServiceOption(source, "Fora do Ar");
+                resultsBox.innerHTML = `<p class="text-[11px] text-rose-400 p-2 text-center">Serviço indisponível no momento. Selecione outra fonte.</p>`;
                 resultsBox.classList.remove('hidden');
             } finally {
                 btn.innerHTML = `<i class="fa-solid fa-magnifying-glass"></i> Buscar`;
@@ -694,7 +713,6 @@
             box.appendChild(itemBtn);
         }
 
-        // CORREÇÃO: FUNÇÃO DE ATUALIZAR CARD EXISTENTE
         async function updateExistingCardData(e) {
             if (e) e.preventDefault();
             if (activeEditingObraId === null) return;
@@ -710,25 +728,15 @@
             try {
                 if (source === 'mal') {
                     const res = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(title)}&limit=1`);
+                    if (!res.ok) throw new Error();
                     const json = await res.json();
                     if (json.data && json.data.length > 0) {
                         const anime = json.data[0];
-                        const cover = anime.images?.jpg?.large_image_url || tempObraData.coverImage;
-                        const desc = anime.synopsis || tempObraData.description;
-                        const genres = anime.genres ? anime.genres.map(g => g.name) : tempObraData.genres;
-                        const airDay = anime.broadcast?.day ? mapDayToPortuguese(anime.broadcast.day) : tempObraData.airDay;
-                        const tags = ['Anime', anime.type || 'TV', ...genres.slice(0, 3)];
-
-                        document.getElementById('input-tags').value = tags.join(', ');
-                        if (airDay) document.getElementById('input-air-day').value = airDay;
-
-                        tempObraData.coverImage = cover;
-                        tempObraData.description = desc;
-                        tempObraData.genres = genres;
-                        tempObraData.airDay = airDay;
-                        tempObraData.tags = tags;
-
-                        alert('Dados atualizados via MyAnimeList!');
+                        tempObraData.coverImage = anime.images?.jpg?.large_image_url || tempObraData.coverImage;
+                        tempObraData.description = anime.synopsis || tempObraData.description;
+                        tempObraData.genres = anime.genres ? anime.genres.map(g => g.name) : tempObraData.genres;
+                        tempObraData.airDay = anime.broadcast?.day ? mapDayToPortuguese(anime.broadcast.day) : tempObraData.airDay;
+                        alert('Metadados atualizados com sucesso!');
                     }
                 } else {
                     const graphqlQuery = `
@@ -745,17 +753,19 @@
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                         body: JSON.stringify({ query: graphqlQuery, variables: { search: title } })
                     });
+                    if (!response.ok) throw new Error();
                     const json = await response.json();
                     if (json.data && json.data.Page && json.data.Page.media.length > 0) {
                         const anime = json.data.Page.media[0];
                         tempObraData.coverImage = anime.coverImage ? anime.coverImage.large : tempObraData.coverImage;
                         tempObraData.description = cleanHtmlText(anime.description) || tempObraData.description;
                         tempObraData.genres = anime.genres || tempObraData.genres;
-                        alert('Card atualizado com sucesso!');
+                        alert('Metadados atualizados com sucesso!');
                     }
                 }
             } catch (err) {
-                alert('Erro ao atualizar dados.');
+                disableServiceOption(source, "Fora do Ar");
+                alert('Erro ao atualizar. Serviço temporariamente indisponível.');
             } finally {
                 btn.innerHTML = originalText;
             }
@@ -776,6 +786,7 @@
             try {
                 if (source === 'mal') {
                     const res = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&limit=4`);
+                    if (!res.ok) throw new Error();
                     const json = await res.json();
                     if (json.data && json.data.length > 0) {
                         json.data.forEach(anime => {
@@ -790,6 +801,7 @@
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                         body: JSON.stringify({ query: graphqlQuery, variables: { search: query } })
                     });
+                    if (!res.ok) throw new Error();
                     const json = await res.json();
                     if (json.data && json.data.Page && json.data.Page.media.length > 0) {
                         json.data.Page.media.forEach(anime => {
@@ -801,6 +813,7 @@
                     addCustomSeasonManual();
                 }
             } catch(e) {
+                disableServiceOption(source, "Fora do Ar");
                 addCustomSeasonManual();
             } finally {
                 btn.innerHTML = `<i class="fa-solid fa-magnifying-glass"></i> Buscar`;
@@ -848,10 +861,10 @@
                 row.innerHTML = `
                     <input type="text" value="${season.name}" oninput="tempObraData.seasons[${idx}].name = this.value" class="min-w-0 flex-1 bg-inputBg border border-borderSubtle rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-themePrimary">
                     <select onchange="tempObraData.seasons[${idx}].type = this.value" class="bg-inputBg border border-borderSubtle rounded px-1 py-1 text-[10px] text-slate-300 focus:outline-none">
-                        <option value="TV" ${season.type === 'TV' ? 'selected' : ''}>TV</option>
-                        <option value="OVA" ${season.type === 'OVA' ? 'selected' : ''}>OVA</option>
-                        <option value="Filme" ${season.type === 'Filme' ? 'selected' : ''}>Filme</option>
-                        <option value="Especial" ${season.type === 'Especial' ? 'selected' : ''}>Especial</option>
+                        <option value="TV" ${season.type === 'TV' ? 'selected' : ''} class="bg-cardBg">TV</option>
+                        <option value="OVA" ${season.type === 'OVA' ? 'selected' : ''} class="bg-cardBg">OVA</option>
+                        <option value="Filme" ${season.type === 'Filme' ? 'selected' : ''} class="bg-cardBg">Filme</option>
+                        <option value="Especial" ${season.type === 'Especial' ? 'selected' : ''} class="bg-cardBg">Especial</option>
                     </select>
                     <input type="number" min="1" value="${season.totalEps}" oninput="tempObraData.seasons[${idx}].totalEps = parseInt(this.value) || 1" class="w-12 bg-inputBg border border-borderSubtle rounded px-1 py-1 text-xs text-slate-200 focus:outline-none focus:border-themePrimary text-center">
                     <span class="text-[10px] text-slate-400">eps</span>
@@ -1071,7 +1084,6 @@
                     grid.appendChild(card);
                 });
             } else {
-                // Modo Lista Otimizado para Mobile e Desktop
                 grid.classList.add('hidden');
                 listView.classList.remove('hidden');
 
@@ -1125,6 +1137,14 @@
             document.getElementById('update-old-card-container').classList.add('hidden');
             tempObraData = { coverImage: '', description: '', genres: [], seasons: [], tags: [], airDay: '' };
 
+            const sourceSelect = document.getElementById('search-source');
+            if (sourceSelect.querySelector(`option[value="${lastSearchSource}"]`) && !sourceSelect.querySelector(`option[value="${lastSearchSource}"]`).disabled) {
+                sourceSelect.value = lastSearchSource;
+            } else {
+                const firstEnabled = Array.from(sourceSelect.options).find(o => !o.disabled);
+                if (firstEnabled) sourceSelect.value = firstEnabled.value;
+            }
+
             if (id !== null && id !== undefined) {
                 activeEditingObraId = id;
                 document.getElementById('modal-title').innerHTML = '<i class="fa-solid fa-pen-to-square text-themePrimary"></i> Editar / Atualizar Obra';
@@ -1169,7 +1189,6 @@
             activeEditingObraId = null;
         }
 
-        // AGENDA SEMANAL INTERATIVA
         function toggleScheduleModal() {
             const modal = document.getElementById('schedule-modal');
             if (modal.classList.contains('hidden')) {
@@ -1441,13 +1460,29 @@
             if (id !== "") {
                 const index = mediaList.findIndex(m => m.id == id);
                 if (index !== -1) {
+                    const existingItem = mediaList[index];
+                    
+                    let seasonsToSave = tempObraData.seasons.length > 0 ? tempObraData.seasons : existingItem.seasons;
+                    if (existingItem.seasons) {
+                        seasonsToSave = seasonsToSave.map(newSeason => {
+                            const oldSeason = existingItem.seasons.find(s => s.name === newSeason.name);
+                            if (oldSeason) {
+                                return {
+                                    ...newSeason,
+                                    watched: oldSeason.watched
+                                };
+                            }
+                            return newSeason;
+                        });
+                    }
+
                     mediaList[index] = { 
-                        ...mediaList[index],
-                        id: Number(id), title, category, status, rating, tags, airDay, notes,
-                        coverImage: tempObraData.coverImage || mediaList[index].coverImage, 
-                        description: tempObraData.description || mediaList[index].description, 
-                        genres: tempObraData.genres.length > 0 ? tempObraData.genres : mediaList[index].genres,
-                        seasons: tempObraData.seasons.length > 0 ? tempObraData.seasons : mediaList[index].seasons
+                        ...existingItem,
+                        title, category, status, rating, tags, airDay, notes,
+                        coverImage: tempObraData.coverImage || existingItem.coverImage, 
+                        description: tempObraData.description || existingItem.description, 
+                        genres: tempObraData.genres.length > 0 ? tempObraData.genres : existingItem.genres,
+                        seasons: seasonsToSave
                     };
                 }
             } else {
@@ -1567,7 +1602,7 @@
             const item = mediaList.find(m => m.id === activeShareMediaId);
             if (!item) return;
 
-            const htmlSnippet = `🎬 **${item.title}** - Status: ${item.status.toUpperCase()} (${item.rating > 0 ? '⭐'.repeat(item.rating) : ''}) via Media Tracker`;
+            const htmlSnippet = `🎬 **${item.title}** - Status: ${item.status.toUpperCase()} (${item.rating > 0 ? '⭐'.repeat(item.rating) : ''}) via KamyList`;
             navigator.clipboard.writeText(htmlSnippet).then(() => alert('HTML/Texto copiado!'));
         }
 
