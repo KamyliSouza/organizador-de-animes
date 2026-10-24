@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>KamyList — seu tracker de animes</title>
+    <meta name="description" content="Organize seus animes, séries e filmes, marque episódios e compartilhe sua lista com os amigos.">
+    <meta name="theme-color" content="#B35EAF">
+
+    <!-- Segurança: só carrega scripts do próprio site (e do jsDelivr, usado pelo Supabase) e só fala com as APIs usadas. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://api.jikan.moe https://graphql.anilist.co https://api.themoviedb.org; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="css/tokens.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/views.css">
+
+    <!-- Aplica o tema salvo antes de pintar a página (evita piscar) -->
+    <script src="js/theme-boot.js"></script>
+</head>
+<body>
+    <button type="button" class="skip-link" id="skip-link">Pular para o conteúdo</button>
+
+    <header id="site-nav" class="site-nav"></header>
+
+    <main id="main" class="site-shell" tabindex="-1">
+        <p class="center muted" style="padding:80px 0">Carregando…</p>
+    </main>
+
+    <footer id="site-footer" class="site-footer"></footer>
+    <nav id="tab-bar" class="tab-bar" aria-label="Navegação principal (celular)"></nav>
+    <div id="toast-region" class="toast-region" aria-live="polite"></div>
+
+    <noscript>
+        <p style="padding:24px;text-align:center">Este site precisa de JavaScript para funcionar. Ative o JavaScript no seu navegador.</p>
+    </noscript>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

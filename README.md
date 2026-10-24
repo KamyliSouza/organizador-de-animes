@@ -1,0 +1,142 @@
+# KamyList — tracker de animes com login e perfis públicos
+
+Organize animes, séries e filmes, marque episódios por temporada, veja a agenda da semana e compartilhe sua lista com os amigos por um link (`#/u/seu_usuario`).
+
+É um site **100% estático** (HTML + CSS + JavaScript puro, sem build), então roda direto no **GitHub Pages**. O login e os perfis ficam no **Supabase** (plano gratuito basta), que guarda as contas e as listas.
+
+> Sem configurar o Supabase o site funciona em **modo local**, igual à versão antiga: a lista fica só no navegador, sem login nem perfis. Ótimo para testar antes de ligar o resto.
+
+---
+
+## Passo a passo (cerca de 15 minutos)
+
+### 1. Criar o projeto no Supabase
+
+1. Entre em <https://supabase.com>, crie uma conta e clique em **New project**.
+2. Escolha um nome, uma senha para o banco (guarde) e a região mais próxima (ex.: *South America (São Paulo)*).
+3. Espere o projeto terminar de criar.
+
+### 2. Criar as tabelas e as regras de segurança
+
+1. No Supabase, abra **SQL Editor → New query**.
+2. Copie **todo** o conteúdo de [`sql/schema.sql`](sql/schema.sql), cole e clique em **Run**.
+3. Pode rodar de novo quando quiser (por exemplo, depois de atualizar o site): o script não duplica nada.
+
+Isso cria as tabelas `profiles` e `entries`, as regras que impedem uma pessoa de ver ou mexer na lista de outra e as funções usadas pelos perfis públicos.
+
+### 3. Copiar as chaves para o site
+
+1. No Supabase: **Project Settings → API**.
+2. Copie a **Project URL** e a chave **anon / public**.
+3. Abra [`js/config.js`](js/config.js) e preencha:
+
+```js
+supabaseUrl: 'https://abcdefghijk.supabase.co',
+supabaseAnonKey: 'eyJhbGciOi...',
+```
+
+> A chave `anon` é **pública por natureza** (fica visível no navegador de qualquer site estático). Quem protege os dados são as regras do banco do passo 2. **Nunca** coloque a chave `service_role` aqui.
+
+### 4. Configurar o login (Authentication)
+
+No Supabase, em **Authentication → URL Configuration**:
+
+| Campo | O que colocar |
+|---|---|
+| **Site URL** | O endereço do seu site no GitHub Pages, ex.: `https://kamylisouza.github.io/organizador-de-animes/` |
+| **Redirect URLs** | Adicione `https://kamylisouza.github.io/organizador-de-animes/**` (e `http://localhost:8000/**` se for testar no computador) |
+
+Isso é necessário para os links de **confirmar e-mail** e **recuperar senha** voltarem para o seu site.
+
+Em **Authentication → Sign In / Providers → Email** você escolhe:
+
+- **Confirm email** ligado (padrão): quem cria a conta recebe um e-mail e precisa clicar no link. É o mais seguro.
+- **Confirm email** desligado: a pessoa entra na hora. Para um grupo pequeno de amigos costuma ser mais prático, e evita o limite de e-mails do plano gratuito (poucos e-mails por hora).
+
+### 5. Publicar no GitHub Pages
+
+1. Envie os arquivos para o repositório (`index.html`, pastas `css`, `js`, `sql` e `favicon.svg`).
+2. No GitHub: **Settings → Pages → Build and deployment → Source: Deploy from a branch**, escolha `main` e a pasta `/ (root)`.
+3. Em um ou dois minutos o site estará em `https://SEU_USUARIO.github.io/NOME_DO_REPO/`.
+
+Pronto: crie sua conta, abra **Perfil e configurações**, ative **Perfil público** e mande o link para os amigos.
+
+---
+
+## Testar no computador
+
+Os módulos JavaScript não funcionam abrindo o `index.html` com duplo clique. Use um servidor local:
+
+```bash
+cd organizador-de-animes
+python3 -m http.server 8000
+# abra http://localhost:8000
+```
+
+---
+
+## Perfis e privacidade
+
+- Todo perfil **começa privado**. Só aparece em **Explorar** e em `#/u/usuario` depois que a pessoa ativa **Perfil público**.
+- As **anotações** (diário) continuam só para a dona da conta, mesmo com o perfil público. Para mostrá-las, ative **Mostrar minhas anotações**. Isso é garantido no banco, não só na tela.
+- Quem não está logado pode ver perfis públicos, mas não consegue ler nem editar nada além disso.
+- Trocar o nome de usuário muda o link do perfil (o antigo deixa de funcionar).
+
+## Trazer a lista da versão antiga
+
+- **Do mesmo navegador:** ao entrar pela primeira vez, a biblioteca avisa se encontrar obras salvas da versão antiga e oferece **Importar**. Também fica em **Perfil e configurações → Seus dados**.
+- **De outro navegador/computador:** na versão antiga, exporte o backup; aqui use **Importar backup** e escolha **Adicionar** (mantém o que você já tem) ou **Substituir tudo**.
+- **Exportar** gera um arquivo `.json` com toda a sua lista, bom para guardar uma cópia.
+
+## Busca de séries e filmes (TMDB, opcional)
+
+A busca de **animes** (MyAnimeList e AniList) funciona sem chave. Para buscar séries e filmes:
+
+1. Crie uma conta gratuita em <https://www.themoviedb.org/settings/api> e gere uma chave (**API Key v3**).
+2. Coloque em `tmdbApiKey` no `js/config.js`.
+
+> **Importante:** a chave do TMDB que estava no `index.html` do repositório antigo ficou pública no histórico do GitHub. Gere uma **nova** chave e apague/revogue a antiga no painel do TMDB.
+> Quando a chave está ativa, o rodapé mostra a atribuição exigida pelo TMDB automaticamente.
+
+---
+
+## Como o código está organizado
+
+```
+index.html              página única (carrega CSS e js/main.js)
+css/                    tokens (cores), base, componentes e telas
+js/
+  main.js               inicia tudo e define as rotas
+  config.js             o único arquivo que você precisa editar
+  core/                 DOM seguro, roteador, modal, toasts, tema, ícones
+  domain/               regras puras: obras, temporadas, estatísticas, backup
+  services/             backends (local e Supabase), sessão, busca (Jikan, AniList, TMDB)
+  ui/                   componentes: cards, filtros, modais, cartão de compartilhar
+  views/                telas: início, biblioteca, login, perfil, explorar, ajustes
+sql/schema.sql          tabelas, regras de segurança e funções do Supabase
+```
+
+Os dois backends (`local-backend.js` e `supabase-backend.js`) têm a mesma interface, por isso as telas não sabem de onde os dados vêm.
+
+## Segurança em resumo
+
+- **Regras no banco (RLS):** cada pessoa só lê e altera as próprias obras; perfis públicos só são lidos por funções que respeitam as opções de privacidade.
+- **Sem XSS:** todo texto vindo de usuários ou de APIs é escapado antes de ir para a tela; capas só aceitam `https`.
+- **CSP:** o `index.html` só permite scripts do próprio site e do jsDelivr (onde fica a biblioteca do Supabase) e só conversa com as APIs usadas.
+- **Limites:** até **2000 obras por conta**, e campos com tamanho máximo, validados no banco.
+- **Cadastro aberto:** qualquer pessoa com o link pode criar conta. Se quiser restringir a só os amigos, desligue **Authentication → Sign In / Providers → Allow new users to sign up** depois que todos tiverem criado a conta, ou crie os usuários manualmente em **Authentication → Users**.
+
+## Problemas comuns
+
+| Sintoma | Causa provável |
+|---|---|
+| "Não foi possível iniciar o KamyList" | URL ou chave erradas no `js/config.js`, ou sem internet |
+| "Perfil não encontrado" nas configurações | O `sql/schema.sql` não foi executado (ou a conta foi criada antes dele) |
+| E-mail de confirmação não chega | Veja o spam; o plano gratuito limita e-mails por hora. Para grupos pequenos, desligue **Confirm email** |
+| Link do e-mail leva a uma página errada | **Site URL** / **Redirect URLs** não batem com o endereço do GitHub Pages |
+| Busca de séries/filmes desativada | Falta a `tmdbApiKey` no `js/config.js` |
+| Tela em branco abrindo o arquivo direto | Use um servidor local (veja "Testar no computador") |
+
+---
+
+Dados das obras: [MyAnimeList](https://myanimelist.net) via [Jikan](https://jikan.moe), [AniList](https://anilist.co) e [TMDB](https://www.themoviedb.org). Este produto usa a API do TMDB, mas não é endossado nem certificado pelo TMDB.

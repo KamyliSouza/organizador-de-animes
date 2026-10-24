@@ -1,0 +1,158 @@
+/* =========================================================
+   DESIGN TOKENS — KamyList
+   Paleta herdada do site da Kamyli Sumire (roxo #B35EAF).
+   Tema claro por padrão, tema escuro via [data-theme="dark"]
+   ou automaticamente pelo sistema quando não há preferência.
+   ========================================================= */
+
+:root {
+    /* Marca */
+    --primary-color: #B35EAF;
+    --primary-hover: #9b4d97;
+    --primary-soft: rgba(179, 94, 175, 0.08);
+    --primary-text: #9b4d97;       /* contraste AA como cor de texto */
+
+    /* Superfícies de ação (contraste AA com texto branco) */
+    --button-bg: #9b4d97;
+    --button-bg-hover: #843f80;
+    --button-text: #ffffff;
+
+    /* Fundo e superfícies */
+    --bg-color: #f7eff7;
+    --card-bg: rgba(255, 255, 255, 0.92);
+    --card-border: rgba(179, 94, 175, 0.30);
+    --card-border-strong: rgba(179, 94, 175, 0.46);
+    --notice-bg: rgba(179, 94, 175, 0.08);
+    --footer-bg: rgba(255, 255, 255, 0.85);
+    --nav-bg: rgba(255, 255, 255, 0.85);
+    --input-bg: rgba(255, 255, 255, 0.95);
+    --modal-bg: #fdf8fd;
+    --overlay-bg: rgba(43, 20, 42, 0.45);
+
+    /* Texto */
+    --text-color: #2b2b2b;
+    --subtitle-color: #666;
+    --muted-color: #7a6b79;
+    --notice-text: #555;
+
+    /* Estados (texto legível sobre o fundo claro) */
+    --st-watching: #1d4ed8;
+    --st-planned: #b45309;
+    --st-completed: #047857;
+    --cat-anime: var(--primary-text);
+    --cat-filme: #be123c;
+    --cat-serie: #0369a1;
+    --danger: #be123c;
+    --danger-soft: rgba(190, 18, 60, 0.10);
+    --star: #d97706;
+
+    /* Geometria */
+    --radius-card: 24px;
+    --radius-button: 16px;
+    --radius-small: 14px;
+    --radius-pill: 999px;
+
+    /* Efeitos */
+    --blur-card: 10px;
+    --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.15);
+    --shadow-soft: 0 4px 14px rgba(120, 50, 118, 0.12);
+    --focus-ring: 0 0 0 3px rgba(155, 77, 151, 0.35);
+
+    /* Tipografia */
+    --font-main: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+    /* Layout */
+    --nav-height: 68px;
+    --content-width: 1120px;
+
+    color-scheme: light;
+}
+
+:root[data-theme="light"] { color-scheme: light; }
+
+:root[data-theme="dark"] {
+    --primary-color: #d178cd;
+    --primary-hover: #b35eaf;
+    --primary-soft: rgba(209, 120, 205, 0.12);
+    --primary-text: #d178cd;
+
+    --button-bg: #d178cd;
+    --button-bg-hover: #e08ddc;
+    --button-text: #1a0f1a;
+
+    --bg-color: #121212;
+    --card-bg: rgba(30, 24, 32, 0.85);
+    --card-border: rgba(209, 120, 205, 0.35);
+    --card-border-strong: rgba(235, 170, 232, 0.58);
+    --notice-bg: rgba(209, 120, 205, 0.12);
+    --footer-bg: rgba(25, 20, 27, 0.85);
+    --nav-bg: rgba(25, 20, 27, 0.88);
+    --input-bg: rgba(14, 11, 16, 0.65);
+    --modal-bg: #1d1720;
+    --overlay-bg: rgba(0, 0, 0, 0.62);
+
+    --text-color: #f0e6f0;
+    --subtitle-color: #bfa9be;
+    --muted-color: #a894a7;
+    --notice-text: #e0d0df;
+
+    --st-watching: #93c5fd;
+    --st-planned: #fcd34d;
+    --st-completed: #6ee7b7;
+    --cat-filme: #fda4af;
+    --cat-serie: #7dd3fc;
+    --danger: #fda4af;
+    --danger-soft: rgba(253, 164, 175, 0.14);
+    --star: #fbbf24;
+
+    --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.28);
+    --shadow-soft: 0 4px 14px rgba(0, 0, 0, 0.35);
+    --focus-ring: 0 0 0 3px rgba(209, 120, 205, 0.45);
+
+    color-scheme: dark;
+}
+
+/* Sem preferência salva: segue o tema do sistema */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+        --primary-color: #d178cd;
+        --primary-hover: #b35eaf;
+        --primary-soft: rgba(209, 120, 205, 0.12);
+        --primary-text: #d178cd;
+
+        --button-bg: #d178cd;
+        --button-bg-hover: #e08ddc;
+        --button-text: #1a0f1a;
+
+        --bg-color: #121212;
+        --card-bg: rgba(30, 24, 32, 0.85);
+        --card-border: rgba(209, 120, 205, 0.35);
+        --card-border-strong: rgba(235, 170, 232, 0.58);
+        --notice-bg: rgba(209, 120, 205, 0.12);
+        --footer-bg: rgba(25, 20, 27, 0.85);
+        --nav-bg: rgba(25, 20, 27, 0.88);
+        --input-bg: rgba(14, 11, 16, 0.65);
+        --modal-bg: #1d1720;
+        --overlay-bg: rgba(0, 0, 0, 0.62);
+
+        --text-color: #f0e6f0;
+        --subtitle-color: #bfa9be;
+        --muted-color: #a894a7;
+        --notice-text: #e0d0df;
+
+        --st-watching: #93c5fd;
+        --st-planned: #fcd34d;
+        --st-completed: #6ee7b7;
+        --cat-filme: #fda4af;
+        --cat-serie: #7dd3fc;
+        --danger: #fda4af;
+        --danger-soft: rgba(253, 164, 175, 0.14);
+        --star: #fbbf24;
+
+        --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.28);
+        --shadow-soft: 0 4px 14px rgba(0, 0, 0, 0.35);
+        --focus-ring: 0 0 0 3px rgba(209, 120, 205, 0.45);
+
+        color-scheme: dark;
+    }
+}
