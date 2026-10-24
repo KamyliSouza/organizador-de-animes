@@ -26,16 +26,16 @@ Isso cria as tabelas `profiles` e `entries`, as regras que impedem uma pessoa de
 
 ### 3. Copiar as chaves para o site
 
-1. No Supabase: **Project Settings → API**.
-2. Copie a **Project URL** e a chave **anon / public**.
+1. No Supabase, clique no botão **Connect** (no topo da página do projeto). Ele mostra a **Project URL** (algo como `https://abcdefghijk.supabase.co`, que é o *Project ID* seguido de `.supabase.co`) e a chave pública.
+2. A chave também fica em **Settings → API Keys**. Projetos novos têm a **Publishable key** (começa com `sb_publishable_`); projetos antigos têm a chave **anon**. Qualquer uma das duas serve.
 3. Abra [`js/config.js`](js/config.js) e preencha:
 
 ```js
 supabaseUrl: 'https://abcdefghijk.supabase.co',
-supabaseAnonKey: 'eyJhbGciOi...',
+supabaseAnonKey: 'sb_publishable_...',   // ou a chave anon
 ```
 
-> A chave `anon` é **pública por natureza** (fica visível no navegador de qualquer site estático). Quem protege os dados são as regras do banco do passo 2. **Nunca** coloque a chave `service_role` aqui.
+> A chave publishable/anon é **pública por natureza** (fica visível no navegador de qualquer site estático). Quem protege os dados são as regras do banco do passo 2. **Nunca** coloque aqui a chave **secret** nem a `service_role`.
 
 ### 4. Configurar o login (Authentication)
 

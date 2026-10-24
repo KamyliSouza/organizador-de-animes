@@ -198,6 +198,8 @@ button { -webkit-tap-highlight-color: transparent; }
     z-index: 1000;
     display: none;
     gap: 4px;
+    width: max-content;
+    max-width: calc(100% - 24px);
     padding: 6px;
     background: var(--nav-bg);
     border: 2px solid var(--card-border);
@@ -208,8 +210,9 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 .tab-link {
     display: flex; flex-direction: column; align-items: center; gap: 2px;
-    min-width: 76px;
-    padding: 8px 12px;
+    flex: 1 1 auto;
+    min-width: min(76px, 26vw);
+    padding: 8px 8px;
     color: var(--subtitle-color);
     text-decoration: none;
     font-size: .72rem;

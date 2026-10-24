@@ -6,7 +6,7 @@
    Landing (visitante)
    --------------------------------------------------------- */
 .hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 28px; align-items: center; padding: 40px 36px; }
-.hero h1 { font-size: clamp(2rem, 5.2vw, 3.3rem); letter-spacing: -.03em; margin: 14px 0 12px; }
+.hero h1 { overflow-wrap: anywhere; font-size: clamp(1.7rem, 5.2vw, 3.3rem); letter-spacing: -.03em; margin: 14px 0 12px; }
 .hero h1 em { font-style: normal; color: var(--primary-text); }
 .hero .lead { font-size: 1.1rem; color: var(--subtitle-color); max-width: 46ch; }
 .hero-cta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 24px; }
@@ -55,7 +55,7 @@
    --------------------------------------------------------- */
 .profile-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .profile-card {
-    display: flex; flex-direction: column; gap: 12px;
+    display: flex; flex-direction: column; gap: 12px; min-width: 0;
     padding: 18px; color: inherit; text-decoration: none;
     border-radius: 22px;
     transition: transform .2s ease, border-color .2s ease;
@@ -65,7 +65,7 @@
 .profile-card h3 { font-size: 1rem; overflow-wrap: anywhere; }
 .profile-card .handle { font-size: .84rem; font-weight: 800; color: var(--primary-text); }
 .profile-card .bio { font-size: .88rem; color: var(--subtitle-color); min-height: 2.6em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
-.profile-card footer { display: flex; gap: 14px; font-size: .8rem; font-weight: 800; color: var(--subtitle-color); }
+.profile-card footer { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .8rem; font-weight: 800; color: var(--subtitle-color); }
 .profile-card footer b { color: var(--text-color); }
 
 /* ---------------------------------------------------------
@@ -80,13 +80,13 @@
 .copy-field .input { font-size: .84rem; }
 
 @media (max-width: 900px) {
-    .hero { grid-template-columns: 1fr; padding: 28px 22px; }
+    .hero { grid-template-columns: minmax(0, 1fr); padding: 28px 22px; }
     .hero-preview { display: none; }
     .feature-grid, .profile-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .settings-grid { grid-template-columns: 1fr; }
+    .settings-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 620px) {
-    .feature-grid, .profile-grid { grid-template-columns: 1fr; }
+    .feature-grid, .profile-grid { grid-template-columns: minmax(0, 1fr); }
     .profile-head { padding: 18px; }
     .profile-head .avatar { --size: 64px; }
     .auth-card { padding: 22px 18px; }

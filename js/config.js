@@ -16,9 +16,10 @@
 export const config = {
     siteName: 'KamyList',
 
-    // Supabase > Project Settings > API
-    supabaseUrl: 'https://txnxoqlqmwasowqefuhb.supabase.co/',        // ex.: 'https://abcdefghijk.supabase.co'
-    supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR4bnhvcWxxbXdhc293cWVmdWhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NjgwMTMsImV4cCI6MjEwODQ0NDAxM30.0lJLsbb9yZQ2GyL4_EpjLOzrLS1rFZdXmH7BwHK5S-k',    // chave "anon" / "public"
+    // Supabase: botão "Connect" (topo do projeto) mostra a Project URL e a chave.
+    // A chave também fica em Settings > API Keys.
+    supabaseUrl: '',        // ex.: 'https://abcdefghijk.supabase.co'
+    supabaseAnonKey: '',    // "Publishable key" (começa com sb_publishable_) ou a chave "anon" antiga. NUNCA a secret/service_role
 
     // Opcional: busca de séries e filmes (TMDB). Crie uma chave GRATUITA em
     // https://www.themoviedb.org/settings/api (use a "API Key (v3 auth)").

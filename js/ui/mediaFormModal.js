@@ -42,9 +42,9 @@ export function openMediaForm({ entry = null, onSave }) {
     const content = el(html`
     <form class="stack" novalidate>
         <div class="subpanel">
-            <div class="row-between">
-                <label class="field-label" for="mf-source">Fonte de busca</label>
-                <select id="mf-source" class="select select-sm" style="width:auto">
+            <div class="field">
+                <label for="mf-source">Fonte de busca</label>
+                <select id="mf-source" class="select select-sm">
                     ${SOURCES.map((s) => html`<option value="${s.id}" ${sourceAvailable(s.id) ? '' : 'disabled'}>${s.label}${sourceAvailable(s.id) ? '' : ' (configure a chave)'}</option>`)}
                 </select>
             </div>
@@ -52,9 +52,9 @@ export function openMediaForm({ entry = null, onSave }) {
 
         <div class="field">
             <label for="mf-title">Título da obra</label>
-            <div class="row" style="flex-wrap:nowrap">
+            <div class="input-row">
                 <input id="mf-title" class="input" required maxlength="200" autocomplete="off" placeholder="Ex: Diários de uma Apotecária...">
-                <button type="button" class="button button-secondary" data-act="search" style="flex:0 0 auto">${icon('search', { size: 16 })} Buscar</button>
+                <button type="button" class="button button-secondary" data-act="search">${icon('search', { size: 16 })} Buscar</button>
             </div>
         </div>
 
@@ -65,10 +65,10 @@ export function openMediaForm({ entry = null, onSave }) {
 
         <div class="subpanel">
             <span class="field-label" style="color:var(--primary-text)">Temporadas, OVAs e filmes</span>
-            <div class="row" style="flex-wrap:nowrap">
+            <div class="input-row">
                 <input id="mf-season-name" class="input" maxlength="80" autocomplete="off" placeholder="Nome da temporada/OVA..." aria-label="Nome da temporada ou OVA a adicionar">
-                <button type="button" class="button button-secondary button-sm" data-act="search-season" style="flex:0 0 auto">${icon('search', { size: 15 })} Buscar</button>
-                <button type="button" class="button button-ghost button-sm" data-act="add-season" style="flex:0 0 auto">${icon('plus', { size: 15 })} Manual</button>
+                <button type="button" class="button button-secondary button-sm" data-act="search-season">${icon('search', { size: 15 })} Buscar</button>
+                <button type="button" class="button button-ghost button-sm" data-act="add-season">${icon('plus', { size: 15 })} Manual</button>
             </div>
             <div class="result-list" data-season-results hidden></div>
             <div class="stack" style="gap:6px" data-seasons></div>
