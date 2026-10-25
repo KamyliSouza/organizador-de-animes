@@ -136,10 +136,10 @@
     border-radius: var(--radius-small);
     font-size: .92rem;
 }
-.notice-box .icon { margin-top: 2px; color: var(--primary-text); }
+.notice-box > .icon { margin-top: 2px; color: var(--primary-text); }
 .notice-box strong { color: var(--text-color); }
 .notice-box.is-error { background: var(--danger-soft); border-color: var(--danger); }
-.notice-box.is-error .icon { color: var(--danger); }
+.notice-box.is-error > .icon { color: var(--danger); }
 .notice-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 
 .badge {
@@ -339,7 +339,7 @@
 
 /* Estados vazios e carregamento */
 .empty-state { display: grid; justify-items: center; gap: 8px; padding: 48px 16px; text-align: center; color: var(--subtitle-color); }
-.empty-state .icon { color: var(--primary-text); opacity: .6; }
+.empty-state > .icon { color: var(--primary-text); opacity: .6; }
 .empty-state h3 { color: var(--text-color); font-size: 1.1rem; }
 
 .skeleton { border-radius: 20px; min-height: 140px; background: linear-gradient(90deg, var(--primary-soft), color-mix(in srgb, var(--primary-color) 18%, transparent), var(--primary-soft)); background-size: 200% 100%; animation: shimmer 1.3s linear infinite; }

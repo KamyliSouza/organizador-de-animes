@@ -123,6 +123,15 @@ button { -webkit-tap-highlight-color: transparent; }
 .icon-spin { animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* Tela de abertura (antes do app assumir) e aviso para quem está sem JavaScript */
+.boot-note { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 80px 16px; text-align: center; color: var(--subtitle-color); }
+.boot-note strong { color: var(--text-color); }
+.boot-note .button { width: fit-content; }
+.boot-loading { display: none; }
+html.js .boot-loading { display: flex; }
+html:not(.js) .skip-link { display: none; }
+.site-nav:empty, .tab-bar:empty, .site-footer:empty { display: none; }   /* sem JavaScript estas áreas ficam vazias */
+
 /* ---------------------------------------------------------
    Navbar
    --------------------------------------------------------- */

@@ -11,7 +11,7 @@
 .hero .lead { font-size: 1.1rem; color: var(--subtitle-color); max-width: 46ch; }
 .hero-cta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 24px; }
 
-.hero-preview { display: flex; flex-direction: column; gap: 10px; }
+.hero-preview { display: flex; flex-direction: column; gap: 10px; padding-right: 14px; }   /* folga para o 2º cartão, deslocado de propósito */
 .mini-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--input-bg); border: 2px solid var(--card-border); border-radius: 18px; }
 .mini-card .poster { width: 44px; border-radius: 10px; flex: 0 0 auto; }
 .mini-card .info { flex: 1; min-width: 0; }

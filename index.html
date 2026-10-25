@@ -22,8 +22,8 @@
     <link rel="stylesheet" href="css/components.css">
     <link rel="stylesheet" href="css/views.css">
 
-    <!-- Aplica o tema salvo antes de pintar a página (evita piscar) -->
-    <script src="js/theme-boot.js"></script>
+    <!-- Marca que o JavaScript está ligado, aplica o tema salvo e vigia a inicialização -->
+    <script src="js/boot.js"></script>
 </head>
 <body>
     <button type="button" class="skip-link" id="skip-link">Pular para o conteúdo</button>
@@ -31,16 +31,19 @@
     <header id="site-nav" class="site-nav"></header>
 
     <main id="main" class="site-shell" tabindex="-1">
-        <p class="center muted" style="padding:80px 0">Carregando…</p>
+        <p class="boot-note boot-loading">Carregando…</p>
+        <noscript>
+            <div class="boot-note boot-nojs">
+                <strong>Este site precisa de JavaScript para funcionar.</strong>
+                <span>Ative o JavaScript no navegador e depois recarregue a página.</span>
+                <a class="button button-primary" href="./">Recarregar a página</a>
+            </div>
+        </noscript>
     </main>
 
     <footer id="site-footer" class="site-footer"></footer>
     <nav id="tab-bar" class="tab-bar" aria-label="Navegação principal (celular)"></nav>
     <div id="toast-region" class="toast-region" aria-live="polite"></div>
-
-    <noscript>
-        <p style="padding:24px;text-align:center">Este site precisa de JavaScript para funcionar. Ative o JavaScript no seu navegador.</p>
-    </noscript>
 
     <script type="module" src="js/main.js"></script>
 </body>
