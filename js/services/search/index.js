@@ -2,10 +2,13 @@
 import { config } from '../../config.js';
 
 export const SOURCES = [
-    { id: 'mal', label: 'MyAnimeList (MAL)', load: () => import('./jikan.js') },
     { id: 'anilist', label: 'AniList (Anime)', load: () => import('./anilist.js') },
+    { id: 'mal', label: 'MyAnimeList (MAL)', load: () => import('./jikan.js') },
     { id: 'tmdb', label: 'Séries e Filmes (TMDB)', load: () => import('./tmdb.js') },
 ];
+
+/** Fonte usada quando a pessoa ainda não escolheu nenhuma. */
+export const DEFAULT_SOURCE = 'anilist';
 
 export function sourceAvailable(id) {
     if (id === 'tmdb') return Boolean(config.tmdbApiKey);

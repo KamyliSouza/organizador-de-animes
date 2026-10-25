@@ -22,7 +22,7 @@ Organize animes, séries e filmes, marque episódios por temporada, veja a agend
 2. Copie **todo** o conteúdo de [`sql/schema.sql`](sql/schema.sql), cole e clique em **Run**.
 3. Pode rodar de novo quando quiser (por exemplo, depois de atualizar o site): o script não duplica nada.
 
-Isso cria as tabelas `profiles` e `entries`, as regras que impedem uma pessoa de ver ou mexer na lista de outra e as funções usadas pelos perfis públicos.
+Isso cria as tabelas `profiles` e `entries`, as regras que impedem uma pessoa de ver ou mexer na lista de outra e as funções usadas pelos perfis públicos (inclusive a que permite excluir a própria conta).
 
 ### 3. Copiar as chaves para o site
 
@@ -63,6 +63,17 @@ Pronto: crie sua conta, abra **Perfil e configurações**, ative **Perfil públi
 
 ---
 
+## Atualizando um site que já está no ar
+
+Depois de trocar os arquivos no GitHub, **rode o `sql/schema.sql` de novo** no Supabase (SQL Editor → New query → cole tudo → Run). É seguro repetir: nada é duplicado nem apagado, as obras existentes continuam como estão.
+
+Sem esse passo, duas coisas novas não funcionam:
+
+- salvar uma obra como **Dropado** (o banco antigo só conhece Assistindo, Quero Ver e Concluído);
+- o botão **Excluir minha conta**.
+
+---
+
 ## Testar no computador
 
 Os módulos JavaScript não funcionam abrindo o `index.html` com duplo clique. Use um servidor local:
@@ -81,6 +92,11 @@ python3 -m http.server 8000
 - As **anotações** (diário) continuam só para a dona da conta, mesmo com o perfil público. Para mostrá-las, ative **Mostrar minhas anotações**. Isso é garantido no banco, não só na tela.
 - Quem não está logado pode ver perfis públicos, mas não consegue ler nem editar nada além disso.
 - Trocar o nome de usuário muda o link do perfil (o antigo deixa de funcionar).
+- **Excluir a conta:** em **Perfil e configurações → Zona de perigo**. É preciso digitar o nome de usuário para confirmar. Apaga a conta, o perfil e todas as obras, para sempre (exporte um backup antes se quiser guardar a lista). O link do perfil deixa de existir e o nome de usuário volta a ficar livre.
+
+## Status das obras
+
+**Assistindo**, **Quero Ver**, **Concluído** e **Dropado**. Obras dropadas aparecem com a capa em tons de cinza e têm um contador próprio no topo. Marcar um episódio numa obra dropada a coloca de volta em *Assistindo*.
 
 ## Trazer a lista da versão antiga
 
@@ -90,7 +106,11 @@ python3 -m http.server 8000
 
 ## Busca de séries e filmes (TMDB, opcional)
 
-A busca de **animes** (MyAnimeList e AniList) funciona sem chave. Para buscar séries e filmes:
+A busca de **animes** funciona sem chave, com duas fontes: **AniList** (a primeira da lista e a padrão) e **MyAnimeList** (via Jikan). A fonte escolhida fica lembrada neste navegador.
+
+- No **MyAnimeList** as sequências (2ª temporada, filmes) são buscadas quando você escolhe a obra, por isso há uma pequena espera. O Jikan limita o número de buscas por segundo; o site espaça os pedidos, tenta de novo sozinho quando o serviço pede calma ou está lento e avisa quando mesmo assim não deu. Se o MAL estiver fora do ar, troque para o AniList.
+
+Para buscar séries e filmes:
 
 1. Crie uma conta gratuita em <https://www.themoviedb.org/settings/api> e gere uma chave (**API Key v3**).
 2. Coloque em `tmdbApiKey` no `js/config.js`.
@@ -113,7 +133,7 @@ js/
   services/             backends (local e Supabase), sessão, busca (Jikan, AniList, TMDB)
   ui/                   componentes: cards, filtros, modais, cartão de compartilhar
   views/                telas: início, biblioteca, login, perfil, explorar, ajustes
-sql/schema.sql          tabelas, regras de segurança e funções do Supabase
+sql/schema.sql          tabelas, regras de segurança e funções do Supabase (pode rodar de novo a qualquer momento)
 ```
 
 Os dois backends (`local-backend.js` e `supabase-backend.js`) têm a mesma interface, por isso as telas não sabem de onde os dados vêm.
@@ -132,6 +152,8 @@ Os dois backends (`local-backend.js` e `supabase-backend.js`) têm a mesma inter
 |---|---|
 | "Não foi possível iniciar o KamyList" | URL ou chave erradas no `js/config.js`, ou sem internet |
 | "Perfil não encontrado" nas configurações | O `sql/schema.sql` não foi executado (ou a conta foi criada antes dele) |
+| "O banco ainda não aceita o status Dropado" ou "Não foi possível excluir a conta" | O `sql/schema.sql` novo ainda não foi executado (veja "Atualizando um site que já está no ar") |
+| MAL mostra "Muitas buscas seguidas" ou "Serviço indisponível" | O Jikan limitou ou está lento: espere alguns segundos ou use o AniList |
 | E-mail de confirmação não chega | Veja o spam; o plano gratuito limita e-mails por hora. Para grupos pequenos, desligue **Confirm email** |
 | Link do e-mail leva a uma página errada | **Site URL** / **Redirect URLs** não batem com o endereço do GitHub Pages |
 | Busca de séries/filmes desativada | Falta a `tmdbApiKey` no `js/config.js` |

@@ -23,6 +23,40 @@ export function choiceDialog({ title, message, choices, iconName = 'info' }) {
     });
 }
 
+/**
+ * Confirmação "digite para confirmar" (ações sem volta, como excluir a conta).
+ * O botão só habilita quando o texto digitado é igual a `expected`. Retorna true/false.
+ */
+export function typedConfirmDialog({ title, message, expected, confirmLabel = 'Excluir', iconName = 'alert' }) {
+    return new Promise((resolve) => {
+        let answer = false;
+        const content = el(html`
+            <form class="stack" novalidate>
+                <p class="muted" style="white-space:pre-line">${message}</p>
+                <div class="field">
+                    <label for="typed-confirm">Digite <strong>${expected}</strong> para confirmar</label>
+                    <input id="typed-confirm" class="input" autocomplete="off" autocapitalize="none" spellcheck="false">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="button button-ghost" data-modal-close>Cancelar</button>
+                    <button type="submit" class="button button-danger" data-confirm disabled>${confirmLabel}</button>
+                </div>
+            </form>`, 'div');
+        const input = content.querySelector('#typed-confirm');
+        const confirm = content.querySelector('[data-confirm]');
+        const matches = () => input.value.trim().toLowerCase() === String(expected).trim().toLowerCase();
+        const modal = openModal({ title, iconName, size: 'sm', content, onClose: () => resolve(answer) });
+        input.addEventListener('input', () => { confirm.disabled = !matches(); });
+        content.querySelector('form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (!matches()) return;
+            answer = true;
+            modal.close();
+        });
+        input.focus();
+    });
+}
+
 /** Confirmação simples. Retorna true/false. */
 export async function confirmDialog({ title = 'Confirmar', message, confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', danger = false }) {
     const res = await choiceDialog({

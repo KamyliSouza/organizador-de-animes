@@ -28,7 +28,7 @@ export function mediaCardHtml(entry, { readonly = false } = {}) {
     const hasDetails = Boolean(entry.description || entry.notes);
 
     return html`
-    <article class="media-card glass-panel" data-id="${entry.id}">
+    <article class="media-card glass-panel ${entry.status === 'dropped' ? 'is-dropped' : ''}" data-id="${entry.id}">
         ${poster(entry, true)}
         <div class="media-body">
             <div class="media-badges">
@@ -36,7 +36,7 @@ export function mediaCardHtml(entry, { readonly = false } = {}) {
                 <span class="badge badge-${entry.status}">${status.label}</span>
             </div>
             <h3 class="media-title">${entry.title}</h3>
-            ${entry.tags.length ? html`<div class="media-tags">${entry.tags.slice(0, 4).map((t) => html`<span class="chip">${t}</span>`)}</div>` : ''}
+            <div class="media-tags">${entry.tags.slice(0, 4).map((t) => html`<span class="chip">${t}</span>`)}</div>
             <div class="media-meta">
                 ${starsHtml(entry.rating)}
                 ${hasDetails ? html`<button type="button" class="link-button" data-action="details">${icon('book', { size: 14 })} Detalhes</button>` : ''}
@@ -45,7 +45,11 @@ export function mediaCardHtml(entry, { readonly = false } = {}) {
                 <div class="media-progress">
                     <div class="row-between"><span>Progresso: <b>${watched}</b> / ${total} eps</span><span class="pct">${pct}%</span></div>
                     <div class="progress ${pct >= 100 ? 'is-complete' : ''}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Progresso de ${entry.title}"><span style="width:${pct}%"></span></div>
-                </div>` : ''}
+                </div>` : html`
+                <div class="media-progress is-idle">
+                    <div class="row-between"><span>Ainda não começou · ${total} eps</span></div>
+                    <div class="progress" aria-hidden="true"><span style="width:0"></span></div>
+                </div>`}
             ${readonly ? '' : html`
                 <div class="media-actions">
                     ${entry.status !== 'planned' ? html`
@@ -66,7 +70,7 @@ export function mediaRowHtml(entry, { readonly = false } = {}) {
     const hasDetails = Boolean(entry.description || entry.notes);
 
     return html`
-    <article class="media-row glass-panel" data-id="${entry.id}">
+    <article class="media-row glass-panel ${entry.status === 'dropped' ? 'is-dropped' : ''}" data-id="${entry.id}">
         <div class="thumb">${entry.coverImage ? html`<img src="${entry.coverImage}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-fallback>` : ''}</div>
         <div class="info">
             <h3 class="truncate">${entry.title}</h3>

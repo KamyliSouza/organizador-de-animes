@@ -6,6 +6,7 @@ export const STATUSES = {
     watching: { label: 'Assistindo', icon: 'play' },
     planned: { label: 'Quero Ver', icon: 'clock' },
     completed: { label: 'Concluído', icon: 'check' },
+    dropped: { label: 'Dropado', icon: 'ban' },
 };
 export const STATUS_KEYS = Object.keys(STATUSES);
 
@@ -89,8 +90,13 @@ export function progressOf(entry) {
     return { total, watched, pct: Math.min(100, Math.round(exact)), exact };
 }
 
-/** Ajusta o status geral conforme os episódios vistos (mesma regra do tracker original). */
-export function syncStatus(entry) {
+/**
+ * Ajusta o status geral conforme os episódios vistos (mesma regra do tracker original).
+ * Uma obra "Dropado" volta a "Assistindo" (ou "Concluído") quando você marca um episódio,
+ * mas não muda só porque o total de episódios foi editado (revive: false).
+ */
+export function syncStatus(entry, { revive = true } = {}) {
+    if (!revive && entry.status === 'dropped') return entry;
     const { total, watched } = progressOf(entry);
     if (total > 0 && watched >= total) entry.status = 'completed';
     else if (watched > 0) entry.status = 'watching';
@@ -133,7 +139,7 @@ export function setSeasonTotal(entry, seasonIndex, total) {
     if (!season) return;
     season.totalEps = toInt(total, 1, MAX_EPISODES, 1);
     season.watched = season.watched.filter((n) => n <= season.totalEps);
-    syncStatus(entry);
+    syncStatus(entry, { revive: false });
 }
 
 export function seasonState(season) {

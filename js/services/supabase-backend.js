@@ -26,6 +26,7 @@ function friendly(error, fallback) {
     if (code === 'signup_disabled' || has('Signups not allowed')) return 'Novos cadastros estão desativados.';
     if (code === 'email_address_invalid') return 'Esse e-mail não é aceito. Confira o endereço.';
     if (code === '23505') return 'Este nome de usuário já está em uso.';
+    if (has('entries_status')) return 'O banco ainda não aceita o status "Dropado". Rode o sql/schema.sql de novo no Supabase (SQL Editor).';
     if (code === '23514') return has('Limite') ? 'Limite de obras da conta atingido.' : 'Algum dado está em formato inválido.';
     if (code === '42501' || has('row-level security')) return 'Sem permissão para isso. Saia e entre de novo.';
     if (has('Failed to fetch') || has('NetworkError') || has('Load failed') || error?.name === 'AuthRetryableFetchError') {
@@ -167,6 +168,13 @@ export async function createSupabaseBackend() {
 
             async updatePassword(password) {
                 await ok(sb.auth.updateUser({ password }), 'Não foi possível trocar a senha.');
+            },
+
+            /** Apaga a própria conta, o perfil e todas as obras (função delete_my_account do banco). */
+            async deleteAccount() {
+                await ok(sb.rpc('delete_my_account'), 'Não foi possível excluir a conta. Rode o sql/schema.sql de novo no Supabase.');
+                // A sessão local ainda existe, mas o usuário não: limpa só o navegador (sem chamar o servidor).
+                try { await sb.auth.signOut({ scope: 'local' }); } catch { /* já foi apagada */ }
             },
 
             /** true / false, ou null se não deu para checar. */

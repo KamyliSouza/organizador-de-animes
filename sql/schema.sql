@@ -53,7 +53,7 @@ create table if not exists public.entries (
   updated_at  timestamptz not null default now(),
   constraint entries_title_len    check (char_length(title) between 1 and 200),
   constraint entries_category     check (category in ('Anime', 'Filme', 'Série')),
-  constraint entries_status       check (status in ('watching', 'planned', 'completed')),
+  constraint entries_status       check (status in ('watching', 'planned', 'completed', 'dropped')),
   constraint entries_rating       check (rating between 0 and 5),
   constraint entries_tags_len     check (cardinality(tags) <= 20),
   constraint entries_genres_len   check (cardinality(genres) <= 20),
@@ -70,6 +70,12 @@ create table if not exists public.entries (
 );
 
 create index if not exists entries_user_created_idx on public.entries (user_id, created_at desc);
+
+-- Atualização para quem já tinha rodado uma versão antiga deste script:
+-- acrescenta o status "dropped" (Dropado) à regra de status. Seguro rodar sempre.
+alter table public.entries drop constraint if exists entries_status;
+alter table public.entries add  constraint entries_status
+  check (status in ('watching', 'planned', 'completed', 'dropped'));
 
 
 -- ---------------------------------------------------------------------
@@ -281,13 +287,34 @@ as $$
      and not exists (select 1 from public.profiles where username = lower(p_username));
 $$;
 
+-- Exclusão da PRÓPRIA conta (botão "Excluir minha conta" nas configurações).
+-- Só apaga quem está logado e só a si mesmo (auth.uid()); o perfil e todas as
+-- obras somem junto, em cascata.
+create or replace function public.delete_my_account()
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  uid uuid := auth.uid();
+begin
+  if uid is null then
+    raise exception 'Não autenticado.' using errcode = '28000';
+  end if;
+  delete from auth.users where id = uid;
+end;
+$$;
+
 -- Só quem precisa pode executar cada função.
 revoke all on function public.get_public_entries(text)            from public;
 revoke all on function public.list_public_profiles(text, int)     from public;
 revoke all on function public.username_available(text)            from public;
 revoke all on function public.handle_new_user()                   from public, anon, authenticated;
 revoke all on function public.enforce_entry_limit()               from public, anon, authenticated;
+revoke all on function public.delete_my_account()                 from public, anon;
 
 grant execute on function public.get_public_entries(text)         to anon, authenticated;
 grant execute on function public.list_public_profiles(text, int)  to anon, authenticated;
 grant execute on function public.username_available(text)         to anon, authenticated;
+grant execute on function public.delete_my_account()               to authenticated;

@@ -49,6 +49,7 @@ export function createLocalBackend() {
             signOut: async () => {},
             sendPasswordReset: reject,
             updatePassword: reject,
+            deleteAccount: reject,
             usernameAvailable: async () => null,
         },
 

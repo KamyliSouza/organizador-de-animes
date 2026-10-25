@@ -132,6 +132,9 @@ html.js .boot-loading { display: flex; }
 html:not(.js) .skip-link { display: none; }
 .site-nav:empty, .tab-bar:empty, .site-footer:empty { display: none; }   /* sem JavaScript estas áreas ficam vazias */
 
+/* Pontos de quebra em em (1em = 16px no tamanho normal): se a pessoa aumenta o texto do navegador,
+   o layout passa para a versão compacta mais cedo, em vez de apertar o conteúdo. */
+
 /* ---------------------------------------------------------
    Navbar
    --------------------------------------------------------- */
@@ -193,8 +196,22 @@ html:not(.js) .skip-link { display: none; }
 .nav-link:hover { background: var(--notice-bg); color: var(--primary-text); }
 .nav-link[aria-current="page"] { background: var(--notice-bg); color: var(--primary-text); }
 
-.nav-spacer { flex: 1 1 auto; }
-.nav-actions { display: flex; align-items: center; gap: 8px; }
+.nav-spacer { flex: 1 1 auto; min-width: 0; }
+.nav-actions { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.nav-name { max-width: 130px; }
+
+/* Tablets: menu mais compacto para caber nome da conta + "Sair" sem passar da tela */
+@media (max-width: 60em) {      /* 960px com o texto no tamanho normal; cresce junto se a pessoa aumentar o texto do navegador */
+    .nav-links { margin-left: 2px; }
+    .nav-link { padding: 9px 11px; gap: 6px; }
+    .nav-name { max-width: 84px; }
+}
+@media (max-width: 60em) {
+    .nav-account .nav-label { display: none; }     /* "Sair" vira só o ícone (continua com nome acessível e dica) */
+}
+@media (max-width: 60em) and (min-width: 45.0625em) {
+    .nav-name { max-width: 72px; }
+}
 
 /* ---------------------------------------------------------
    Barra inferior (celular)
@@ -246,7 +263,7 @@ html:not(.js) .skip-link { display: none; }
 }
 .site-footer p + p { margin-top: 6px; }
 
-@media (max-width: 720px) {
+@media (max-width: 45em) {      /* 720px; em para virar o menu de baixo também quando o texto do navegador é aumentado */
     .nav-links, .nav-account { display: none; }
     .tab-bar { display: flex; }
     .site-shell { margin-top: calc(var(--nav-height) + 18px); margin-bottom: 110px; }

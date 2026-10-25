@@ -28,6 +28,7 @@ async function gql(query, variables) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ query, variables }),
+        retries: 1,
     });
     return json?.data?.Page?.media || [];
 }

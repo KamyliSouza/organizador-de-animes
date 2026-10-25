@@ -86,9 +86,23 @@
 .input::placeholder, .textarea::placeholder { color: var(--muted-color); opacity: .85; }
 .input:hover, .select:hover, .textarea:hover { border-color: var(--card-border-strong); }
 .input:focus, .select:focus, .textarea:focus { outline: none; border-color: var(--primary-color); box-shadow: var(--focus-ring); }
+/* Seta própria (a do navegador gruda na borda): fica 15px longe da lateral e o texto nunca passa por baixo dela */
+.select {
+    -webkit-appearance: none;
+    appearance: none;
+    padding-right: 42px;
+    background-image: var(--select-arrow);
+    background-repeat: no-repeat;
+    background-position: right 15px center;
+    background-size: 14px 14px;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
 .select option { color: #2b2b2b; background: #fff; }
+@media (forced-colors: active) { .select { -webkit-appearance: auto; appearance: auto; padding-right: 14px; background-image: none; } }
 .textarea { resize: vertical; min-height: 84px; line-height: 1.45; }
 .input-sm, .select-sm { min-height: 36px; padding: 6px 10px; font-size: .86rem; }
+.select.select-sm { padding-right: 36px; background-position: right 12px center; background-size: 12px 12px; }
 
 .input-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .input-row > .input { flex: 1 1 150px; width: auto; min-width: 0; }
@@ -157,6 +171,7 @@
 .badge-watching  { --badge-color: var(--st-watching); }
 .badge-planned   { --badge-color: var(--st-planned); }
 .badge-completed { --badge-color: var(--st-completed); }
+.badge-dropped   { --badge-color: var(--st-dropped); }
 .badge-anime     { --badge-color: var(--cat-anime); }
 .badge-filme     { --badge-color: var(--cat-filme); }
 .badge-serie     { --badge-color: var(--cat-serie); }
@@ -213,7 +228,7 @@
 }
 .segmented.scroll { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
 .segmented.scroll::-webkit-scrollbar { display: none; }
-@media (max-width: 480px) {
+@media (max-width: 30em) {
     /* No celular os filtros de status quebram em 2 linhas quando não cabem (em vez de ficarem cortados) */
     .segmented.scroll { display: flex; flex-wrap: wrap; width: 100%; overflow: visible; border-radius: 22px; }
     .segmented.scroll button { flex: 1 1 auto; padding: 7px 10px; font-size: .8rem; }
@@ -240,7 +255,7 @@
 /* ---------------------------------------------------------
    Cards de estatística
    --------------------------------------------------------- */
-.stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.stat-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
 .stat-tile { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 20px; }
 .stat-icon {
     display: grid; place-items: center;
@@ -270,18 +285,20 @@
 .search-field { position: relative; min-width: 180px; flex: 1 1 200px; }
 .search-field .icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted-color); pointer-events: none; }
 .search-field .input { padding-left: 40px; min-height: 40px; border-radius: var(--radius-pill); }
-.toolbar .select { width: auto; min-height: 40px; border-radius: var(--radius-pill); padding-right: 12px; }
+.toolbar .select { width: auto; min-height: 40px; border-radius: var(--radius-pill); padding-left: 16px; padding-right: 40px; background-position: right 16px center; }
 
 /* ---------------------------------------------------------
    Cards de obra
    --------------------------------------------------------- */
-.media-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.media-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 14px; }   /* todas as linhas com a mesma altura */
 
 .media-card {
     display: grid;
     grid-template-columns: 96px minmax(0, 1fr);
+    align-items: start;
     gap: 14px;
     padding: 12px;
+    min-height: 224px;
     border-radius: 20px;
     transition: border-color .2s ease, transform .2s ease;
 }
@@ -296,6 +313,7 @@
     border-radius: 14px;
 }
 .poster img { width: 100%; height: 100%; object-fit: cover; }
+.media-card.is-dropped .poster img, .media-row.is-dropped .thumb img { filter: grayscale(.85) brightness(.9); }
 .poster-empty { display: grid; place-items: center; width: 100%; height: 100%; color: var(--primary-text); opacity: .7; }
 .poster .air-day {
     position: absolute; left: 4px; right: 4px; bottom: 4px;
@@ -305,18 +323,20 @@
     border-radius: 8px;
 }
 
-.media-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.media-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; align-self: stretch; }
 .media-badges { display: flex; gap: 6px; flex-wrap: wrap; }
 .media-title {
     font-size: .98rem; line-height: 1.25;
+    min-height: 2.5em;                       /* sempre 2 linhas de espaço: título curto não encolhe o card */
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
     overflow-wrap: anywhere;
 }
-.media-tags { display: flex; gap: 4px; flex-wrap: wrap; }
-.media-meta { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 8px; font-size: .82rem; color: var(--subtitle-color); }
+.media-tags { display: flex; gap: 4px; flex-wrap: wrap; height: 1.6rem; overflow: hidden; }   /* uma linha só (mostra só etiquetas inteiras) */
+.media-meta { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 8px; min-height: 22px; font-size: .82rem; color: var(--subtitle-color); }
 .media-progress { display: flex; flex-direction: column; gap: 4px; font-size: .78rem; color: var(--subtitle-color); }
 .media-progress b { color: var(--text-color); }
 .media-progress .pct { color: var(--primary-text); font-weight: 800; }
+.media-progress.is-idle { color: var(--muted-color); }
 .media-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: auto; padding-top: 4px; }
 .media-actions .push { margin-left: auto; display: flex; flex-wrap: wrap; gap: 2px; }
 
@@ -376,7 +396,7 @@
 .modal-body { padding: 16px 20px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
 .modal-footer { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; padding-top: 14px; margin-top: 4px; border-top: 1px solid var(--card-border); }
 
-@media (max-width: 560px) {
+@media (max-width: 35em) {
     .modal-overlay { align-items: flex-end; padding: 0; }
     .modal { max-width: none; max-height: 94vh; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 }
@@ -409,7 +429,7 @@
 .toast-error { border-color: var(--danger); }
 .toast-error .icon { color: var(--danger); }
 .toast-info .icon { color: var(--primary-text); }
-@media (max-width: 720px) { .toast-region { bottom: 96px; right: 16px; left: 16px; width: auto; } }
+@media (max-width: 45em) { .toast-region { bottom: 96px; right: 16px; left: 16px; width: auto; } }
 
 /* ---------------------------------------------------------
    Temporadas e episódios
@@ -483,12 +503,15 @@
 .share-preview { display: grid; place-items: center; }
 .share-preview canvas { width: min(100%, 320px); height: auto; border-radius: 18px; box-shadow: var(--shadow-card); }
 
-@media (max-width: 900px) {
-    .media-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 65em) {
     .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .stat-grid > :last-child:nth-child(odd) { grid-column: 1 / -1; }   /* 5 cards em 2 colunas: o último ocupa a linha toda */
+}
+@media (max-width: 56.25em) {
+    .media-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .schedule-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-@media (max-width: 620px) {
+@media (max-width: 38.75em) {
     .media-grid { grid-template-columns: minmax(0, 1fr); }
     .form-grid { grid-template-columns: minmax(0, 1fr); }
     .schedule-grid { grid-template-columns: minmax(0, 1fr); }
@@ -500,7 +523,7 @@
 }
 
 /* Telas bem estreitas = celulares pequenos ou página com zoom/texto ampliado */
-@media (max-width: 440px) {
+@media (max-width: 27.5em) {
     .stat-tile { flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; }
     .stat-icon { width: 36px; height: 36px; border-radius: 12px; }
     .media-card { grid-template-columns: 76px minmax(0, 1fr); gap: 10px; padding: 10px; }
@@ -516,12 +539,12 @@
     .season-edit-row [data-field="name"] { grid-column: 1 / -1; }
     .season-settings { padding: 10px; }
 }
-@media (max-width: 360px) {
+@media (max-width: 22.5em) {
     .stat-label { letter-spacing: .02em; font-size: .66rem; }
     .toolbar .select { flex: 1 1 100%; }
     .modal-footer .button { flex: 1 1 100%; }
 }
-@media (max-width: 300px) {
+@media (max-width: 18.75em) {
     .stat-grid { grid-template-columns: minmax(0, 1fr); }
     .media-actions .button-sm { padding: 6px 8px; font-size: .78rem; }
     .media-actions .button-sm .icon { display: none; }

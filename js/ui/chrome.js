@@ -51,8 +51,8 @@ function renderNav(nav) {
                         ? html`<a class="button button-secondary button-sm" href="#/configuracoes">${icon('sliders', { size: 16 })}Ajustes</a>`
                         : user
                             ? html`
-                                <a class="nav-link" href="#/configuracoes" ${isActive(currentPath(), '/configuracoes') ? html`aria-current="page"` : ''} title="Meu perfil e configurações">${avatar(name, 28)}<span class="truncate" style="max-width:130px">${name}</span></a>
-                                <button type="button" class="button button-ghost button-sm" data-logout>${icon('logOut', { size: 16 })}Sair</button>`
+                                <a class="nav-link" href="#/configuracoes" ${isActive(currentPath(), '/configuracoes') ? html`aria-current="page"` : ''} title="Meu perfil e configurações">${avatar(name, 28)}<span class="truncate nav-name">${name}</span></a>
+                                <button type="button" class="button button-ghost button-sm" data-logout aria-label="Sair da conta" title="Sair da conta">${icon('logOut', { size: 16 })}<span class="nav-label">Sair</span></button>`
                             : html`
                                 <a class="button button-ghost button-sm" href="#/entrar">Entrar</a>
                                 <a class="button button-primary button-sm" href="#/criar-conta">Criar conta</a>`}

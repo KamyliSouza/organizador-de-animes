@@ -18,8 +18,8 @@ export const config = {
 
     // Supabase: botão "Connect" (topo do projeto) mostra a Project URL e a chave.
     // A chave também fica em Settings > API Keys.
-    supabaseUrl: 'https://txnxoqlqmwasowqefuhb.supabase.co',        // ex.: 'https://abcdefghijk.supabase.co'
-    supabaseAnonKey: 'sb_publishable_ZaOi6VOvTLVhZpoZfVxWVA_Miz1P-cC',    // "Publishable key" (começa com sb_publishable_) ou a chave "anon" antiga. NUNCA a secret/service_role
+    supabaseUrl: '',        // ex.: 'https://abcdefghijk.supabase.co'
+    supabaseAnonKey: '',    // "Publishable key" (começa com sb_publishable_) ou a chave "anon" antiga. NUNCA a secret/service_role
 
     // Opcional: busca de séries e filmes (TMDB). Crie uma chave GRATUITA em
     // https://www.themoviedb.org/settings/api (use a "API Key (v3 auth)").

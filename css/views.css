@@ -76,16 +76,18 @@
 .panel h2 { font-size: 1.15rem; display: flex; align-items: center; gap: 10px; }
 .panel h2 .icon { color: var(--primary-text); }
 .panel form { display: flex; flex-direction: column; gap: 14px; }
+.danger-zone { border-color: var(--danger); }
+.danger-zone h2, .danger-zone h2 .icon { color: var(--danger); }
 .copy-field { display: flex; gap: 8px; }
 .copy-field .input { font-size: .84rem; }
 
-@media (max-width: 900px) {
+@media (max-width: 56.25em) {
     .hero { grid-template-columns: minmax(0, 1fr); padding: 28px 22px; }
     .hero-preview { display: none; }
     .feature-grid, .profile-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .settings-grid { grid-template-columns: minmax(0, 1fr); }
 }
-@media (max-width: 620px) {
+@media (max-width: 38.75em) {
     .feature-grid, .profile-grid { grid-template-columns: minmax(0, 1fr); }
     .profile-head { padding: 18px; }
     .profile-head .avatar { --size: 64px; }

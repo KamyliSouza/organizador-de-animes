@@ -5,7 +5,7 @@ import { openModal } from '../core/modal.js';
 import { messageOf } from '../core/errors.js';
 import { toast } from '../core/toast.js';
 import { CATEGORIES, DAYS, DAY_LABELS, MAX_EPISODES, SEASON_TYPES, STATUSES, cloneEntry, emptyEntry, normalizeSeason } from '../domain/entry.js';
-import { SOURCES, searchSeasons, searchWorks, sourceAvailable } from '../services/search/index.js';
+import { DEFAULT_SOURCE, SOURCES, searchSeasons, searchWorks, sourceAvailable } from '../services/search/index.js';
 
 const SOURCE_KEY = 'kamylist_last_source';
 const LEGACY_SOURCE_KEY = 'media_tracker_last_source';
@@ -13,8 +13,8 @@ const LEGACY_SOURCE_KEY = 'media_tracker_last_source';
 function loadSource() {
     try {
         const s = localStorage.getItem(SOURCE_KEY) || localStorage.getItem(LEGACY_SOURCE_KEY);
-        return SOURCES.some((x) => x.id === s) && sourceAvailable(s) ? s : 'mal';
-    } catch { return 'mal'; }
+        return SOURCES.some((x) => x.id === s) && sourceAvailable(s) ? s : DEFAULT_SOURCE;
+    } catch { return DEFAULT_SOURCE; }
 }
 const saveSource = (s) => { try { localStorage.setItem(SOURCE_KEY, s); } catch { /* ok */ } };
 
@@ -188,7 +188,10 @@ export function openMediaForm({ entry = null, onSave }) {
         boxes.results.hidden = true;
     }
 
-    const markSourceDown = (id) => {
+    // 429 = o serviço pediu calma (limite de buscas): não é "fora do ar".
+    const tooManyRequests = (err) => err?.status === 429;
+    const markSourceDown = (id, err) => {
+        if (tooManyRequests(err)) return;
         const opt = fields.source.querySelector(`option[value="${id}"]`);
         if (opt && !opt.text.includes('(fora do ar)')) opt.text += ' (fora do ar)';
     };
@@ -209,13 +212,15 @@ export function openMediaForm({ entry = null, onSave }) {
             setHtml(boxes.results, html`${found.map((r, i) => html`
                 <button type="button" class="result-item" data-pick="${i}">
                     <span class="truncate">${r.title}${r.category !== 'Anime' ? ` (${r.category})` : ''}</span>
-                    <span class="count">${r.category === 'Filme' ? 'Filme' : `${r.seasons.length} Temp.`}</span>
+                    <span class="count">${r.category === 'Filme' ? 'Filme' : r.loadDetails ? 'Temporadas' : `${r.seasons.length} Temp.`}</span>
                 </button>`)}`);
             boxes.results.hidden = false;
         } catch (err) {
             console.error(err);
-            markSourceDown(source);
-            showResultsMessage(boxes.results, 'Serviço indisponível no momento. Selecione outra fonte.');
+            markSourceDown(source, err);
+            showResultsMessage(boxes.results, tooManyRequests(err)
+                ? 'Muitas buscas seguidas. Espere alguns segundos e tente de novo (ou use outra fonte).'
+                : 'Serviço indisponível no momento. Tente de novo ou selecione outra fonte.');
         } finally {
             setBusy(btn, false);
         }
@@ -235,8 +240,8 @@ export function openMediaForm({ entry = null, onSave }) {
             toast('Metadados atualizados com sucesso!', { type: 'success' });
         } catch (err) {
             console.error(err);
-            markSourceDown(source);
-            toast('Serviço temporariamente indisponível. Tente outra fonte.', { type: 'error' });
+            markSourceDown(source, err);
+            toast(tooManyRequests(err) ? 'Muitas buscas seguidas. Espere alguns segundos.' : 'Serviço temporariamente indisponível. Tente outra fonte.', { type: 'error' });
         } finally {
             setBusy(btn, false);
         }
@@ -270,7 +275,7 @@ export function openMediaForm({ entry = null, onSave }) {
             boxes.seasonResults.hidden = false;
         } catch (err) {
             console.error(err);
-            markSourceDown(source);
+            markSourceDown(source, err);
             toast('Serviço indisponível: adicionei a temporada manualmente.', { type: 'info' });
             addManualSeason();
         } finally {
