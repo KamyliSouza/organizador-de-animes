@@ -7,6 +7,7 @@ const TILES = [
     ['watching', 'Assistindo', 'play', 'var(--st-watching)'],
     ['planned', 'Quero ver', 'clock', 'var(--st-planned)'],
     ['completed', 'Concluídas', 'check', 'var(--st-completed)'],
+    ['on_hold', 'Em espera', 'pause', 'var(--st-on_hold)'],
     ['dropped', 'Dropadas', 'ban', 'var(--st-dropped)'],
 ];
 

@@ -26,7 +26,8 @@ function friendly(error, fallback) {
     if (code === 'signup_disabled' || has('Signups not allowed')) return 'Novos cadastros estão desativados.';
     if (code === 'email_address_invalid') return 'Esse e-mail não é aceito. Confira o endereço.';
     if (code === '23505') return 'Este nome de usuário já está em uso.';
-    if (has('entries_status')) return 'O banco ainda não aceita o status "Dropado". Rode o sql/schema.sql de novo no Supabase (SQL Editor).';
+    if (has('entries_status')) return 'O banco ainda não aceita este status ("Dropado" ou "Em espera"). Rode o sql/schema.sql de novo no Supabase (SQL Editor).';
+    if (code === 'PGRST204' || has('schema cache')) return 'O banco de dados está desatualizado. Rode o sql/schema.sql de novo no Supabase (SQL Editor) e recarregue a página.';
     if (code === '23514') return has('Limite') ? 'Limite de obras da conta atingido.' : 'Algum dado está em formato inválido.';
     if (code === '42501' || has('row-level security')) return 'Sem permissão para isso. Saia e entre de novo.';
     if (has('Failed to fetch') || has('NetworkError') || has('Load failed') || error?.name === 'AuthRetryableFetchError') {
@@ -60,12 +61,15 @@ const toRow = (e) => ({
     description: e.description || null,
     genres: e.genres,
     seasons: e.seasons,
+    favorite: e.favorite === true,
+    source_ref: e.sourceRef || null,
 });
 
 const fromRow = (r) => normalizeEntry({
     id: r.id, title: r.title, category: r.category, status: r.status, rating: r.rating,
     tags: r.tags, airDay: r.air_day, notes: r.notes, coverImage: r.cover_image,
     description: r.description, genres: r.genres, seasons: r.seasons, createdAt: r.created_at,
+    favorite: r.favorite, sourceRef: r.source_ref,
 });
 
 const fromProfile = (r) => (r ? {
@@ -182,6 +186,19 @@ export async function createSupabaseBackend() {
                 try {
                     const { data, error } = await sb.rpc('username_available', { p_username: username });
                     return error ? null : Boolean(data);
+                } catch {
+                    return null;
+                }
+            },
+        },
+
+        /** Versão do esquema do banco (1 = antigo, sem a função schema_version). null = não deu para saber. */
+        meta: {
+            async schemaVersion() {
+                try {
+                    const { data, error } = await sb.rpc('schema_version');
+                    if (error) return error.code === 'PGRST202' || error.code === '42883' ? 1 : null;
+                    return Number(data) || 1;
                 } catch {
                     return null;
                 }

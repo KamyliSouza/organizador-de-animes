@@ -111,7 +111,23 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, acti
     syncControls();
     renderResults();
 
+    /** Limpa os filtros e rola até a obra, destacando-a por um instante (usado em "ver na biblioteca"). */
+    function reveal(id) {
+        filters.status = 'all'; filters.category = 'all'; filters.query = '';
+        root.querySelectorAll('select[data-filter]').forEach((sel) => { if (sel.dataset.filter === 'category') sel.value = 'all'; });
+        const q = root.querySelector('input[data-filter="query"]');
+        if (q) q.value = '';
+        syncControls();
+        renderResults();
+        const card = [...results.querySelectorAll('[data-id]')].find((c) => c.dataset.id === String(id));
+        if (!card) return;
+        card.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        card.classList.add('flash');
+        setTimeout(() => card.classList.remove('flash'), 2000);
+    }
+
     return {
+        reveal,
         setEntries(list) { all = list; renderResults(); },
         destroy() { search.cancel(); offs.forEach((off) => off()); },
     };

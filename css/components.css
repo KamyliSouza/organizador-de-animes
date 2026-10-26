@@ -171,6 +171,7 @@
 .badge-watching  { --badge-color: var(--st-watching); }
 .badge-planned   { --badge-color: var(--st-planned); }
 .badge-completed { --badge-color: var(--st-completed); }
+.badge-on_hold   { --badge-color: var(--st-on_hold); }
 .badge-dropped   { --badge-color: var(--st-dropped); }
 .badge-anime     { --badge-color: var(--cat-anime); }
 .badge-filme     { --badge-color: var(--cat-filme); }
@@ -255,7 +256,7 @@
 /* ---------------------------------------------------------
    Cards de estatística
    --------------------------------------------------------- */
-.stat-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.stat-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
 .stat-tile { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 20px; }
 .stat-icon {
     display: grid; place-items: center;
@@ -325,6 +326,7 @@
 
 .media-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; align-self: stretch; }
 .media-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.media-badges .badge { max-width: 100%; min-width: 0; overflow: hidden; }   /* telas minúsculas + fonte enorme: nunca estoura o card */
 .media-title {
     font-size: .98rem; line-height: 1.25;
     min-height: 2.5em;                       /* sempre 2 linhas de espaço: título curto não encolhe o card */
@@ -339,6 +341,26 @@
 .media-progress.is-idle { color: var(--muted-color); }
 .media-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: auto; padding-top: 4px; }
 .media-actions .push { margin-left: auto; display: flex; flex-wrap: wrap; gap: 2px; }
+
+/* Favoritos (coração) */
+.icon-button.fav[aria-pressed="true"] { color: var(--danger); }
+.icon-button.fav[aria-pressed="true"] svg { fill: currentColor; }
+.poster .fav-badge {
+    position: absolute; top: 5px; left: 5px;
+    display: grid; place-items: center;
+    width: 24px; height: 24px; border-radius: 50%;
+    color: #fb7185; background: rgba(20, 10, 22, .78);
+}
+.poster .fav-badge svg { fill: currentColor; }
+.fav-section { display: flex; flex-direction: column; gap: 12px; }
+.fav-section h2 { display: flex; align-items: center; gap: 8px; font-size: 1.1rem; }
+.fav-section h2 .icon { color: var(--danger); fill: currentColor; }
+
+/* Aviso de obra repetida no formulário */
+.notice-box.is-warn { border-color: var(--st-planned); background: color-mix(in srgb, var(--st-planned) 10%, transparent); }
+.notice-box.is-warn > .icon { color: var(--st-planned); }
+@keyframes flash-card { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 25%, 60% { box-shadow: 0 0 0 4px var(--primary-color); } }
+.media-card.flash, .media-row.flash { animation: flash-card 1.8s ease; }
 
 .link-button {
     display: inline-flex; align-items: center; gap: 5px;
@@ -503,9 +525,11 @@
 .share-preview { display: grid; place-items: center; }
 .share-preview canvas { width: min(100%, 320px); height: auto; border-radius: 18px; box-shadow: var(--shadow-card); }
 
-@media (max-width: 65em) {
+@media (max-width: 70em) {
+    .stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 36em) {
     .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .stat-grid > :last-child:nth-child(odd) { grid-column: 1 / -1; }   /* 5 cards em 2 colunas: o último ocupa a linha toda */
 }
 @media (max-width: 56.25em) {
     .media-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -548,4 +572,5 @@
     .stat-grid { grid-template-columns: minmax(0, 1fr); }
     .media-actions .button-sm { padding: 6px 8px; font-size: .78rem; }
     .media-actions .button-sm .icon { display: none; }
+    .media-badges .badge { padding-inline: 7px; }
 }

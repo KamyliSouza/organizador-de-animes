@@ -13,13 +13,19 @@ export function starsHtml(rating) {
 
 export const posterPlaceholder = () => html`<span class="poster-empty">${icon('film', { size: 30 })}</span>`;
 
-function poster(entry, withDay) {
+function poster(entry, withDay, withHeart = false) {
     return html`<div class="poster">
+        ${withHeart && entry.favorite ? html`<span class="fav-badge" title="Favorito" role="img" aria-label="Favorito">${icon('heart', { size: 13 })}</span>` : ''}
         ${entry.coverImage
             ? html`<img src="${entry.coverImage}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-fallback>`
             : posterPlaceholder()}
         ${withDay && entry.airDay ? html`<span class="air-day">${icon('calendar', { size: 11 })} ${entry.airDay}</span>` : ''}
     </div>`;
+}
+
+function favoriteButton(entry) {
+    const label = entry.favorite ? `Tirar ${entry.title} dos favoritos` : `Favoritar ${entry.title}`;
+    return html`<button type="button" class="icon-button sm fav" data-action="favorite" aria-pressed="${String(Boolean(entry.favorite))}" aria-label="${label}" title="${entry.favorite ? 'Tirar dos favoritos' : 'Favoritar (fixa no perfil)'}">${icon('heart', { size: 16 })}</button>`;
 }
 
 export function mediaCardHtml(entry, { readonly = false } = {}) {
@@ -29,7 +35,7 @@ export function mediaCardHtml(entry, { readonly = false } = {}) {
 
     return html`
     <article class="media-card glass-panel ${entry.status === 'dropped' ? 'is-dropped' : ''}" data-id="${entry.id}">
-        ${poster(entry, true)}
+        ${poster(entry, true, readonly)}
         <div class="media-body">
             <div class="media-badges">
                 <span class="badge badge-${CATEGORY_CLASS[entry.category]}">${entry.category}</span>
@@ -56,6 +62,7 @@ export function mediaCardHtml(entry, { readonly = false } = {}) {
                         <button type="button" class="button button-secondary button-sm" data-action="seasons">${icon('layers', { size: 15 })} Temporadas (${entry.seasons.length})</button>
                         <button type="button" class="button button-primary button-sm" data-action="inc" title="Marcar mais 1 episódio como assistido" aria-label="Marcar mais 1 episódio de ${entry.title}">+1 Ep</button>` : ''}
                     <span class="push">
+                        ${favoriteButton(entry)}
                         <button type="button" class="icon-button sm" data-action="share" aria-label="Compartilhar ${entry.title}" title="Compartilhar">${icon('share', { size: 16 })}</button>
                         <button type="button" class="icon-button sm" data-action="edit" aria-label="Editar ${entry.title}" title="Editar">${icon('edit', { size: 16 })}</button>
                         <button type="button" class="icon-button sm danger" data-action="delete" aria-label="Excluir ${entry.title}" title="Excluir">${icon('trash', { size: 16 })}</button>
@@ -82,6 +89,7 @@ export function mediaRowHtml(entry, { readonly = false } = {}) {
                 : html`
                     ${entry.status !== 'planned' ? html`<button type="button" class="button button-primary button-sm" data-action="inc" aria-label="Marcar mais 1 episódio de ${entry.title}">+1 Ep</button>
                     <button type="button" class="icon-button sm" data-action="seasons" aria-label="Temporadas de ${entry.title}" title="Temporadas">${icon('layers', { size: 16 })}</button>` : ''}
+                    ${favoriteButton(entry)}
                     <button type="button" class="icon-button sm" data-action="edit" aria-label="Editar ${entry.title}" title="Editar">${icon('edit', { size: 16 })}</button>
                     <button type="button" class="icon-button sm danger" data-action="delete" aria-label="Excluir ${entry.title}" title="Excluir">${icon('trash', { size: 16 })}</button>`}
         </div>

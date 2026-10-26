@@ -53,6 +53,8 @@ export function createLocalBackend() {
             usernameAvailable: async () => null,
         },
 
+        meta: { schemaVersion: async () => null },
+
         profiles: {
             getMine: async () => LOCAL_PROFILE,
             updateMine: reject,

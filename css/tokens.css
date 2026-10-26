@@ -40,6 +40,7 @@
     --st-watching: #1d4ed8;
     --st-planned: #b45309;
     --st-completed: #047857;
+    --st-on_hold: #4f46e5;
     --st-dropped: #52525b;
     --cat-anime: var(--primary-text);
     --cat-filme: #be123c;
@@ -102,6 +103,7 @@
     --st-watching: #93c5fd;
     --st-planned: #fcd34d;
     --st-completed: #6ee7b7;
+    --st-on_hold: #a5b4fc;
     --st-dropped: #a1a1aa;
     --cat-filme: #fda4af;
     --cat-serie: #7dd3fc;
@@ -148,6 +150,7 @@
         --st-watching: #93c5fd;
         --st-planned: #fcd34d;
         --st-completed: #6ee7b7;
+        --st-on_hold: #a5b4fc;
         --st-dropped: #a1a1aa;
         --cat-filme: #fda4af;
         --cat-serie: #7dd3fc;

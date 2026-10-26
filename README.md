@@ -65,11 +65,12 @@ Pronto: crie sua conta, abra **Perfil e configurações**, ative **Perfil públi
 
 ## Atualizando um site que já está no ar
 
-Depois de trocar os arquivos no GitHub, **rode o `sql/schema.sql` de novo** no Supabase (SQL Editor → New query → cole tudo → Run). É seguro repetir: nada é duplicado nem apagado, as obras existentes continuam como estão.
+**Ordem importante:** primeiro rode o `sql/schema.sql` de novo no Supabase (SQL Editor → New query → cole tudo → Run) e **depois** suba os arquivos novos no GitHub. É seguro repetir: nada é duplicado nem apagado, as obras existentes continuam como estão.
 
-Sem esse passo, duas coisas novas não funcionam:
+Sem esse passo, estas coisas não funcionam (o site mostra um aviso amarelo na biblioteca quando o banco está desatualizado):
 
-- salvar uma obra como **Dropado** (o banco antigo só conhece Assistindo, Quero Ver e Concluído);
+- salvar uma obra como **Dropado** ou **Em espera** (o banco antigo só conhece Assistindo, Quero Ver e Concluído);
+- marcar obras como **favoritas** e guardar o código da fonte (para detectar obras repetidas);
 - o botão **Excluir minha conta**.
 
 ---
@@ -96,7 +97,28 @@ python3 -m http.server 8000
 
 ## Status das obras
 
-**Assistindo**, **Quero Ver**, **Concluído** e **Dropado**. Obras dropadas aparecem com a capa em tons de cinza e têm um contador próprio no topo. Marcar um episódio numa obra dropada a coloca de volta em *Assistindo*.
+**Assistindo**, **Quero Ver**, **Concluído**, **Em espera** e **Dropado**. *Em espera* é para o anime que você pausou e pretende retomar; *Dropado* é para o que você abandonou. As duas aparecem com a capa em tons de cinza e têm contador próprio no topo. Marcar um episódio numa obra em espera ou dropada a coloca de volta em *Assistindo*.
+
+Ao salvar uma obra como **Concluído**, todos os episódios de todas as temporadas são marcados como vistos (só quando o status *muda* para Concluído: editar uma obra que já estava concluída não mexe nos episódios).
+
+## Favoritos
+
+O coração no card fixa a obra como favorita (até **8**). No perfil, os favoritos aparecem numa seção **Favoritos** logo acima da biblioteca, inclusive para quem visita o perfil público. O limite é aplicado pelo site (no banco o campo é só um marcador).
+
+## Obras repetidas
+
+Ao digitar o título (ou escolher um resultado da busca), o formulário avisa se você já tem aquela obra. A comparação ignora maiúsculas, acentos e pontuação, e também reconhece a mesma obra vinda de outra fonte pelo código dela (MyAnimeList, AniList ou TMDB). É só um aviso: ao salvar você escolhe *Cancelar*, *Ver a existente* ou *Adicionar mesmo assim*.
+
+## Cartão de compartilhamento e capas
+
+Para o cartão virar uma imagem baixável, o navegador só aceita a capa se o site dela permitir (CORS). Quando não permite, o KamyList tenta de novo com um pedido novo e, se ainda assim falhar, busca a capa por um serviço de imagens intermediário (por padrão `wsrv.nl`, gratuito e de terceiros: ele recebe o endereço da capa, nada da sua conta). Se preferir outro serviço, ou nenhum, ajuste `imageProxy` no `js/config.js`:
+
+```js
+imageProxy: 'https://wsrv.nl/?url={url}&w=560&h=840&fit=cover&output=jpg&q=85', // padrão (pode omitir a linha)
+// imageProxy: '',                                                              // desliga: sem capa quando o site não libera
+```
+
+Se mesmo assim a capa não puder entrar, o cartão sai sem ela e mostra um aviso.
 
 ## Trazer a lista da versão antiga
 
@@ -152,7 +174,7 @@ Os dois backends (`local-backend.js` e `supabase-backend.js`) têm a mesma inter
 |---|---|
 | "Não foi possível iniciar o KamyList" | URL ou chave erradas no `js/config.js`, ou sem internet |
 | "Perfil não encontrado" nas configurações | O `sql/schema.sql` não foi executado (ou a conta foi criada antes dele) |
-| "O banco ainda não aceita o status Dropado" ou "Não foi possível excluir a conta" | O `sql/schema.sql` novo ainda não foi executado (veja "Atualizando um site que já está no ar") |
+| Aviso amarelo "O banco de dados precisa ser atualizado", "O banco ainda não aceita este status" ou "Não foi possível excluir a conta" | O `sql/schema.sql` novo ainda não foi executado (veja "Atualizando um site que já está no ar") |
 | MAL mostra "Muitas buscas seguidas" ou "Serviço indisponível" | O Jikan limitou ou está lento: espere alguns segundos ou use o AniList |
 | E-mail de confirmação não chega | Veja o spam; o plano gratuito limita e-mails por hora. Para grupos pequenos, desligue **Confirm email** |
 | Link do e-mail leva a uma página errada | **Site URL** / **Redirect URLs** não batem com o endereço do GitHub Pages |

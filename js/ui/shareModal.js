@@ -39,17 +39,35 @@ function wrapLines(ctx, text, maxWidth, maxLines) {
     return lines;
 }
 
-function loadCover(url) {
+/** Tenta carregar uma imagem com CORS (sem isso o canvas não consegue exportar o PNG). */
+function tryLoad(src, timeout = 8000) {
     return new Promise((resolve) => {
-        if (!url) { resolve(null); return; }
         const img = new Image();
-        img.crossOrigin = 'anonymous';          // sem CORS o canvas não poderia exportar a imagem
+        img.crossOrigin = 'anonymous';
         img.referrerPolicy = 'no-referrer';
-        const timer = setTimeout(() => resolve(null), 9000);
+        const timer = setTimeout(() => { img.src = ''; resolve(null); }, timeout);
         img.onload = () => { clearTimeout(timer); resolve(img); };
         img.onerror = () => { clearTimeout(timer); resolve(null); };
-        img.src = url;
+        img.src = src;
     });
+}
+
+/** Mesmo endereço com um parâmetro a mais: força o navegador a pedir de novo, em vez de reaproveitar a imagem do card (guardada sem CORS). */
+const withBuster = (url) => url + (url.includes('?') ? '&' : '?') + '_kl=' + Date.now().toString(36);
+
+/** Proxy de imagens gratuito que devolve a capa com CORS liberado (alguns sites de capa, como o do MyAnimeList, não liberam). */
+const DEFAULT_PROXY = 'https://wsrv.nl/?url={url}&w=560&h=840&fit=cover&output=jpg&q=85';
+const proxied = (url) => {
+    const tpl = config.imageProxy === undefined ? DEFAULT_PROXY : config.imageProxy;   // '' no config.js desliga o proxy
+    return tpl ? tpl.replace('{url}', encodeURIComponent(url)) : '';
+};
+
+/** Capa para o cartão: direto → de novo sem cache → via proxy. Devolve null se nada funcionar. */
+export async function loadCover(url) {
+    if (!url) return null;
+    return (await tryLoad(url))
+        || (await tryLoad(withBuster(url), 6000))
+        || (proxied(url) ? await tryLoad(proxied(url), 12000) : null);
 }
 
 /** Desenha o cartão e informa se a capa pôde ser incluída. */
@@ -178,7 +196,7 @@ export async function openShareModal({ entry, owner = '' }) {
     const content = el(html`
         <div class="stack">
             <div class="share-preview" data-preview aria-live="polite"><span class="muted">Gerando imagem…</span></div>
-            <p class="muted small center" data-hint hidden>A capa não pôde ser incluída (o site da imagem não permite). O restante do cartão funciona normalmente.</p>
+            <p class="muted small center" data-hint hidden>A capa não pôde ser incluída: o site da imagem não permite que ela seja usada aqui. O restante do cartão funciona normalmente.</p>
             <div class="modal-footer" style="justify-content:center">
                 <button type="button" class="button button-primary" data-act="download" disabled>${icon('download', { size: 16 })} Baixar imagem</button>
                 <button type="button" class="button button-secondary" data-act="copy">${icon('copy', { size: 16 })} Copiar texto</button>

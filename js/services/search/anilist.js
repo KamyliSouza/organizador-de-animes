@@ -9,7 +9,7 @@ const WORKS_QUERY = `
 query ($search: String, $perPage: Int) {
   Page (perPage: $perPage) {
     media (search: $search, type: ANIME, sort: SEARCH_MATCH) {
-      title { english romaji }
+      id idMal title { english romaji }
       episodes averageScore description coverImage { large } genres format
       relations { edges { relationType node { title { english romaji } episodes format } } }
     }
@@ -54,6 +54,8 @@ export async function searchWorks(query, { limit = 5 } = {}) {
         }
 
         return {
+            // mesmo código do MAL quando existe, assim a mesma obra vinda das duas fontes é reconhecida
+            sourceRef: a.idMal ? `mal:${a.idMal}` : a.id ? `anilist:${a.id}` : '',
             title: a.title?.english || a.title?.romaji || '',
             category: 'Anime',
             coverImage: a.coverImage?.large || '',

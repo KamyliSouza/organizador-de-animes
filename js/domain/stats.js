@@ -4,7 +4,7 @@ import { CATEGORIES, DAYS, MINUTES_PER_EPISODE } from './entry.js';
 export function computeStats(entries) {
     const stats = {
         total: entries.length,
-        watching: 0, planned: 0, completed: 0, dropped: 0,
+        watching: 0, planned: 0, completed: 0, on_hold: 0, dropped: 0,
         episodes: 0, hours: 0, days: 0,
         categories: Object.fromEntries(CATEGORIES.map((c) => [c, 0])),
         topGenres: [],

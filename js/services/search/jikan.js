@@ -77,6 +77,7 @@ export async function searchWorks(query, { limit = 5 } = {}) {
         const genres = (a.genres || []).map((g) => g.name);
         const type = a.type || 'TV';
         const result = {
+            sourceRef: a.mal_id ? `mal:${a.mal_id}` : '',
             title: titleOf(a),
             category: 'Anime',
             coverImage: a.images?.jpg?.large_image_url || a.images?.jpg?.image_url || '',

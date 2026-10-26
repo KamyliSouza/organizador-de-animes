@@ -6,9 +6,15 @@ export const STATUSES = {
     watching: { label: 'Assistindo', icon: 'play' },
     planned: { label: 'Quero Ver', icon: 'clock' },
     completed: { label: 'Concluído', icon: 'check' },
+    on_hold: { label: 'Em espera', icon: 'pause' },
     dropped: { label: 'Dropado', icon: 'ban' },
 };
 export const STATUS_KEYS = Object.keys(STATUSES);
+/** Status "pausados": marcar um episódio tira a obra deles (volta para Assistindo/Concluído). */
+const PAUSED = new Set(['on_hold', 'dropped']);
+
+/** Quantas obras a pessoa pode fixar como favoritas no perfil. */
+export const MAX_FAVORITES = 8;
 
 export const CATEGORIES = ['Anime', 'Filme', 'Série'];
 export const CATEGORY_CLASS = { Anime: 'anime', Filme: 'filme', 'Série': 'serie' };
@@ -24,6 +30,10 @@ export const MINUTES_PER_EPISODE = 24;
 export const MAX_EPISODES = 5000;
 
 const cleanText = (v, max) => String(v ?? '').trim().slice(0, max);
+
+/** Código da obra na fonte de busca, ex.: "mal:52991", "anilist:154587", "tmdb:tv-1399". */
+const REF_RX = /^[a-z]{2,10}:[a-z0-9_-]{1,30}$/;
+const cleanRef = (v) => { const r = String(v ?? '').trim().toLowerCase(); return REF_RX.test(r) ? r : ''; };
 
 function cleanList(v, maxItems, maxLen) {
     const list = Array.isArray(v) ? v : [];
@@ -67,6 +77,8 @@ export function normalizeEntry(e) {
         description: cleanText(e?.description, 10000),
         genres: cleanList(e?.genres, 20, 40),
         seasons: seasons.length ? seasons : [defaultSeason()],
+        favorite: e?.favorite === true,
+        sourceRef: cleanRef(e?.sourceRef),
         createdAt: typeof e?.createdAt === 'string' ? e.createdAt : '',
     };
 }
@@ -74,7 +86,8 @@ export function normalizeEntry(e) {
 export function emptyEntry() {
     return {
         id: '', title: '', category: 'Anime', status: 'watching', rating: 0, tags: [], airDay: '',
-        notes: '', coverImage: '', description: '', genres: [], seasons: [defaultSeason()], createdAt: '',
+        notes: '', coverImage: '', description: '', genres: [], seasons: [defaultSeason()],
+        favorite: false, sourceRef: '', createdAt: '',
     };
 }
 
@@ -92,11 +105,11 @@ export function progressOf(entry) {
 
 /**
  * Ajusta o status geral conforme os episódios vistos (mesma regra do tracker original).
- * Uma obra "Dropado" volta a "Assistindo" (ou "Concluído") quando você marca um episódio,
- * mas não muda só porque o total de episódios foi editado (revive: false).
+ * Uma obra "Dropado" ou "Em espera" volta a "Assistindo" (ou "Concluído") quando você marca um
+ * episódio, mas não muda só porque o total de episódios foi editado (revive: false).
  */
 export function syncStatus(entry, { revive = true } = {}) {
-    if (!revive && entry.status === 'dropped') return entry;
+    if (!revive && PAUSED.has(entry.status)) return entry;
     const { total, watched } = progressOf(entry);
     if (total > 0 && watched >= total) entry.status = 'completed';
     else if (watched > 0) entry.status = 'watching';
@@ -134,6 +147,12 @@ export function setSeasonWatched(entry, seasonIndex, all) {
     syncStatus(entry);
 }
 
+/** Marca todos os episódios de todas as temporadas como vistos (obra concluída). */
+export function markAllWatched(entry) {
+    for (const season of entry.seasons) season.watched = Array.from({ length: season.totalEps }, (_, i) => i + 1);
+    return entry;
+}
+
 export function setSeasonTotal(entry, seasonIndex, total) {
     const season = entry.seasons[seasonIndex];
     if (!season) return;
@@ -145,6 +164,35 @@ export function setSeasonTotal(entry, seasonIndex, total) {
 export function seasonState(season) {
     if (season.totalEps > 0 && season.watched.length >= season.totalEps) return 'done';
     return season.watched.length > 0 ? 'partial' : 'none';
+}
+
+// --- duplicadas e favoritos -------------------------------------------------
+
+/** "Sousou no Frieren!" e "sousou  no frieren" viram a mesma chave. */
+export const titleKey = (title) => String(title ?? '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+/**
+ * Procura na biblioteca uma obra igual à candidata: mesmo código da fonte (mal/anilist/tmdb)
+ * ou mesmo título (sem acento, maiúsculas ou pontuação). `ignoreId` é a própria obra, na edição.
+ */
+export function findDuplicate(entries, { title = '', sourceRef = '' } = {}, ignoreId = '') {
+    const key = titleKey(title);
+    const ref = cleanRef(sourceRef);
+    return entries.find((e) => {
+        if (ignoreId && e.id === ignoreId) return false;
+        if (ref && e.sourceRef === ref) return true;
+        return key !== '' && titleKey(e.title) === key;
+    }) || null;
+}
+
+export const favoriteCount = (entries) => entries.filter((e) => e.favorite).length;
+
+/** Deixa só os primeiros `max` favoritos (usado ao importar backups). */
+export function capFavorites(entries, max = MAX_FAVORITES) {
+    let n = 0;
+    return entries.map((e) => (e.favorite && ++n > max ? { ...e, favorite: false } : e));
 }
 
 // --- listas ------------------------------------------------------------

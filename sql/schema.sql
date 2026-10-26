@@ -49,11 +49,13 @@ create table if not exists public.entries (
   description text,
   genres      text[] not null default '{}',
   seasons     jsonb not null default '[]'::jsonb,
+  favorite    boolean not null default false,
+  source_ref  text,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now(),
   constraint entries_title_len    check (char_length(title) between 1 and 200),
   constraint entries_category     check (category in ('Anime', 'Filme', 'Série')),
-  constraint entries_status       check (status in ('watching', 'planned', 'completed', 'dropped')),
+  constraint entries_status       check (status in ('watching', 'planned', 'completed', 'on_hold', 'dropped')),
   constraint entries_rating       check (rating between 0 and 5),
   constraint entries_tags_len     check (cardinality(tags) <= 20),
   constraint entries_genres_len   check (cardinality(genres) <= 20),
@@ -71,11 +73,19 @@ create table if not exists public.entries (
 
 create index if not exists entries_user_created_idx on public.entries (user_id, created_at desc);
 
--- Atualização para quem já tinha rodado uma versão antiga deste script:
--- acrescenta o status "dropped" (Dropado) à regra de status. Seguro rodar sempre.
+-- Atualização para quem já tinha rodado uma versão antiga deste script. Seguro rodar sempre.
+--   * status "dropped" (Dropado) e "on_hold" (Em espera)
+--   * favorite: obra fixada como favorita no perfil
+--   * source_ref: código da obra na fonte de busca (ex.: mal:52991), usado para achar repetidas
 alter table public.entries drop constraint if exists entries_status;
 alter table public.entries add  constraint entries_status
-  check (status in ('watching', 'planned', 'completed', 'dropped'));
+  check (status in ('watching', 'planned', 'completed', 'on_hold', 'dropped'));
+
+alter table public.entries add column if not exists favorite   boolean not null default false;
+alter table public.entries add column if not exists source_ref text;
+alter table public.entries drop constraint if exists entries_source_ref;
+alter table public.entries add  constraint entries_source_ref
+  check (source_ref is null or source_ref ~ '^[a-z]{2,10}:[a-z0-9_-]{1,30}$');
 
 
 -- ---------------------------------------------------------------------
@@ -210,7 +220,9 @@ revoke all on public.entries from anon;
 -- ---------------------------------------------------------------------
 
 -- Obras de um perfil público. As anotações só saem se a pessoa permitir.
-create or replace function public.get_public_entries(p_username text)
+-- (drop antes: o formato do resultado ganhou a coluna "favorite")
+drop function if exists public.get_public_entries(text);
+create function public.get_public_entries(p_username text)
 returns table (
   id          uuid,
   title       text,
@@ -224,6 +236,7 @@ returns table (
   description text,
   genres      text[],
   seasons     jsonb,
+  favorite    boolean,
   created_at  timestamptz,
   updated_at  timestamptz
 )
@@ -234,7 +247,7 @@ set search_path = ''
 as $$
   select e.id, e.title, e.category, e.status, e.rating, e.tags, e.air_day,
          case when p.show_notes then e.notes else null end,
-         e.cover_image, e.description, e.genres, e.seasons,
+         e.cover_image, e.description, e.genres, e.seasons, e.favorite,
          e.created_at, e.updated_at
   from public.entries e
   join public.profiles p on p.id = e.user_id
@@ -306,6 +319,15 @@ begin
 end;
 $$;
 
+-- Versão deste esquema. O site compara com a que ele espera e avisa se o banco estiver atrasado.
+--   2 = Em espera, favoritos e códigos de obra
+create or replace function public.schema_version()
+returns integer
+language sql
+immutable
+set search_path = ''
+as $$ select 2 $$;
+
 -- Só quem precisa pode executar cada função.
 revoke all on function public.get_public_entries(text)            from public;
 revoke all on function public.list_public_profiles(text, int)     from public;
@@ -313,8 +335,10 @@ revoke all on function public.username_available(text)            from public;
 revoke all on function public.handle_new_user()                   from public, anon, authenticated;
 revoke all on function public.enforce_entry_limit()               from public, anon, authenticated;
 revoke all on function public.delete_my_account()                 from public, anon;
+revoke all on function public.schema_version()                    from public;
 
 grant execute on function public.get_public_entries(text)         to anon, authenticated;
 grant execute on function public.list_public_profiles(text, int)  to anon, authenticated;
 grant execute on function public.username_available(text)         to anon, authenticated;
 grant execute on function public.delete_my_account()               to authenticated;
+grant execute on function public.schema_version()                  to anon, authenticated;

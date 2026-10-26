@@ -21,6 +21,7 @@ export async function searchWorks(query, { limit = 6 } = {}) {
         const isTv = item.media_type === 'tv';
         const category = isTv ? 'Série' : 'Filme';
         const base = {
+            sourceRef: item.id ? `tmdb:${isTv ? 'tv' : 'movie'}-${item.id}` : '',
             title: item.name || item.title || '',
             category,
             coverImage: item.poster_path ? IMG + item.poster_path : '',

@@ -1,10 +1,11 @@
 // Modal "Adicionar / Editar obra": busca em MAL/AniList/TMDB, temporadas, tags, notas...
 import { el, html, on, safeUrl, setHtml, toInt } from '../core/dom.js';
 import { icon, spinner } from '../core/icons.js';
+import { choiceDialog } from '../core/dialogs.js';
 import { openModal } from '../core/modal.js';
 import { messageOf } from '../core/errors.js';
 import { toast } from '../core/toast.js';
-import { CATEGORIES, DAYS, DAY_LABELS, MAX_EPISODES, SEASON_TYPES, STATUSES, cloneEntry, emptyEntry, normalizeSeason } from '../domain/entry.js';
+import { CATEGORIES, DAYS, DAY_LABELS, MAX_EPISODES, SEASON_TYPES, STATUSES, cloneEntry, emptyEntry, findDuplicate, markAllWatched, normalizeSeason, progressOf, titleKey } from '../domain/entry.js';
 import { DEFAULT_SOURCE, SOURCES, searchSeasons, searchWorks, sourceAvailable } from '../services/search/index.js';
 
 const SOURCE_KEY = 'kamylist_last_source';
@@ -32,10 +33,14 @@ function mergeSeasons(oldSeasons, nextSeasons) {
  * @param {object} opts
  * @param {object|null} opts.entry   Obra a editar (null = nova).
  * @param {(entry:object)=>Promise<void>} opts.onSave
+ * @param {object[]} [opts.existing]   Obras que já estão na biblioteca (para avisar de repetidas).
+ * @param {(entry:object)=>void} [opts.onShowExisting]  Chamado ao escolher "ver na biblioteca" numa repetida.
  */
-export function openMediaForm({ entry = null, onSave }) {
+export function openMediaForm({ entry = null, onSave, existing = [], onShowExisting }) {
     const isEdit = Boolean(entry?.id);
     const draft = cloneEntry(entry || emptyEntry());
+    const baseRef = draft.sourceRef || '';   // código da obra antes de escolher outro resultado
+    let pickedKey = '';                      // título (normalizado) do resultado escolhido na busca
     let source = loadSource();
     let found = [];   // resultados da última busca
 
@@ -57,6 +62,11 @@ export function openMediaForm({ entry = null, onSave }) {
                 <button type="button" class="button button-secondary" data-act="search">${icon('search', { size: 16 })} Buscar</button>
             </div>
         </div>
+
+        <div class="notice-box is-warn" data-dup hidden>${icon('alert')}<div class="grow">
+            <span data-dup-text></span>
+            ${onShowExisting ? html` <button type="button" class="link-button" data-act="show-existing">Ver na biblioteca</button>` : ''}
+        </div></div>
 
         ${isEdit ? html`<button type="button" class="button button-secondary button-block" data-act="refresh-meta">${icon('refresh', { size: 16 })} Atualizar card com dados mais recentes</button>` : ''}
 
@@ -136,7 +146,29 @@ export function openMediaForm({ entry = null, onSave }) {
     fields.status.value = draft.status;
     fields.rating.value = String(draft.rating);
 
-    const modal = openModal({ title: isEdit ? 'Editar / atualizar obra' : 'Adicionar obra', iconName: isEdit ? 'edit' : 'plus', content });
+    const modal = openModal({ title: isEdit ? 'Editar / atualizar obra' : 'Adicionar obra', iconName: isEdit ? 'edit' : 'plus', content, initialFocus: '#mf-title' });
+
+    // --- obra repetida -------------------------------------------------------------
+    const dupBox = $('[data-dup]');
+    const dupOf = () => findDuplicate(existing, { title: fields.title.value, sourceRef: draft.sourceRef }, entry?.id || '');
+    const describe = (e) => {
+        const { watched, total } = progressOf(e);
+        return `"${e.title}" (${STATUSES[e.status].label}${e.status === 'planned' ? '' : `, ${watched}/${total} eps`})`;
+    };
+    function checkDuplicate() {
+        const dup = dupOf();
+        dupBox.hidden = !dup;
+        if (dup) $('[data-dup-text]').textContent = `Você já tem ${describe(dup)} na biblioteca.`;
+        return dup;
+    }
+    let dupTimer = 0;
+    fields.title.addEventListener('input', () => {
+        // se a pessoa muda o título depois de escolher um resultado, o código da fonte deixa de valer
+        if (draft.sourceRef !== baseRef && titleKey(fields.title.value) !== pickedKey) draft.sourceRef = baseRef;
+        clearTimeout(dupTimer);
+        dupTimer = setTimeout(checkDuplicate, 200);
+    });
+    const stopTimer = () => clearTimeout(dupTimer);
 
     // --- helpers de interface ------------------------------------------------
 
@@ -178,6 +210,7 @@ export function openMediaForm({ entry = null, onSave }) {
         if (r.rating > 0) fields.rating.value = String(r.rating);
         if (r.tags?.length) fields.tags.value = r.tags.join(', ');
         if (r.airDay) fields.air.value = r.airDay;
+        if (r.sourceRef) { draft.sourceRef = r.sourceRef; pickedKey = titleKey(r.title); }
         draft.coverImage = safeUrl(r.coverImage);
         draft.description = r.description || '';
         draft.genres = r.genres || [];
@@ -186,6 +219,7 @@ export function openMediaForm({ entry = null, onSave }) {
         renderSeasons();
         showLoaded(`Obra carregada com ${draft.seasons.length} temporada(s)!`);
         boxes.results.hidden = true;
+        checkDuplicate();
     }
 
     // 429 = o serviço pediu calma (limite de buscas): não é "fora do ar".
@@ -237,6 +271,7 @@ export function openMediaForm({ entry = null, onSave }) {
             draft.description = r.description || draft.description;
             if (r.genres?.length) draft.genres = r.genres;
             if (r.airDay) fields.air.value = r.airDay;
+            if (r.sourceRef && !draft.sourceRef) draft.sourceRef = r.sourceRef;
             toast('Metadados atualizados com sucesso!', { type: 'success' });
         } catch (err) {
             console.error(err);
@@ -288,6 +323,11 @@ export function openMediaForm({ entry = null, onSave }) {
             case 'search': runSearch(btn); break;
             case 'refresh-meta': refreshMeta(btn); break;
             case 'search-season': runSeasonSearch(btn); break;
+            case 'show-existing': {
+                const dup = dupOf();
+                if (dup) { modal.close(); onShowExisting?.(dup); }
+                break;
+            }
             case 'add-season': addManualSeason(); break;
             case 'remove-season': {
                 const idx = Number(btn.closest('[data-idx]').dataset.idx);
@@ -346,12 +386,28 @@ export function openMediaForm({ entry = null, onSave }) {
         const title = fields.title.value.trim();
         if (!title) { toast('Informe o título da obra.', { type: 'error' }); fields.title.focus(); return; }
 
+        // obra repetida: avisa e deixa a pessoa decidir (nunca bloqueia)
+        const dup = dupOf();
+        if (dup) {
+            const choice = await choiceDialog({
+                title: 'Obra repetida', iconName: 'alert',
+                message: `Você já tem ${describe(dup)} na biblioteca.\n\n${isEdit ? 'Salvar mesmo assim?' : 'Adicionar mesmo assim?'}`,
+                choices: [
+                    { value: 'cancel', label: 'Cancelar', variant: 'ghost' },
+                    ...(onShowExisting ? [{ value: 'show', label: 'Ver a existente', variant: 'secondary' }] : []),
+                    { value: 'go', label: isEdit ? 'Salvar mesmo assim' : 'Adicionar mesmo assim', variant: 'primary' },
+                ],
+            });
+            if (choice === 'show') { modal.close(); onShowExisting?.(dup); return; }
+            if (choice !== 'go') return;
+        }
+
         const submit = $('[data-submit]');
         const idle = submit.innerHTML;
         submit.disabled = true;
         setHtml(submit, html`${spinner(16)} Salvando...`);
         try {
-            await onSave({
+            const data = cloneEntry({
                 ...draft,
                 title,
                 category: fields.category.value,
@@ -361,6 +417,10 @@ export function openMediaForm({ entry = null, onSave }) {
                 airDay: fields.air.value,
                 notes: fields.notes.value,
             });
+            // Ao marcar a obra como Concluída, todos os episódios de todas as temporadas ficam como vistos.
+            if (data.status === 'completed' && (!isEdit || entry.status !== 'completed')) markAllWatched(data);
+            await onSave(data);
+            stopTimer();
             modal.close();
         } catch (err) {
             console.error(err);

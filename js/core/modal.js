@@ -17,8 +17,9 @@ function syncScrollLock() {
  * @param {'sm'|'md'|'lg'} [opts.size]
  * @param {Element} opts.content  Elemento que vira o corpo do modal.
  * @param {() => void} [opts.onClose]  Chamado uma vez ao fechar (por qualquer motivo).
+ * @param {string} [opts.initialFocus]  Seletor (dentro do corpo) do campo que recebe o foco ao abrir. Padrão: o primeiro campo.
  */
-export function openModal({ title, iconName = '', size = 'md', content, onClose, closeOnBackdrop = true }) {
+export function openModal({ title, iconName = '', size = 'md', content, onClose, closeOnBackdrop = true, initialFocus = '' }) {
     const previouslyFocused = document.activeElement;
     const titleId = 'modal-title-' + uuid().slice(0, 8);
 
@@ -80,8 +81,16 @@ export function openModal({ title, iconName = '', size = 'md', content, onClose,
     stack.push(api);
     syncScrollLock();
 
-    const firstField = body.querySelector('input:not([type="hidden"]), select, textarea, button') || dialog;
-    setTimeout(() => firstField.focus({ preventScroll: true }), 30);
+    const firstField = (initialFocus && body.querySelector(initialFocus))
+        || body.querySelector('input:not([type="hidden"]), select, textarea, button') || dialog;
+    setTimeout(() => {
+        firstField.focus({ preventScroll: true });
+        // cursor no fim do texto (editar uma obra): o título não fica todo selecionado
+        if (firstField instanceof HTMLInputElement && firstField.type === 'text') {
+            const n = firstField.value.length;
+            try { firstField.setSelectionRange(n, n); } catch { /* alguns tipos de campo não aceitam */ }
+        }
+    }, 30);
 
     return api;
 }

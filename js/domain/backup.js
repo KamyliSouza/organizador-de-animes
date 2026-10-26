@@ -1,5 +1,5 @@
 // Exportação e leitura de backups JSON (compatível com o backup do tracker antigo).
-import { normalizeEntry } from './entry.js';
+import { capFavorites, normalizeEntry } from './entry.js';
 
 export const LEGACY_STORAGE_KEY = 'media_tracker_data';
 
@@ -13,9 +13,9 @@ export function parseBackup(text) {
     try { data = JSON.parse(text); } catch { throw new Error('O arquivo não é um JSON válido.'); }
     const list = Array.isArray(data) ? data : Array.isArray(data?.entries) ? data.entries : null;
     if (!list) throw new Error('Arquivo de backup inválido: esperava uma lista de obras.');
-    const entries = list
+    const entries = capFavorites(list
         .filter((e) => e && typeof e === 'object' && String(e.title ?? '').trim())
-        .map((e) => ({ ...normalizeEntry(e), id: '' }));
+        .map((e) => ({ ...normalizeEntry(e), id: '' })));
     if (!entries.length) throw new Error('Nenhuma obra válida encontrada no arquivo.');
     return entries;
 }

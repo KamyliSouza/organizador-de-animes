@@ -4,8 +4,9 @@ import { confirmDialog } from '../core/dialogs.js';
 import { messageOf } from '../core/errors.js';
 import { icon } from '../core/icons.js';
 import { toast } from '../core/toast.js';
-import { addNextEpisode } from '../domain/entry.js';
+import { MAX_FAVORITES, addNextEpisode, favoriteCount } from '../domain/entry.js';
 import { readLegacyEntries } from '../domain/backup.js';
+import { REQUIRED_SCHEMA } from '../services/schema.js';
 import { backend, isCloud, state } from '../services/session.js';
 import { openDetailsModal, openScheduleModal, openStatsModal } from '../ui/infoModals.js';
 import { mountLibraryBrowser } from '../ui/libraryBrowser.js';
@@ -64,8 +65,18 @@ export async function mount(root) {
     };
 
     // --- avisos -------------------------------------------------------------------
+    let schemaOutdated = false;   // o banco do Supabase está numa versão mais antiga que a do site
+
     function renderBanners() {
         const parts = [];
+
+        if (schemaOutdated) {
+            parts.push(html`<div class="notice-box is-warn" role="alert">${icon('alert')}<div>
+                <strong>O banco de dados precisa ser atualizado.</strong> No Supabase, abra <strong>SQL Editor → New query</strong>, cole o conteúdo de
+                <code>sql/schema.sql</code> e clique em <strong>Run</strong> (é seguro repetir). Depois recarregue esta página.
+                Até lá, algumas coisas novas (status "Em espera", favoritos) podem não salvar.
+            </div></div>`);
+        }
 
         if (!cloud) {
             parts.push(html`<div class="notice-box">${icon('info')}<div>
@@ -134,6 +145,8 @@ export async function mount(root) {
     function openForm(entry = null) {
         openMediaForm({
             entry,
+            existing: entries,
+            onShowExisting: (found) => browser?.reveal(found.id),
             onSave: async (data) => {
                 if (entry?.id) {
                     const saved = await be.library.update({ ...data, id: entry.id });
@@ -159,6 +172,16 @@ export async function mount(root) {
         edit: (entry) => openForm(entry),
         inc: increment,
         details: (entry) => openDetailsModal(entry),
+        favorite(entry) {
+            if (!entry.favorite && favoriteCount(entries) >= MAX_FAVORITES) {
+                toast(`Você pode fixar até ${MAX_FAVORITES} favoritos. Tire um para favoritar outra obra.`, { type: 'info' });
+                return;
+            }
+            entry.favorite = !entry.favorite;
+            toast(entry.favorite ? (cloud ? 'Adicionada aos favoritos (aparece no topo do seu perfil).' : 'Adicionada aos favoritos.') : 'Removida dos favoritos.', { type: 'success' });
+            schedulePersist(entry.id);
+            refresh();
+        },
         seasons: (entry) => openSeasonsModal({ entry, onChange: (e) => { schedulePersist(e.id); refresh(); } }),
         share: (entry) => openShareModal({ entry, owner: cloud ? state.profile?.username : '' }),
         async delete(entry) {
@@ -216,6 +239,12 @@ export async function mount(root) {
 
     renderBanners();
     refresh();
+
+    if (cloud && state.user) {
+        be.meta?.schemaVersion?.().then((v) => {
+            if (v !== null && v < REQUIRED_SCHEMA) { schemaOutdated = true; renderBanners(); }
+        }).catch(() => {});
+    }
 
     return () => { off(); browser.destroy(); };
 }

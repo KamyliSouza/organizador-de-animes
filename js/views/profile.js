@@ -8,7 +8,9 @@ import { backend, isCloud, state } from '../services/session.js';
 import { avatar } from '../ui/avatar.js';
 import { openDetailsModal, openStatsModal } from '../ui/infoModals.js';
 import { mountLibraryBrowser } from '../ui/libraryBrowser.js';
+import { mediaCardHtml } from '../ui/mediaCard.js';
 import { statTilesHtml } from '../ui/statTiles.js';
+import { MAX_FAVORITES } from '../domain/entry.js';
 
 const link = (username) => `${location.origin}${location.pathname}#/u/${username}`;
 
@@ -52,6 +54,8 @@ export async function mount(root, ctx) {
 
     const own = Boolean(state.user && profile.id === state.user.id);
     document.title = `${profile.displayName} (@${profile.username}) · ${config.siteName}`;
+    // Obras fixadas pela pessoa (o site limita a MAX_FAVORITES; aqui também, caso alguém grave mais direto pela API)
+    const favorites = entries.filter((e) => e.favorite).slice(0, MAX_FAVORITES);
 
     setHtml(root, html`
         ${own ? html`<div class="notice-box">${icon(profile.isPublic ? 'globe' : 'lock')}<div>
@@ -70,11 +74,21 @@ export async function mount(root, ctx) {
             </div>
         </header>
         ${statTilesHtml(entries)}
+        ${favorites.length ? html`
+            <section class="fav-section" data-favorites aria-labelledby="fav-title">
+                <h2 id="fav-title">${icon('heart', { size: 20 })} Favoritos</h2>
+                <div class="media-grid">${favorites.map((e) => mediaCardHtml(e, { readonly: true }))}</div>
+            </section>` : ''}
         <div data-browser class="stack"></div>`);
 
     const browser = mountLibraryBrowser(root.querySelector('[data-browser]'), {
         entries, readonly: true,
         actions: { details: (entry) => openDetailsModal(entry) },
+    });
+
+    const offFav = on(root, 'click', '[data-favorites] [data-action="details"]', (_, btn) => {
+        const entry = entries.find((e) => e.id === btn.closest('[data-id]')?.dataset.id);
+        if (entry) openDetailsModal(entry);
     });
 
     const off = on(root, 'click', '[data-act]', async (_, btn) => {
@@ -85,5 +99,5 @@ export async function mount(root, ctx) {
         }
     });
 
-    return () => { off(); browser.destroy(); };
+    return () => { off(); offFav(); browser.destroy(); };
 }
