@@ -15,6 +15,8 @@ const PAUSED = new Set(['on_hold', 'dropped']);
 
 /** Quantas obras a pessoa pode fixar como favoritas no perfil. */
 export const MAX_FAVORITES = 8;
+/** Tamanho máximo da análise (o texto que a pessoa escreve sobre a obra e que aparece no feed). */
+export const MAX_REVIEW = 2000;
 
 export const CATEGORIES = ['Anime', 'Filme', 'Série'];
 export const CATEGORY_CLASS = { Anime: 'anime', Filme: 'filme', 'Série': 'serie' };
@@ -79,6 +81,8 @@ export function normalizeEntry(e) {
         seasons: seasons.length ? seasons : [defaultSeason()],
         favorite: e?.favorite === true,
         sourceRef: cleanRef(e?.sourceRef),
+        review: cleanText(e?.review, MAX_REVIEW),
+        reviewSpoiler: e?.reviewSpoiler === true,
         createdAt: typeof e?.createdAt === 'string' ? e.createdAt : '',
     };
 }
@@ -87,7 +91,7 @@ export function emptyEntry() {
     return {
         id: '', title: '', category: 'Anime', status: 'watching', rating: 0, tags: [], airDay: '',
         notes: '', coverImage: '', description: '', genres: [], seasons: [defaultSeason()],
-        favorite: false, sourceRef: '', createdAt: '',
+        favorite: false, sourceRef: '', review: '', reviewSpoiler: false, createdAt: '',
     };
 }
 

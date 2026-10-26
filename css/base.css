@@ -196,6 +196,17 @@ html:not(.js) .skip-link { display: none; }
 .nav-link:hover { background: var(--notice-bg); color: var(--primary-text); }
 .nav-link[aria-current="page"] { background: var(--notice-bg); color: var(--primary-text); }
 
+/* Bolinha de aviso (pedidos para seguir esperando resposta) */
+.nav-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 20px; height: 20px; padding: 0 6px;
+    font-size: .72rem; font-weight: 800; line-height: 1;
+    color: #fff; background: #be123c;
+    border-radius: var(--radius-pill);
+}
+.tab-link { position: relative; }
+.tab-link .nav-badge { position: absolute; top: 2px; right: max(4px, calc(50% - 26px)); min-width: 18px; height: 18px; padding: 0 5px; font-size: .66rem; box-shadow: 0 0 0 2px var(--nav-bg); }
+
 .nav-spacer { flex: 1 1 auto; min-width: 0; }
 .nav-actions { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .nav-name { max-width: 130px; }
@@ -237,7 +248,7 @@ html:not(.js) .skip-link { display: none; }
 .tab-link {
     display: flex; flex-direction: column; align-items: center; gap: 2px;
     flex: 1 1 auto;
-    min-width: min(76px, 26vw);
+    min-width: min(76px, 21vw);
     padding: 8px 8px;
     color: var(--subtitle-color);
     text-decoration: none;
@@ -246,6 +257,11 @@ html:not(.js) .skip-link { display: none; }
     border-radius: var(--radius-pill);
 }
 .tab-link[aria-current="page"] { color: var(--button-text); background: var(--button-bg); }
+.tab-link > span:not(.nav-badge) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 22.5em) {
+    .tab-bar { gap: 2px; padding: 4px; }
+    .tab-link { padding: 8px 4px; font-size: .68rem; }
+}
 
 /* ---------------------------------------------------------
    Rodapé

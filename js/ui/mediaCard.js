@@ -31,7 +31,7 @@ function favoriteButton(entry) {
 export function mediaCardHtml(entry, { readonly = false } = {}) {
     const { watched, total, pct } = progressOf(entry);
     const status = STATUSES[entry.status];
-    const hasDetails = Boolean(entry.description || entry.notes);
+    const hasDetails = Boolean(entry.description || entry.notes || entry.review);
 
     return html`
     <article class="media-card glass-panel ${entry.status === 'dropped' ? 'is-dropped' : ''}" data-id="${entry.id}">
@@ -74,7 +74,7 @@ export function mediaCardHtml(entry, { readonly = false } = {}) {
 
 export function mediaRowHtml(entry, { readonly = false } = {}) {
     const { watched, total, pct } = progressOf(entry);
-    const hasDetails = Boolean(entry.description || entry.notes);
+    const hasDetails = Boolean(entry.description || entry.notes || entry.review);
 
     return html`
     <article class="media-row glass-panel ${entry.status === 'dropped' ? 'is-dropped' : ''}" data-id="${entry.id}">

@@ -5,6 +5,7 @@ import { openModal } from '../core/modal.js';
 import { DAYS, DAY_LABELS, MINUTES_PER_EPISODE, progressOf } from '../domain/entry.js';
 import { computeStats, groupByAirDay } from '../domain/stats.js';
 import { applyImageFallback, posterPlaceholder } from './mediaCard.js';
+import { bindReviews, reviewHtml } from './reviewBlock.js';
 
 export function openDetailsModal(entry) {
     const content = el(html`
@@ -18,6 +19,11 @@ export function openDetailsModal(entry) {
                     <p class="synopsis-text">${entry.description || 'Nenhuma descrição disponível.'}</p>
                 </div>
             </div>
+            ${entry.review ? html`
+                <div class="stack" style="gap:6px">
+                    <span class="field-label" style="color:var(--primary-text)">Análise</span>
+                    ${reviewHtml(entry.review, entry.reviewSpoiler)}
+                </div>` : ''}
             ${entry.notes ? html`
                 <div class="stack" style="gap:6px">
                     <span class="field-label" style="color:var(--primary-text)">Anotações / Diário</span>
@@ -26,6 +32,7 @@ export function openDetailsModal(entry) {
             <div class="modal-footer"><button type="button" class="button button-secondary" data-modal-close>Fechar</button></div>
         </div>`);
     on(content, 'error', 'img[data-fallback]', (_, img) => applyImageFallback(img), true);
+    bindReviews(content);
     return openModal({ title: entry.title, iconName: 'book', content });
 }
 

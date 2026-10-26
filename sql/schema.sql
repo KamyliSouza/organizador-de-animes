@@ -11,6 +11,8 @@
 --     público. As anotações privadas só saem se a pessoa permitir.
 --   * Fotos de perfil: bucket público "avatars", uma foto por pessoa, só a dona
 --     envia/troca/apaga a sua (seção 6).
+--   * Seguir: a tabela "follows" não é acessível direto; tudo passa por funções
+--     que respeitam perfil público/privado e a aprovação de pedidos (seção 5).
 -- =====================================================================
 
 
@@ -61,6 +63,10 @@ create table if not exists public.entries (
   seasons     jsonb not null default '[]'::jsonb,
   favorite    boolean not null default false,
   source_ref  text,
+  review      text,
+  review_spoiler boolean not null default false,
+  activity_at   timestamptz,
+  activity_kind text,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now(),
   constraint entries_title_len    check (char_length(title) between 1 and 200),
@@ -96,6 +102,47 @@ alter table public.entries add column if not exists source_ref text;
 alter table public.entries drop constraint if exists entries_source_ref;
 alter table public.entries add  constraint entries_source_ref
   check (source_ref is null or source_ref ~ '^[a-z]{2,10}:[a-z0-9_-]{1,30}$');
+
+--   * review / review_spoiler: a "análise" que a pessoa escreve sobre a obra (aparece no feed e para
+--     quem pode ver a biblioteca). É DIFERENTE das anotações privadas (coluna notes).
+--   * activity_at / activity_kind: a última coisa "publicável" que aconteceu com a obra (adicionada,
+--     status mudou ou análise escrita). O feed é montado a partir disso; quem preenche é o gatilho
+--     entries_set_activity, nunca o site. Obras antigas ficam sem atividade (não entram no feed).
+alter table public.entries add column if not exists review         text;
+alter table public.entries add column if not exists review_spoiler boolean not null default false;
+alter table public.entries add column if not exists activity_at    timestamptz;
+alter table public.entries add column if not exists activity_kind  text;
+alter table public.entries drop constraint if exists entries_review_len;
+alter table public.entries add  constraint entries_review_len
+  check (review is null or char_length(review) <= 2000);
+alter table public.entries drop constraint if exists entries_activity_kind;
+alter table public.entries add  constraint entries_activity_kind
+  check (activity_kind is null or activity_kind in ('added', 'status', 'review'));
+
+create index if not exists entries_activity_idx on public.entries (user_id, activity_at desc, id desc)
+  where activity_at is not null;
+
+
+-- ---------------------------------------------------------------------
+-- 2b. Seguidores
+--   pending  = pedido feito a um perfil privado, esperando aprovação da dona
+--   accepted = pode ver a biblioteca e aparece no feed de quem segue
+-- A tabela fica fechada (sem acesso direto): só as funções da seção 5 mexem nela.
+-- ---------------------------------------------------------------------
+create table if not exists public.follows (
+  follower_id uuid not null references public.profiles (id) on delete cascade,
+  followee_id uuid not null references public.profiles (id) on delete cascade,
+  status      text not null default 'pending',
+  created_at  timestamptz not null default now(),
+  primary key (follower_id, followee_id),
+  constraint follows_not_self check (follower_id <> followee_id),
+  constraint follows_status   check (status in ('pending', 'accepted'))
+);
+
+create index if not exists follows_followee_idx on public.follows (followee_id, status, created_at desc);
+
+alter table public.follows enable row level security;
+revoke all on public.follows from anon, authenticated;
 
 
 -- ---------------------------------------------------------------------
@@ -178,6 +225,62 @@ drop trigger if exists entries_enforce_limit on public.entries;
 create trigger entries_enforce_limit before insert on public.entries
   for each row execute function public.enforce_entry_limit();
 
+-- 3d. Atividade da obra (alimenta o feed). Só estes eventos contam:
+--       obra adicionada, status mudou, análise escrita/alterada.
+--     Marcar episódios, favoritar, mudar tags etc. NÃO geram atividade.
+--     Importações (backup / lista antiga) chegam com activity_kind = 'silent' e não entram no feed.
+--     O que o site mandar nas colunas activity_* é ignorado: quem decide é este gatilho.
+create or replace function public.set_entry_activity()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if tg_op = 'INSERT' then
+    if new.activity_kind = 'silent' then
+      new.activity_at   := null;
+      new.activity_kind := null;
+    else
+      new.activity_at   := now();
+      new.activity_kind := case when coalesce(btrim(new.review), '') <> '' then 'review' else 'added' end;
+    end if;
+  elsif coalesce(btrim(new.review), '') <> '' and new.review is distinct from old.review then
+    new.activity_at   := now();
+    new.activity_kind := 'review';
+  elsif new.status is distinct from old.status then
+    new.activity_at   := now();
+    new.activity_kind := 'status';
+  else
+    new.activity_at   := old.activity_at;
+    new.activity_kind := old.activity_kind;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists entries_set_activity on public.entries;
+create trigger entries_set_activity before insert or update on public.entries
+  for each row execute function public.set_entry_activity();
+
+-- 3e. Perfil que vira público: os pedidos pendentes são aceitos (já poderiam ver tudo mesmo).
+create or replace function public.accept_pending_follows()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if new.is_public and not old.is_public then
+    update public.follows set status = 'accepted' where followee_id = new.id and status = 'pending';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists profiles_accept_pending on public.profiles;
+create trigger profiles_accept_pending after update of is_public on public.profiles
+  for each row execute function public.accept_pending_follows();
+
 
 -- ---------------------------------------------------------------------
 -- 4. Row Level Security
@@ -229,8 +332,10 @@ revoke all on public.entries from anon;
 -- 5. Funções públicas (usadas pelo site via supabase.rpc)
 -- ---------------------------------------------------------------------
 
--- Obras de um perfil público. As anotações só saem se a pessoa permitir.
--- (drop antes: o formato do resultado ganhou a coluna "favorite")
+-- Obras de um perfil. Quem pode ver: qualquer pessoa (perfil público), a própria dona,
+-- ou quem a dona já aceitou como seguidor (perfil privado). As anotações só saem se a dona permitir;
+-- a análise (review) sai junto com a obra.
+-- (drop antes: o formato do resultado ganhou as colunas "review" e "review_spoiler")
 drop function if exists public.get_public_entries(text);
 create function public.get_public_entries(p_username text)
 returns table (
@@ -247,6 +352,8 @@ returns table (
   genres      text[],
   seasons     jsonb,
   favorite    boolean,
+  review      text,
+  review_spoiler boolean,
   created_at  timestamptz,
   updated_at  timestamptz
 )
@@ -258,11 +365,17 @@ as $$
   select e.id, e.title, e.category, e.status, e.rating, e.tags, e.air_day,
          case when p.show_notes then e.notes else null end,
          e.cover_image, e.description, e.genres, e.seasons, e.favorite,
+         e.review, e.review_spoiler,
          e.created_at, e.updated_at
   from public.entries e
   join public.profiles p on p.id = e.user_id
   where p.username = lower(p_username)
-    and p.is_public
+    and (
+      p.is_public
+      or p.id = (select auth.uid())
+      or exists (select 1 from public.follows f
+                 where f.follower_id = (select auth.uid()) and f.followee_id = p.id and f.status = 'accepted')
+    )
   order by e.created_at desc;
 $$;
 
@@ -333,15 +446,250 @@ begin
 end;
 $$;
 
+-- ---- Seguir ----------------------------------------------------------
+
+-- Perfil de alguém, respeitando a privacidade. Perfil privado visto por quem não é seguidor aceito
+-- devolve só nome de usuário, nome de exibição e foto (bio e contagens ficam vazias).
+--   relation: self | accepted | pending | none
+drop function if exists public.get_profile(text);
+create function public.get_profile(p_username text)
+returns table (
+  id              uuid,
+  username        text,
+  display_name    text,
+  bio             text,
+  avatar_v        bigint,
+  is_public       boolean,
+  show_notes      boolean,
+  relation        text,
+  can_view        boolean,
+  followers_count bigint,
+  following_count bigint
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with t as (
+    select p.id, p.username, p.display_name, p.bio, p.avatar_v, p.is_public, p.show_notes,
+           (select auth.uid()) as me
+    from public.profiles p
+    where p.username = lower(coalesce(p_username, ''))
+  ), r as (
+    select t.*,
+           case
+             when t.me is not null and t.id = t.me then 'self'
+             when exists (select 1 from public.follows f
+                          where f.follower_id = t.me and f.followee_id = t.id and f.status = 'accepted') then 'accepted'
+             when exists (select 1 from public.follows f
+                          where f.follower_id = t.me and f.followee_id = t.id and f.status = 'pending') then 'pending'
+             else 'none'
+           end as rel
+    from t
+  )
+  select r.id, r.username, r.display_name,
+         case when r.is_public or r.rel in ('self', 'accepted') then r.bio else '' end,
+         r.avatar_v, r.is_public,
+         (r.rel = 'self' and r.show_notes),
+         r.rel,
+         (r.is_public or r.rel in ('self', 'accepted')),
+         case when r.is_public or r.rel in ('self', 'accepted')
+              then (select count(*) from public.follows f where f.followee_id = r.id and f.status = 'accepted') end,
+         case when r.is_public or r.rel in ('self', 'accepted')
+              then (select count(*) from public.follows f where f.follower_id = r.id and f.status = 'accepted') end
+  from r;
+$$;
+
+-- Seguir alguém. Perfil público: já fica "accepted". Perfil privado: fica "pending" até a dona aceitar.
+-- Devolve o status. Repetir a chamada não faz nada (devolve o status atual).
+create or replace function public.follow_user(p_username text)
+returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  me         uuid := auth.uid();
+  target     public.profiles%rowtype;
+  v_status   text;
+begin
+  if me is null then
+    raise exception 'Não autenticado.' using errcode = '28000';
+  end if;
+  select * into target from public.profiles where username = lower(coalesce(p_username, ''));
+  if not found then
+    raise exception 'Perfil não encontrado.' using errcode = 'P0002';
+  end if;
+  if target.id = me then
+    raise exception 'Você não pode seguir a si mesmo.' using errcode = '22023';
+  end if;
+  select f.status into v_status from public.follows f where f.follower_id = me and f.followee_id = target.id;
+  if found then
+    return v_status;
+  end if;
+  if (select count(*) from public.follows f where f.follower_id = me) >= 1000 then
+    raise exception 'Limite de 1000 perfis seguidos atingido.' using errcode = 'check_violation';
+  end if;
+  v_status := case when target.is_public then 'accepted' else 'pending' end;
+  insert into public.follows (follower_id, followee_id, status) values (me, target.id, v_status);
+  return v_status;
+end;
+$$;
+
+-- Deixar de seguir (ou cancelar um pedido pendente).
+create or replace function public.unfollow_user(p_username text)
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  delete from public.follows f
+  using public.profiles t
+  where t.username = lower(coalesce(p_username, ''))
+    and f.followee_id = t.id
+    and f.follower_id = (select auth.uid());
+$$;
+
+-- Dona do perfil aceita (true) ou recusa (false) um pedido pendente.
+create or replace function public.respond_follow_request(p_follower uuid, p_accept boolean)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  me uuid := auth.uid();
+begin
+  if me is null then
+    raise exception 'Não autenticado.' using errcode = '28000';
+  end if;
+  if p_accept then
+    update public.follows set status = 'accepted'
+    where followee_id = me and follower_id = p_follower and status = 'pending';
+  else
+    delete from public.follows
+    where followee_id = me and follower_id = p_follower and status = 'pending';
+  end if;
+end;
+$$;
+
+-- Dona do perfil tira alguém da lista de seguidores (a pessoa perde o acesso).
+create or replace function public.remove_follower(p_follower uuid)
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  delete from public.follows
+  where followee_id = (select auth.uid()) and follower_id = p_follower;
+$$;
+
+-- Pedidos pendentes para o MEU perfil.
+create or replace function public.list_follow_requests()
+returns table (
+  id           uuid,
+  username     text,
+  display_name text,
+  avatar_v     bigint,
+  requested_at timestamptz
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select p.id, p.username, p.display_name, p.avatar_v, f.created_at
+  from public.follows f
+  join public.profiles p on p.id = f.follower_id
+  where f.followee_id = (select auth.uid()) and f.status = 'pending'
+  order by f.created_at desc
+  limit 100;
+$$;
+
+-- Quem segue / quem é seguido por um perfil (só aceitos). Só para quem pode ver aquele perfil.
+create or replace function public.list_connections(p_username text, p_kind text)
+returns table (
+  id           uuid,
+  username     text,
+  display_name text,
+  avatar_v     bigint
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select p.id, p.username, p.display_name, p.avatar_v
+  from public.profiles t
+  join public.follows f
+    on f.status = 'accepted'
+   and ((p_kind = 'followers' and f.followee_id = t.id) or (p_kind = 'following' and f.follower_id = t.id))
+  join public.profiles p
+    on p.id = case when p_kind = 'followers' then f.follower_id else f.followee_id end
+  where t.username = lower(coalesce(p_username, ''))
+    and p_kind in ('followers', 'following')
+    and (
+      t.is_public
+      or t.id = (select auth.uid())
+      or exists (select 1 from public.follows v
+                 where v.follower_id = (select auth.uid()) and v.followee_id = t.id and v.status = 'accepted')
+    )
+  order by f.created_at desc
+  limit 200;
+$$;
+
+-- Feed: atividade (mais recente por obra) de quem eu sigo, da mais nova para a mais antiga.
+-- Paginação por cursor: passe activity_at e entry_id do último item recebido.
+-- Nunca devolve anotações privadas (só a análise, que a pessoa escreveu para ser vista).
+drop function if exists public.get_feed(int, timestamptz, uuid);
+create function public.get_feed(p_limit int default 30, p_before_at timestamptz default null, p_before_id uuid default null)
+returns table (
+  entry_id       uuid,
+  user_id        uuid,
+  username       text,
+  display_name   text,
+  avatar_v       bigint,
+  title          text,
+  category       text,
+  status         text,
+  rating         smallint,
+  cover_image    text,
+  review         text,
+  review_spoiler boolean,
+  activity_kind  text,
+  activity_at    timestamptz
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select e.id, p.id, p.username, p.display_name, p.avatar_v,
+         e.title, e.category, e.status, e.rating, e.cover_image,
+         e.review, e.review_spoiler, e.activity_kind, e.activity_at
+  from public.follows f
+  join public.entries e  on e.user_id = f.followee_id
+  join public.profiles p on p.id = f.followee_id
+  where f.follower_id = (select auth.uid())
+    and f.status = 'accepted'
+    and e.activity_at is not null
+    and (p_before_at is null
+         or (e.activity_at, e.id) < (p_before_at, coalesce(p_before_id, 'ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid)))
+  order by e.activity_at desc, e.id desc
+  limit least(greatest(coalesce(p_limit, 30), 1), 50);
+$$;
+
 -- Versão deste esquema. O site compara com a que ele espera e avisa se o banco estiver atrasado.
 --   2 = Em espera, favoritos e códigos de obra
 --   3 = foto de perfil (coluna avatar_v e armazenamento "avatars")
+--   4 = seguir, feed e análises
 create or replace function public.schema_version()
 returns integer
 language sql
 immutable
 set search_path = ''
-as $$ select 3 $$;
+as $$ select 4 $$;
 
 -- Só quem precisa pode executar cada função.
 revoke all on function public.get_public_entries(text)            from public;
@@ -351,12 +699,30 @@ revoke all on function public.handle_new_user()                   from public, a
 revoke all on function public.enforce_entry_limit()               from public, anon, authenticated;
 revoke all on function public.delete_my_account()                 from public, anon;
 revoke all on function public.schema_version()                    from public;
+revoke all on function public.get_profile(text)                   from public;
+revoke all on function public.follow_user(text)                   from public, anon;
+revoke all on function public.unfollow_user(text)                 from public, anon;
+revoke all on function public.respond_follow_request(uuid, boolean) from public, anon;
+revoke all on function public.remove_follower(uuid)               from public, anon;
+revoke all on function public.list_follow_requests()              from public, anon;
+revoke all on function public.list_connections(text, text)        from public;
+revoke all on function public.get_feed(int, timestamptz, uuid)    from public, anon;
+revoke all on function public.set_entry_activity()                from public, anon, authenticated;
+revoke all on function public.accept_pending_follows()            from public, anon, authenticated;
 
 grant execute on function public.get_public_entries(text)         to anon, authenticated;
 grant execute on function public.list_public_profiles(text, int)  to anon, authenticated;
 grant execute on function public.username_available(text)         to anon, authenticated;
 grant execute on function public.delete_my_account()               to authenticated;
 grant execute on function public.schema_version()                  to anon, authenticated;
+grant execute on function public.get_profile(text)                 to anon, authenticated;
+grant execute on function public.follow_user(text)                 to authenticated;
+grant execute on function public.unfollow_user(text)               to authenticated;
+grant execute on function public.respond_follow_request(uuid, boolean) to authenticated;
+grant execute on function public.remove_follower(uuid)             to authenticated;
+grant execute on function public.list_follow_requests()            to authenticated;
+grant execute on function public.list_connections(text, text)      to anon, authenticated;
+grant execute on function public.get_feed(int, timestamptz, uuid)  to authenticated;
 
 
 -- ---------------------------------------------------------------------

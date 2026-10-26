@@ -72,6 +72,7 @@ Sem esse passo, estas coisas não funcionam (o site mostra um aviso amarelo na b
 - salvar uma obra como **Dropado** ou **Em espera** (o banco antigo só conhece Assistindo, Quero Ver e Concluído);
 - marcar obras como **favoritas** e guardar o código da fonte (para detectar obras repetidas);
 - a **foto de perfil** (o SQL cria o armazenamento `avatars` e a coluna que guarda a versão da foto);
+- **seguir pessoas**, os **pedidos** para perfis privados, o **feed** e as **análises** (o SQL cria a tabela de seguidores, as colunas da análise e as funções do feed);
 - o botão **Excluir minha conta**.
 
 ---
@@ -117,11 +118,50 @@ Se você apagar usuários direto no painel do Supabase (*Authentication → User
 
 ## Perfis e privacidade
 
-- Todo perfil **começa privado**. Só aparece em **Explorar** e em `#/u/usuario` depois que a pessoa ativa **Perfil público**.
+- Todo perfil **começa privado**. Só aparece em **Explorar** e mostra a biblioteca para qualquer pessoa em `#/u/usuario` depois que a pessoa ativa **Perfil público**. Enquanto for privado, só as seguidoras aceitas veem a biblioteca (veja "Seguir pessoas").
 - As **anotações** (diário) continuam só para a dona da conta, mesmo com o perfil público. Para mostrá-las, ative **Mostrar minhas anotações**. Isso é garantido no banco, não só na tela.
 - Quem não está logado pode ver perfis públicos, mas não consegue ler nem editar nada além disso.
 - Trocar o nome de usuário muda o link do perfil (o antigo deixa de funcionar).
-- **Excluir a conta:** em **Perfil → Configurações → Zona de perigo**. É preciso digitar o nome de usuário para confirmar. Apaga a conta, o perfil, a foto e todas as obras, para sempre (exporte um backup antes se quiser guardar a lista). O link do perfil deixa de existir e o nome de usuário volta a ficar livre.
+- **Excluir a conta:** em **Perfil → Configurações → Zona de perigo**. É preciso digitar o nome de usuário para confirmar. Apaga a conta, o perfil, a foto, as obras e os vínculos de seguir, para sempre (exporte um backup antes se quiser guardar a lista). O link do perfil deixa de existir e o nome de usuário volta a ficar livre.
+
+## Seguir pessoas
+
+- No perfil de alguém (`#/u/usuario`) há o botão **Seguir**. Em **perfil público** o vínculo é imediato. Em **perfil privado** o botão é **Pedir para seguir**: o pedido fica *pendente* até a dona aceitar. Quem pediu pode **cancelar** o pedido a qualquer momento.
+- A dona do perfil privado vê um número vermelho no menu **Feed** quando há pedidos esperando e responde em **Feed → Pedidos** (**Aceitar** ou **Recusar**). Quem foi recusada pode pedir de novo.
+- Em **Seguidores** (no próprio perfil) a dona pode **Remover** alguém: a pessoa perde o acesso na hora. Quem segue pode **Deixar de seguir** quando quiser (num perfil privado precisará pedir de novo).
+- Se um perfil privado **vira público**, os pedidos pendentes são aceitos automaticamente (eles já poderiam ver tudo). Se um perfil público **vira privado**, quem já seguia continua seguindo.
+- Cada conta pode seguir até **1000** perfis.
+
+**O que cada pessoa enxerga de um perfil privado**
+
+| Quem vê | O que aparece |
+|---|---|
+| Qualquer pessoa / quem ainda não foi aceita | só **nome**, **@usuário** e **foto** (sem bio, obras, análises, estatísticas nem número de seguidores) e o botão de seguir |
+| Seguidora aceita | a biblioteca inteira, as análises, a bio e as contagens. As **anotações privadas continuam escondidas**, a não ser que a dona ative **Mostrar minhas anotações** |
+| A própria dona | tudo (a tela do perfil é uma prévia do que as seguidoras veem) |
+
+Observação: perfis privados continuam **encontráveis pelo nome de usuário** (é assim que dá para pedir para seguir), mas só com esse cartão limitado. Eles não aparecem na lista do **Explorar**.
+
+## Feed
+
+Em **Feed → Atividade** aparece o que as pessoas que você segue fizeram, da mais recente para a mais antiga (30 por vez, com **Carregar mais**).
+
+Entram no feed: **obra adicionada**, **mudança de status** (ex.: começou a assistir, concluiu, dropou) e **análise escrita ou alterada**. Cada obra aparece **uma vez**, com a atividade mais recente dela.
+
+**Não** entram no feed: marcar episódios, favoritar, mudar tags, editar anotações, e **importar backup / lista antiga** (as obras importadas chegam "em silêncio"). Anotações privadas nunca aparecem no feed.
+
+Só atividade **nova** entra: as obras que já estavam na biblioteca antes de você rodar o SQL desta versão não aparecem no feed (ele começa vazio e vai enchendo conforme as pessoas adicionam, concluem ou analisam).
+
+O feed **não atualiza sozinho**: ele carrega quando você abre a tela e no botão **Atualizar**. O número de pedidos no menu é conferido ao abrir o site, ao voltar para a aba e ao responder um pedido.
+
+## Análises
+
+Ao adicionar ou editar uma obra existe o campo **Minha análise** (até **2000 caracteres**) com a opção **Contém spoilers**.
+
+- A **análise** é para ser lida: aparece no detalhe da obra e no feed para quem pode ver a sua biblioteca (todo mundo, se o perfil for público; só as seguidoras aceitas, se for privado).
+- As **anotações** são outra coisa: continuam sendo o seu diário, só você vê (a não ser que ative **Mostrar minhas anotações**).
+- Análise marcada como **spoiler** aparece **escondida** atrás do botão **Mostrar análise** (no feed e no detalhe). Análises longas vêm recolhidas, com **Ler mais**.
+- A marcação de spoiler só vale se houver texto na análise.
 
 ## Status das obras
 
@@ -182,7 +222,7 @@ js/
   domain/               regras puras: obras, temporadas, estatísticas, backup
   services/             backends (local e Supabase), sessão, busca (Jikan, AniList, TMDB)
   ui/                   componentes: cards, filtros, modais, cartão de compartilhar, avatar, abas da conta
-  views/                telas: início, biblioteca, login, perfil, explorar, personalização, configurações
+  views/                telas: início, biblioteca, login, perfil, explorar, feed (atividade e pedidos), personalização, configurações
 sql/schema.sql          tabelas, regras de segurança e funções do Supabase (pode rodar de novo a qualquer momento)
 ```
 
@@ -193,6 +233,7 @@ Os dois backends (`local-backend.js` e `supabase-backend.js`) têm a mesma inter
 - **Regras no banco (RLS):** cada pessoa só lê e altera as próprias obras; perfis públicos só são lidos por funções que respeitam as opções de privacidade.
 - **Sem XSS:** todo texto vindo de usuários ou de APIs é escapado antes de ir para a tela; capas só aceitam `https`.
 - **CSP:** o `index.html` só permite scripts do próprio site e do jsDelivr (onde fica a biblioteca do Supabase) e só conversa com as APIs usadas.
+- **Seguir e feed:** a tabela de seguidores não pode ser lida nem escrita direto (só por funções do banco que conferem quem está logado). Um perfil privado só entrega as obras a quem a dona aceitou, e o feed só devolve atividade de quem você segue com vínculo aceito. As anotações privadas nunca saem no feed.
 - **Fotos:** bucket `avatars` com limite de 64 KB e só WebP/JPEG; cada pessoa só envia/troca/apaga o arquivo que tem o próprio ID como nome. O site só monta o endereço da foto com ID (UUID) e versão numérica válidos.
 - **Limites:** até **2000 obras por conta**, e campos com tamanho máximo, validados no banco.
 - **Cadastro aberto:** qualquer pessoa com o link pode criar conta. Se quiser restringir a só os amigos, desligue **Authentication → Sign In / Providers → Allow new users to sign up** depois que todos tiverem criado a conta, ou crie os usuários manualmente em **Authentication → Users**.
@@ -204,6 +245,7 @@ Os dois backends (`local-backend.js` e `supabase-backend.js`) têm a mesma inter
 | "Não foi possível iniciar o KamyList" | URL ou chave erradas no `js/config.js`, ou sem internet |
 | "Perfil não encontrado" nas configurações | O `sql/schema.sql` não foi executado (ou a conta foi criada antes dele) |
 | Aviso amarelo "O banco de dados precisa ser atualizado", "O banco ainda não aceita este status" ou "Não foi possível excluir a conta" | O `sql/schema.sql` novo ainda não foi executado (veja "Atualizando um site que já está no ar") |
+| Botão "Seguir" ou o Feed dão erro, ou a análise não salva | O `sql/schema.sql` novo ainda não foi executado (a versão 4 cria seguidores, feed e análises) |
 | "O armazenamento de fotos ainda não existe" ou "A foto ficou grande demais" | O `sql/schema.sql` novo não foi executado (cria o bucket `avatars` com o limite de 64 KB) |
 | MAL mostra "Muitas buscas seguidas" ou "Serviço indisponível" | O Jikan limitou ou está lento: espere alguns segundos ou use o AniList |
 | E-mail de confirmação não chega | Veja o spam; o plano gratuito limita e-mails por hora. Para grupos pequenos, desligue **Confirm email** |

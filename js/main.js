@@ -4,7 +4,7 @@ import { html, setHtml } from './core/dom.js';
 import { icon } from './core/icons.js';
 import { navigate, onRouteChange, refresh, route, scrollToTop, setNotFound, start } from './core/router.js';
 import { currentTheme } from './core/theme.js';
-import { initSession, isCloud, onSessionChange, state } from './services/session.js';
+import { initSession, isCloud, onSessionChange, refreshRequests, state } from './services/session.js';
 import { mountChrome } from './ui/chrome.js';
 
 const $ = (id) => document.getElementById(id);
@@ -22,6 +22,8 @@ function defineRoutes() {
     route('/nova-senha', () => import('./views/auth.js'), { name: 'recovery', title: 'Nova senha', guard: () => (isCloud() && state.user ? undefined : '/entrar') });
     route('/explorar', () => import('./views/explore.js'), { name: 'explore', title: 'Explorar' });
     route('/u/:username', () => import('./views/profile.js'), { name: 'profile', title: 'Perfil' });
+    route('/feed', () => import('./views/feed.js'), { name: 'feed', title: 'Feed', guard: onlyMembers });
+    route('/feed/pedidos', () => import('./views/feed.js'), { name: 'feed-requests', title: 'Pedidos para seguir', guard: onlyMembers });
     route('/configuracoes', () => import('./views/settings.js'), { name: 'settings', title: 'Personalização', guard: onlyMembers });
     route('/configuracoes/conta', () => import('./views/settingsAccount.js'), { name: 'settings-account', title: 'Configurações', guard: onlyMembers });
     setNotFound(() => import('./views/notFound.js'));
@@ -56,6 +58,14 @@ async function boot() {
 
     // Sessão mudou por fora (outra aba saiu da conta, token expirou...): remonta a tela atual.
     onSessionChange((_, reason) => { if (reason === 'external') refresh(); });
+
+    // Voltou para a aba depois de um tempo: confere se chegaram pedidos de seguir (no máximo 1x por minuto).
+    let lastCheck = Date.now();
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'visible' || !state.user || Date.now() - lastCheck < 60_000) return;
+        lastCheck = Date.now();
+        refreshRequests();
+    });
 
     let lastPath = null;
     onRouteChange((path) => {

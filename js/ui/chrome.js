@@ -19,6 +19,7 @@ function navModel() {
     const items = [
         { href: '#/', label: user || !cloud ? 'Biblioteca' : 'Início', icon: 'film', active: isActive(path, '/') },
     ];
+    if (cloud && user) items.push({ href: '#/feed', label: 'Feed', icon: 'activity', active: isActive(path, '/feed'), badge: state.requests });
     if (cloud) items.push({ href: '#/explorar', label: 'Explorar', icon: 'compass', active: isActive(path, '/explorar', '/u') });
 
     let account;
@@ -28,6 +29,11 @@ function navModel() {
 
     return { items, account, cloud, user };
 }
+
+/** Bolinha com o número de pedidos de "seguir" esperando resposta (some quando é 0). */
+const badge = (item) => (item.badge > 0
+    ? html`<span class="nav-badge" data-badge>${item.badge > 99 ? '99+' : item.badge}<span class="sr-only"> ${item.badge === 1 ? 'pedido para seguir' : 'pedidos para seguir'}</span></span>`
+    : '');
 
 function renderNav(nav) {
     const { items, account, cloud, user } = navModel();
@@ -41,7 +47,7 @@ function renderNav(nav) {
                 <span class="brand-text">${config.siteName}</span>
             </a>
             <nav class="nav-links" aria-label="Principal">
-                ${items.map((i) => html`<a class="nav-link" href="${i.href}" ${i.active ? html`aria-current="page"` : ''}>${icon(i.icon, { size: 17 })}${i.label}</a>`)}
+                ${items.map((i) => html`<a class="nav-link" href="${i.href}" ${i.active ? html`aria-current="page"` : ''}>${icon(i.icon, { size: 17 })}${i.label}${badge(i)}</a>`)}
             </nav>
             <span class="nav-spacer"></span>
             <div class="nav-actions">
@@ -65,7 +71,7 @@ function renderTabBar(bar) {
     const { items, account } = navModel();
     const all = [...items, account];
     setHtml(bar, html`${all.map((i) => html`
-        <a class="tab-link" href="${i.href}" ${i.active ? html`aria-current="page"` : ''}>${icon(i.icon, { size: 20 })}<span>${i.label}</span></a>`)}`);
+        <a class="tab-link" href="${i.href}" ${i.active ? html`aria-current="page"` : ''}>${icon(i.icon, { size: 20 })}<span>${i.label}</span>${badge(i)}</a>`)}`);
 }
 
 function renderFooter(footer) {

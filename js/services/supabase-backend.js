@@ -3,6 +3,7 @@
 // este arquivo só conversa com ele.
 import { config } from '../config.js';
 import { AppError } from '../core/errors.js';
+import { safeUrl } from '../core/dom.js';
 import { normalizeEntry } from '../domain/entry.js';
 
 const PAGE = 1000;   // limite de linhas por requisição do Supabase
@@ -26,6 +27,8 @@ function friendly(error, fallback) {
     if (code === 'signup_disabled' || has('Signups not allowed')) return 'Novos cadastros estão desativados.';
     if (code === 'email_address_invalid') return 'Esse e-mail não é aceito. Confira o endereço.';
     if (code === '23505') return 'Este nome de usuário já está em uso.';
+    // mensagens das funções do banco que já vêm prontas em português
+    if (code === 'P0002' || code === '22023' || has('Limite de 1000') || has('Não autenticado')) return msg.includes('Não autenticado') ? 'Entre na sua conta para fazer isso.' : msg;
     if (has('Bucket not found')) return 'O armazenamento de fotos ainda não existe no Supabase. Rode o sql/schema.sql de novo (SQL Editor).';
     if (has('maximum allowed size') || error?.statusCode === '413' || error?.status === 413) return 'A foto ficou grande demais (o limite é 64 KB). Tente outra imagem.';
     if (has('mime type') && has('not supported')) return 'Formato de imagem não aceito pelo servidor. Tente outra imagem.';
@@ -66,6 +69,8 @@ const toRow = (e) => ({
     seasons: e.seasons,
     favorite: e.favorite === true,
     source_ref: e.sourceRef || null,
+    review: e.review || null,
+    review_spoiler: e.reviewSpoiler === true,
 });
 
 const fromRow = (r) => normalizeEntry({
@@ -73,6 +78,7 @@ const fromRow = (r) => normalizeEntry({
     tags: r.tags, airDay: r.air_day, notes: r.notes, coverImage: r.cover_image,
     description: r.description, genres: r.genres, seasons: r.seasons, createdAt: r.created_at,
     favorite: r.favorite, sourceRef: r.source_ref,
+    review: r.review, reviewSpoiler: r.review_spoiler,
 });
 
 const fromProfile = (r) => (r ? {
@@ -84,6 +90,13 @@ const fromProfile = (r) => (r ? {
     showNotes: Boolean(r.show_notes),
     avatarV: Number(r.avatar_v) || 0,
 } : null);
+
+const personOf = (r) => ({
+    id: r.id,
+    username: r.username,
+    displayName: r.display_name || r.username,
+    avatarV: Number(r.avatar_v) || 0,
+});
 
 const redirectUrl = () => location.origin + location.pathname;
 const AVATAR_BUCKET = 'avatars';
@@ -121,7 +134,8 @@ export async function createSupabaseBackend() {
     // ainda sabe o que já foi inserido.
     async function insertChunks(entries, uid, created = []) {
         for (let i = 0; i < entries.length; i += CHUNK) {
-            const rows = entries.slice(i, i + CHUNK).map((e) => ({ ...toRow(normalizeEntry(e)), user_id: uid }));
+            // activity_kind "silent": importar backup/lista antiga não vira atividade no feed dos seguidores
+            const rows = entries.slice(i, i + CHUNK).map((e) => ({ ...toRow(normalizeEntry(e)), user_id: uid, activity_kind: 'silent' }));
             const data = await ok(sb.from('entries').insert(rows).select(), 'Não foi possível importar as obras.');
             created.push(...data.map(fromRow));
         }
@@ -265,13 +279,23 @@ export async function createSupabaseBackend() {
                 return fromProfile(row);
             },
 
-            /** Perfil público (ou o seu próprio, mesmo privado). null se não existir/não for público. */
+            /**
+             * Perfil de qualquer pessoa, já respeitando a privacidade (função get_profile do banco).
+             * Devolve null se o usuário não existir. Perfil privado visto por quem não é seguidor aceito
+             * vem só com nome, usuário e foto (canView = false).
+             * relation: 'self' | 'accepted' | 'pending' | 'none'
+             */
             async getPublic(username) {
-                const row = await ok(
-                    sb.from('profiles').select('*').eq('username', String(username).toLowerCase()).maybeSingle(),
-                    'Não foi possível carregar o perfil.'
-                );
-                return fromProfile(row);
+                const rows = await ok(sb.rpc('get_profile', { p_username: String(username).toLowerCase() }), 'Não foi possível carregar o perfil.');
+                const r = Array.isArray(rows) ? rows[0] : rows;
+                if (!r) return null;
+                return {
+                    ...fromProfile(r),
+                    relation: r.relation || 'none',
+                    canView: Boolean(r.can_view),
+                    followersCount: r.followers_count == null ? null : Number(r.followers_count),
+                    followingCount: r.following_count == null ? null : Number(r.following_count),
+                };
             },
 
             async listPublic({ query = '', limit = 30 } = {}) {
@@ -285,6 +309,52 @@ export async function createSupabaseBackend() {
                     total: Number(r.total) || 0,
                     watching: Number(r.watching) || 0,
                     completed: Number(r.completed) || 0,
+                }));
+            },
+        },
+
+        follows: {
+            /** Segue (perfil público => 'accepted') ou pede para seguir (perfil privado => 'pending'). */
+            async follow(username) {
+                return ok(sb.rpc('follow_user', { p_username: username }), 'Não foi possível seguir este perfil.');
+            },
+            /** Deixa de seguir, ou cancela o pedido pendente. */
+            async unfollow(username) {
+                await ok(sb.rpc('unfollow_user', { p_username: username }), 'Não foi possível deixar de seguir.');
+            },
+            /** Pedidos de quem quer seguir o MEU perfil (privado) e espera aprovação. */
+            async requests() {
+                const rows = await ok(sb.rpc('list_follow_requests'), 'Não foi possível carregar os pedidos.');
+                return (rows || []).map((r) => ({ ...personOf(r), requestedAt: r.requested_at }));
+            },
+            async respond(followerId, accept) {
+                await ok(sb.rpc('respond_follow_request', { p_follower: followerId, p_accept: Boolean(accept) }), 'Não foi possível responder ao pedido.');
+            },
+            async removeFollower(followerId) {
+                await ok(sb.rpc('remove_follower', { p_follower: followerId }), 'Não foi possível remover o seguidor.');
+            },
+            /** kind: 'followers' | 'following' */
+            async connections(username, kind) {
+                const rows = await ok(sb.rpc('list_connections', { p_username: username, p_kind: kind }), 'Não foi possível carregar a lista.');
+                return (rows || []).map(personOf);
+            },
+            /** Atividade de quem eu sigo. `before` = { at, id } do último item recebido (próxima página). */
+            async feed({ limit = 30, before = null } = {}) {
+                const args = { p_limit: limit };
+                if (before) { args.p_before_at = before.at; args.p_before_id = before.id; }
+                const rows = await ok(sb.rpc('get_feed', args), 'Não foi possível carregar o feed.');
+                return (rows || []).map((r) => ({
+                    entryId: r.entry_id,
+                    person: personOf({ id: r.user_id, username: r.username, display_name: r.display_name, avatar_v: r.avatar_v }),
+                    title: r.title,
+                    category: r.category,
+                    status: r.status,
+                    rating: Number(r.rating) || 0,
+                    coverImage: safeUrl(r.cover_image),
+                    review: r.review || '',
+                    reviewSpoiler: r.review_spoiler === true,
+                    kind: r.activity_kind,
+                    at: r.activity_at,
                 }));
             },
         },

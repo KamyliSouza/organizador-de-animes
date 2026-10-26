@@ -74,7 +74,7 @@ export async function mount(root) {
             parts.push(html`<div class="notice-box is-warn" role="alert">${icon('alert')}<div>
                 <strong>O banco de dados precisa ser atualizado.</strong> No Supabase, abra <strong>SQL Editor → New query</strong>, cole o conteúdo de
                 <code>sql/schema.sql</code> e clique em <strong>Run</strong> (é seguro repetir). Depois recarregue esta página.
-                Até lá, algumas coisas novas (status "Em espera", favoritos, foto de perfil) podem não funcionar.
+                Até lá, algumas coisas novas (status "Em espera", favoritos, foto de perfil, seguir pessoas, feed e análises) podem não funcionar.
             </div></div>`);
         }
 

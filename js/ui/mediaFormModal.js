@@ -5,7 +5,7 @@ import { choiceDialog } from '../core/dialogs.js';
 import { openModal } from '../core/modal.js';
 import { messageOf } from '../core/errors.js';
 import { toast } from '../core/toast.js';
-import { CATEGORIES, DAYS, DAY_LABELS, MAX_EPISODES, SEASON_TYPES, STATUSES, cloneEntry, emptyEntry, findDuplicate, markAllWatched, normalizeSeason, progressOf, titleKey } from '../domain/entry.js';
+import { CATEGORIES, DAYS, DAY_LABELS, MAX_EPISODES, MAX_REVIEW, SEASON_TYPES, STATUSES, cloneEntry, emptyEntry, findDuplicate, markAllWatched, normalizeSeason, progressOf, titleKey } from '../domain/entry.js';
 import { DEFAULT_SOURCE, SOURCES, searchSeasons, searchWorks, sourceAvailable } from '../services/search/index.js';
 
 const SOURCE_KEY = 'kamylist_last_source';
@@ -99,7 +99,17 @@ export function openMediaForm({ entry = null, onSave, existing = [], onShowExist
         </div>
 
         <div class="field">
-            <label for="mf-notes">Anotações / Diário</label>
+            <label for="mf-review">Minha análise <span class="muted small">(opcional · aparece no feed)</span></label>
+            <textarea id="mf-review" class="textarea" rows="3" maxlength="${MAX_REVIEW}" placeholder="O que você achou? Quem seguir você (ou qualquer pessoa, se o perfil for público) pode ler."></textarea>
+            <div class="row-between">
+                <label class="check-row"><input type="checkbox" id="mf-spoiler"> Contém spoilers</label>
+                <span class="field-hint" data-review-count aria-live="off">0/${MAX_REVIEW}</span>
+            </div>
+            <p class="field-hint">Diferente das anotações abaixo: a análise é pública para quem pode ver a sua biblioteca; as anotações só você vê (a menos que ative "Mostrar minhas anotações").</p>
+        </div>
+
+        <div class="field">
+            <label for="mf-notes">Anotações / Diário <span class="muted small">(privado)</span></label>
             <textarea id="mf-notes" class="textarea" rows="2" maxlength="5000" placeholder="Anote lembretes, teorias ou impressões..."></textarea>
         </div>
 
@@ -131,7 +141,7 @@ export function openMediaForm({ entry = null, onSave, existing = [], onShowExist
     const $ = (sel) => content.querySelector(sel);
     const fields = {
         source: $('#mf-source'), title: $('#mf-title'), tags: $('#mf-tags'), air: $('#mf-air'),
-        notes: $('#mf-notes'), category: $('#mf-category'), status: $('#mf-status'), rating: $('#mf-rating'),
+        notes: $('#mf-notes'), review: $('#mf-review'), spoiler: $('#mf-spoiler'), category: $('#mf-category'), status: $('#mf-status'), rating: $('#mf-rating'),
         seasonName: $('#mf-season-name'),
     };
     const boxes = { results: $('[data-results]'), seasonResults: $('[data-season-results]'), loaded: $('[data-loaded]'), seasons: $('[data-seasons]') };
@@ -142,6 +152,11 @@ export function openMediaForm({ entry = null, onSave, existing = [], onShowExist
     fields.tags.value = draft.tags.join(', ');
     fields.air.value = draft.airDay;
     fields.notes.value = draft.notes;
+    fields.review.value = draft.review;
+    fields.spoiler.checked = draft.reviewSpoiler;
+    const countReview = () => { $('[data-review-count]').textContent = `${fields.review.value.length}/${MAX_REVIEW}`; };
+    fields.review.addEventListener('input', countReview);
+    countReview();
     fields.category.value = draft.category;
     fields.status.value = draft.status;
     fields.rating.value = String(draft.rating);
@@ -416,6 +431,8 @@ export function openMediaForm({ entry = null, onSave, existing = [], onShowExist
                 tags: fields.tags.value.split(',').map((t) => t.trim()).filter(Boolean),
                 airDay: fields.air.value,
                 notes: fields.notes.value,
+                review: fields.review.value,
+                reviewSpoiler: fields.spoiler.checked && fields.review.value.trim() !== '',
             });
             // Ao marcar a obra como Concluída, todos os episódios de todas as temporadas ficam como vistos.
             if (data.status === 'completed' && (!isEdit || entry.status !== 'completed')) markAllWatched(data);

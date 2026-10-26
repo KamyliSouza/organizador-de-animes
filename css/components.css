@@ -178,6 +178,7 @@
 .badge-filme     { --badge-color: var(--cat-filme); }
 .badge-serie     { --badge-color: var(--cat-serie); }
 .badge-muted     { --badge-color: var(--subtitle-color); }
+.badge-danger    { --badge-color: var(--danger); }
 
 .chip {
     display: inline-flex; align-items: center;
@@ -371,6 +372,9 @@
     font-size: .8rem; font-weight: 800; cursor: pointer;
 }
 .link-button:hover { text-decoration: underline; }
+.link-button:focus-visible { outline: 3px solid var(--primary-color); outline-offset: 2px; border-radius: 4px; }
+.check-row { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: .88rem; cursor: pointer; min-width: 0; }
+.check-row input { width: 18px; height: 18px; flex: 0 0 auto; accent-color: var(--primary-color); }
 
 /* Modo lista compacta */
 .media-list { display: flex; flex-direction: column; gap: 8px; }

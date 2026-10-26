@@ -62,6 +62,8 @@ export function createLocalBackend() {
             listPublic: async () => [],
         },
 
+        follows: { requests: async () => [] },
+
         library: {
             listMine: async () => read(),
             async create(entry) {
