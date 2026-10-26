@@ -9,6 +9,8 @@
 --   * Obras de outras pessoas só aparecem pelas funções get_public_entries()
 --     e list_public_profiles(), e apenas se o perfil estiver marcado como
 --     público. As anotações privadas só saem se a pessoa permitir.
+--   * Fotos de perfil: bucket público "avatars", uma foto por pessoa, só a dona
+--     envia/troca/apaga a sua (seção 6).
 -- =====================================================================
 
 
@@ -22,6 +24,7 @@ create table if not exists public.profiles (
   bio          text not null default '',
   is_public    boolean not null default false,
   show_notes   boolean not null default false,
+  avatar_v     bigint  not null default 0,
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now(),
   constraint profiles_username_format  check (username ~ '^[a-z0-9_]{3,20}$'),
@@ -30,6 +33,13 @@ create table if not exists public.profiles (
 );
 
 create unique index if not exists profiles_username_key on public.profiles (username);
+
+-- Atualização para quem já tinha rodado uma versão antiga deste script. Seguro rodar sempre.
+--   * avatar_v: "versão" da foto de perfil (0 = sem foto). O site usa o número no endereço da
+--     imagem para o navegador não mostrar uma foto antiga em cache depois que ela é trocada.
+alter table public.profiles add column if not exists avatar_v bigint not null default 0;
+alter table public.profiles drop constraint if exists profiles_avatar_v;
+alter table public.profiles add  constraint profiles_avatar_v check (avatar_v >= 0);
 
 
 -- ---------------------------------------------------------------------
@@ -257,11 +267,15 @@ as $$
 $$;
 
 -- Lista de perfis públicos com contagens (página "Explorar").
-create or replace function public.list_public_profiles(p_query text default '', p_limit int default 30)
+-- (drop antes: o formato do resultado ganhou as colunas "id" e "avatar_v", usadas para a foto)
+drop function if exists public.list_public_profiles(text, int);
+create function public.list_public_profiles(p_query text default '', p_limit int default 30)
 returns table (
+  id           uuid,
   username     text,
   display_name text,
   bio          text,
+  avatar_v     bigint,
   total        bigint,
   watching     bigint,
   completed    bigint
@@ -271,7 +285,7 @@ stable
 security definer
 set search_path = ''
 as $$
-  select p.username, p.display_name, p.bio,
+  select p.id, p.username, p.display_name, p.bio, p.avatar_v,
          count(e.id)                                          as total,
          count(e.id) filter (where e.status = 'watching')     as watching,
          count(e.id) filter (where e.status = 'completed')    as completed
@@ -321,12 +335,13 @@ $$;
 
 -- Versão deste esquema. O site compara com a que ele espera e avisa se o banco estiver atrasado.
 --   2 = Em espera, favoritos e códigos de obra
+--   3 = foto de perfil (coluna avatar_v e armazenamento "avatars")
 create or replace function public.schema_version()
 returns integer
 language sql
 immutable
 set search_path = ''
-as $$ select 2 $$;
+as $$ select 3 $$;
 
 -- Só quem precisa pode executar cada função.
 revoke all on function public.get_public_entries(text)            from public;
@@ -342,3 +357,41 @@ grant execute on function public.list_public_profiles(text, int)  to anon, authe
 grant execute on function public.username_available(text)         to anon, authenticated;
 grant execute on function public.delete_my_account()               to authenticated;
 grant execute on function public.schema_version()                  to anon, authenticated;
+
+
+-- ---------------------------------------------------------------------
+-- 6. Fotos de perfil (Supabase Storage)
+-- ---------------------------------------------------------------------
+-- Um "bucket" público chamado avatars, com UMA foto por pessoa:
+--   * o arquivo tem como nome o ID da própria conta, então trocar a foto SOBRESCREVE a anterior
+--     (nada de imagens antigas acumulando no armazenamento);
+--   * o site já reduz a foto para 128x128 (WebP/JPEG) antes de enviar; o limite abaixo (64 KB) e
+--     o filtro de tipo são a segunda trava, no servidor;
+--   * qualquer pessoa pode VER as fotos (bucket público), mas só a dona envia, troca ou apaga a sua.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('avatars', 'avatars', true, 65536, array['image/webp', 'image/jpeg'])
+on conflict (id) do update
+  set public = true,
+      file_size_limit = 65536,
+      allowed_mime_types = array['image/webp', 'image/jpeg'];
+
+drop policy if exists "avatars_select_own" on storage.objects;
+create policy "avatars_select_own" on storage.objects
+  for select to authenticated
+  using (bucket_id = 'avatars' and name = (select auth.uid())::text);
+
+drop policy if exists "avatars_insert_own" on storage.objects;
+create policy "avatars_insert_own" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'avatars' and name = (select auth.uid())::text);
+
+drop policy if exists "avatars_update_own" on storage.objects;
+create policy "avatars_update_own" on storage.objects
+  for update to authenticated
+  using      (bucket_id = 'avatars' and name = (select auth.uid())::text)
+  with check (bucket_id = 'avatars' and name = (select auth.uid())::text);
+
+drop policy if exists "avatars_delete_own" on storage.objects;
+create policy "avatars_delete_own" on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'avatars' and name = (select auth.uid())::text);

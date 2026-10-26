@@ -74,7 +74,7 @@ export async function mount(root) {
             parts.push(html`<div class="notice-box is-warn" role="alert">${icon('alert')}<div>
                 <strong>O banco de dados precisa ser atualizado.</strong> No Supabase, abra <strong>SQL Editor → New query</strong>, cole o conteúdo de
                 <code>sql/schema.sql</code> e clique em <strong>Run</strong> (é seguro repetir). Depois recarregue esta página.
-                Até lá, algumas coisas novas (status "Em espera", favoritos) podem não salvar.
+                Até lá, algumas coisas novas (status "Em espera", favoritos, foto de perfil) podem não funcionar.
             </div></div>`);
         }
 
@@ -92,7 +92,7 @@ export async function mount(root) {
             } else {
                 parts.push(html`<div class="notice-box">${icon('lock')}<div>
                     <strong>Seu perfil está privado.</strong> Só você vê estas obras. Para os amigos poderem ver, ative o perfil público em
-                    <a href="#/configuracoes">Perfil e configurações</a>.
+                    <a href="#/configuracoes/conta">Configurações → Privacidade</a>.
                 </div></div>`);
             }
         }

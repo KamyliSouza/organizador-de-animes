@@ -5,7 +5,7 @@ import { messageOf } from '../core/errors.js';
 import { icon } from '../core/icons.js';
 import { toast } from '../core/toast.js';
 import { backend, isCloud, state } from '../services/session.js';
-import { avatar } from '../ui/avatar.js';
+import { avatar, avatarSrc } from '../ui/avatar.js';
 import { openDetailsModal, openStatsModal } from '../ui/infoModals.js';
 import { mountLibraryBrowser } from '../ui/libraryBrowser.js';
 import { mediaCardHtml } from '../ui/mediaCard.js';
@@ -60,9 +60,9 @@ export async function mount(root, ctx) {
     setHtml(root, html`
         ${own ? html`<div class="notice-box">${icon(profile.isPublic ? 'globe' : 'lock')}<div>
             <strong>Prévia do seu perfil.</strong> ${profile.isPublic ? 'É assim que seus amigos veem.' : 'Ele está privado: só você consegue ver esta página.'}
-            <a href="#/configuracoes">Editar perfil e privacidade</a></div></div>` : ''}
+            <a href="#/configuracoes">Editar perfil</a> · <a href="#/configuracoes/conta">Privacidade</a></div></div>` : ''}
         <header class="profile-head glass-panel">
-            ${avatar(profile.displayName || profile.username, 84)}
+            ${avatar(profile.displayName || profile.username, 84, avatarSrc(profile))}
             <div class="profile-info">
                 <h1>${profile.displayName}</h1>
                 <p class="handle">@${profile.username}</p>

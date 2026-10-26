@@ -3,12 +3,12 @@ import { debounce, html, setHtml } from '../core/dom.js';
 import { messageOf } from '../core/errors.js';
 import { icon, spinner } from '../core/icons.js';
 import { backend, isCloud, state } from '../services/session.js';
-import { avatar } from '../ui/avatar.js';
+import { avatar, avatarSrc } from '../ui/avatar.js';
 
 const profileCard = (p) => html`
     <a class="profile-card glass-panel" href="#/u/${p.username}" aria-label="Ver perfil de ${p.displayName}">
         <header>
-            ${avatar(p.displayName || p.username, 46)}
+            ${avatar(p.displayName || p.username, 46, avatarSrc(p))}
             <div style="min-width:0"><h3>${p.displayName}</h3><p class="handle">@${p.username}</p></div>
         </header>
         <p class="bio">${p.bio || 'Sem descrição.'}</p>
@@ -42,7 +42,7 @@ export function mount(root) {
         </header>
         <div data-results aria-live="polite"></div>
         ${state.user && state.profile && !state.profile.isPublic ? html`
-            <div class="notice-box">${icon('lock')}<div>Seu perfil está privado e não aparece aqui. <a href="#/configuracoes">Tornar público</a></div></div>` : ''}
+            <div class="notice-box">${icon('lock')}<div>Seu perfil está privado e não aparece aqui. <a href="#/configuracoes/conta">Tornar público</a></div></div>` : ''}
         ${!state.user ? html`<div class="notice-box">${icon('info')}<div><a href="#/criar-conta">Crie sua conta</a> para ter seu próprio perfil e aparecer aqui.</div></div>` : ''}`);
 
     const results = root.querySelector('[data-results]');

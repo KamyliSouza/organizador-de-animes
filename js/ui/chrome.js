@@ -7,7 +7,7 @@ import { currentTheme, onThemeChange, toggleTheme } from '../core/theme.js';
 import { toast } from '../core/toast.js';
 import { messageOf } from '../core/errors.js';
 import { state, isCloud, onSessionChange, refreshSession } from '../services/session.js';
-import { avatar } from './avatar.js';
+import { avatar, avatarSrc } from './avatar.js';
 
 const isActive = (path, ...prefixes) => prefixes.some((p) => (p === '/' ? path === '/' : path === p || path.startsWith(p + '/')));
 
@@ -51,7 +51,7 @@ function renderNav(nav) {
                         ? html`<a class="button button-secondary button-sm" href="#/configuracoes">${icon('sliders', { size: 16 })}Ajustes</a>`
                         : user
                             ? html`
-                                <a class="nav-link" href="#/configuracoes" ${isActive(currentPath(), '/configuracoes') ? html`aria-current="page"` : ''} title="Meu perfil e configurações">${avatar(name, 28)}<span class="truncate nav-name">${name}</span></a>
+                                <a class="nav-link" href="#/configuracoes" ${isActive(currentPath(), '/configuracoes') ? html`aria-current="page"` : ''} title="Meu perfil e configurações">${avatar(name, 28, avatarSrc(state.profile))}<span class="truncate nav-name">${name}</span></a>
                                 <button type="button" class="button button-ghost button-sm" data-logout aria-label="Sair da conta" title="Sair da conta">${icon('logOut', { size: 16 })}<span class="nav-label">Sair</span></button>`
                             : html`
                                 <a class="button button-ghost button-sm" href="#/entrar">Entrar</a>

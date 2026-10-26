@@ -22,7 +22,8 @@ function defineRoutes() {
     route('/nova-senha', () => import('./views/auth.js'), { name: 'recovery', title: 'Nova senha', guard: () => (isCloud() && state.user ? undefined : '/entrar') });
     route('/explorar', () => import('./views/explore.js'), { name: 'explore', title: 'Explorar' });
     route('/u/:username', () => import('./views/profile.js'), { name: 'profile', title: 'Perfil' });
-    route('/configuracoes', () => import('./views/settings.js'), { name: 'settings', title: 'Configurações', guard: onlyMembers });
+    route('/configuracoes', () => import('./views/settings.js'), { name: 'settings', title: 'Personalização', guard: onlyMembers });
+    route('/configuracoes/conta', () => import('./views/settingsAccount.js'), { name: 'settings-account', title: 'Configurações', guard: onlyMembers });
     setNotFound(() => import('./views/notFound.js'));
 }
 

@@ -26,6 +26,9 @@ function friendly(error, fallback) {
     if (code === 'signup_disabled' || has('Signups not allowed')) return 'Novos cadastros estão desativados.';
     if (code === 'email_address_invalid') return 'Esse e-mail não é aceito. Confira o endereço.';
     if (code === '23505') return 'Este nome de usuário já está em uso.';
+    if (has('Bucket not found')) return 'O armazenamento de fotos ainda não existe no Supabase. Rode o sql/schema.sql de novo (SQL Editor).';
+    if (has('maximum allowed size') || error?.statusCode === '413' || error?.status === 413) return 'A foto ficou grande demais (o limite é 64 KB). Tente outra imagem.';
+    if (has('mime type') && has('not supported')) return 'Formato de imagem não aceito pelo servidor. Tente outra imagem.';
     if (has('entries_status')) return 'O banco ainda não aceita este status ("Dropado" ou "Em espera"). Rode o sql/schema.sql de novo no Supabase (SQL Editor).';
     if (code === 'PGRST204' || has('schema cache')) return 'O banco de dados está desatualizado. Rode o sql/schema.sql de novo no Supabase (SQL Editor) e recarregue a página.';
     if (code === '23514') return has('Limite') ? 'Limite de obras da conta atingido.' : 'Algum dado está em formato inválido.';
@@ -79,9 +82,11 @@ const fromProfile = (r) => (r ? {
     bio: r.bio || '',
     isPublic: Boolean(r.is_public),
     showNotes: Boolean(r.show_notes),
+    avatarV: Number(r.avatar_v) || 0,
 } : null);
 
 const redirectUrl = () => location.origin + location.pathname;
+const AVATAR_BUCKET = 'avatars';
 
 // --- backend -------------------------------------------------------------
 
@@ -176,6 +181,12 @@ export async function createSupabaseBackend() {
 
             /** Apaga a própria conta, o perfil e todas as obras (função delete_my_account do banco). */
             async deleteAccount() {
+                // A foto fica no Storage (arquivos não somem com o apagar em cascata do banco): remove primeiro.
+                // Se falhar (ex.: banco ainda sem o armazenamento), a exclusão da conta continua.
+                try {
+                    const uid = await currentUid();
+                    if (uid) await sb.storage.from(AVATAR_BUCKET).remove([uid]);
+                } catch { /* melhor esforço */ }
                 await ok(sb.rpc('delete_my_account'), 'Não foi possível excluir a conta. Rode o sql/schema.sql de novo no Supabase.');
                 // A sessão local ainda existe, mas o usuário não: limpa só o navegador (sem chamar o servidor).
                 try { await sb.auth.signOut({ scope: 'local' }); } catch { /* já foi apagada */ }
@@ -225,6 +236,35 @@ export async function createSupabaseBackend() {
                 return fromProfile(row);
             },
 
+            /**
+             * Troca a foto de perfil. `blob` já vem reduzido (js/services/avatarImage.js).
+             * O arquivo tem sempre o mesmo nome (o ID da conta): enviar de novo SOBRESCREVE a foto anterior,
+             * então nenhuma imagem antiga fica ocupando espaço.
+             */
+            async setAvatar(blob) {
+                const uid = await requireUid();
+                let res;
+                try {
+                    res = await sb.storage.from(AVATAR_BUCKET).upload(uid, blob, { upsert: true, contentType: blob.type, cacheControl: '31536000' });
+                } catch (e) { throw fail(e, 'Não foi possível enviar a foto.'); }
+                if (res.error) throw fail(res.error, 'Não foi possível enviar a foto.');
+                // versão = segundos desde 1970 (nunca menor que a anterior + 1): muda a cada troca, mesmo por outro aparelho
+                const cur = await ok(sb.from('profiles').select('avatar_v').eq('id', uid).maybeSingle(), 'Não foi possível carregar seu perfil.');
+                const version = Math.max(Math.floor(Date.now() / 1000), (Number(cur?.avatar_v) || 0) + 1);
+                const row = await ok(sb.from('profiles').update({ avatar_v: version }).eq('id', uid).select().single(), 'A foto foi enviada, mas não deu para salvar no perfil.');
+                return fromProfile(row);
+            },
+
+            /** Remove a foto: apaga o arquivo do Storage e zera a versão no perfil. */
+            async removeAvatar() {
+                const uid = await requireUid();
+                let res;
+                try { res = await sb.storage.from(AVATAR_BUCKET).remove([uid]); } catch (e) { throw fail(e, 'Não foi possível remover a foto.'); }
+                if (res.error) throw fail(res.error, 'Não foi possível remover a foto.');
+                const row = await ok(sb.from('profiles').update({ avatar_v: 0 }).eq('id', uid).select().single(), 'Não foi possível atualizar o perfil.');
+                return fromProfile(row);
+            },
+
             /** Perfil público (ou o seu próprio, mesmo privado). null se não existir/não for público. */
             async getPublic(username) {
                 const row = await ok(
@@ -237,6 +277,8 @@ export async function createSupabaseBackend() {
             async listPublic({ query = '', limit = 30 } = {}) {
                 const rows = await ok(sb.rpc('list_public_profiles', { p_query: query, p_limit: limit }), 'Não foi possível carregar os perfis.');
                 return (rows || []).map((r) => ({
+                    id: r.id,
+                    avatarV: Number(r.avatar_v) || 0,
                     username: r.username,
                     displayName: r.display_name || r.username,
                     bio: r.bio || '',
