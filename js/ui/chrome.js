@@ -76,7 +76,7 @@ function renderTabBar(bar) {
 
 function renderFooter(footer) {
     setHtml(footer, html`
-        <p>© ${new Date().getFullYear()} ${config.siteName}. Feito para organizar animes com os amigos.</p>
+        <p>© ${new Date().getFullYear()} ${config.siteName}. Feito para organizar e compartilhar animes.</p>
         <p>Dados das obras: MyAnimeList (via Jikan), AniList${config.tmdbApiKey ? ' e TMDB' : ''}.
         ${config.repoUrl ? html` · <a href="${config.repoUrl}" target="_blank" rel="noopener noreferrer">Ver código-fonte</a>` : ''}</p>
         ${config.tmdbApiKey ? html`<p class="small">Este produto usa a API do TMDB, mas não é endossado nem certificado pelo TMDB.</p>` : ''}`);

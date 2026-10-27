@@ -13,15 +13,22 @@ export function starsHtml(rating) {
 
 export const posterPlaceholder = () => html`<span class="poster-empty">${icon('film', { size: 30 })}</span>`;
 
-function poster(entry, withDay, withHeart = false) {
-    return html`<div class="poster">
+/** A capa é um botão: clicar nela abre os detalhes (para quem tem o link "Detalhes", ela sai da ordem do Tab para não repetir). */
+function poster(entry, withDay, withHeart = false, tabbable = false) {
+    return html`<button type="button" class="poster poster-button" data-action="cover" aria-label="Abrir detalhes de ${entry.title}" tabindex="${tabbable ? 0 : -1}">
         ${withHeart && entry.favorite ? html`<span class="fav-badge" title="Favorito" role="img" aria-label="Favorito">${icon('heart', { size: 13 })}</span>` : ''}
         ${entry.coverImage
             ? html`<img src="${entry.coverImage}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-fallback>`
             : posterPlaceholder()}
         ${withDay && entry.airDay ? html`<span class="air-day">${icon('calendar', { size: 11 })} ${entry.airDay}</span>` : ''}
-    </div>`;
+    </button>`;
 }
+
+/** Seletor de status (só para a dona/dono da biblioteca). Usa data-change, para não confundir com os botões data-action. */
+const statusSelect = (entry) => html`
+    <select class="select select-sm status-select" data-change="status" aria-label="Status de ${entry.title}" title="Mudar o status">
+        ${Object.entries(STATUSES).map(([key, st]) => html`<option value="${key}" ${key === entry.status ? 'selected' : ''}>${st.label}</option>`)}
+    </select>`;
 
 function favoriteButton(entry) {
     const label = entry.favorite ? `Tirar ${entry.title} dos favoritos` : `Favoritar ${entry.title}`;
@@ -35,7 +42,7 @@ export function mediaCardHtml(entry, { readonly = false } = {}) {
 
     return html`
     <article class="media-card glass-panel ${entry.status === 'dropped' ? 'is-dropped' : ''}" data-id="${entry.id}">
-        ${poster(entry, true, readonly)}
+        ${poster(entry, true, readonly, !hasDetails)}
         <div class="media-body">
             <div class="media-badges">
                 <span class="badge badge-${CATEGORY_CLASS[entry.category]}">${entry.category}</span>
@@ -58,9 +65,11 @@ export function mediaCardHtml(entry, { readonly = false } = {}) {
                 </div>`}
             ${readonly ? '' : html`
                 <div class="media-actions">
+                    <div class="status-pick">${statusSelect(entry)}</div>
                     ${entry.status !== 'planned' ? html`
-                        <button type="button" class="button button-secondary button-sm" data-action="seasons">${icon('layers', { size: 15 })} Temporadas (${entry.seasons.length})</button>
-                        <button type="button" class="button button-primary button-sm" data-action="inc" title="Marcar mais 1 episódio como assistido" aria-label="Marcar mais 1 episódio de ${entry.title}">+1 Ep</button>` : ''}
+                        <button type="button" class="button button-secondary button-sm" data-action="seasons">${icon('layers', { size: 15 })} Temporadas (${entry.seasons.length})</button>` : ''}
+                    ${entry.status === 'watching' ? html`
+                        <button type="button" class="button button-primary button-sm" data-action="inc" title="Marcar mais 1 episódio como visto" aria-label="Marcar mais 1 episódio de ${entry.title}">+1 Ep</button>` : ''}
                     <span class="push">
                         ${favoriteButton(entry)}
                         <button type="button" class="icon-button sm" data-action="share" aria-label="Compartilhar ${entry.title}" title="Compartilhar">${icon('share', { size: 16 })}</button>
@@ -75,23 +84,26 @@ export function mediaCardHtml(entry, { readonly = false } = {}) {
 export function mediaRowHtml(entry, { readonly = false } = {}) {
     const { watched, total, pct } = progressOf(entry);
     const hasDetails = Boolean(entry.description || entry.notes || entry.review);
+    const status = STATUSES[entry.status];
 
     return html`
     <article class="media-row glass-panel ${entry.status === 'dropped' ? 'is-dropped' : ''}" data-id="${entry.id}">
-        <div class="thumb">${entry.coverImage ? html`<img src="${entry.coverImage}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-fallback>` : ''}</div>
+        <button type="button" class="thumb poster-button" data-action="cover" aria-label="Abrir detalhes de ${entry.title}" tabindex="${hasDetails ? -1 : 0}">${entry.coverImage ? html`<img src="${entry.coverImage}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-fallback>` : ''}</button>
         <div class="info">
             <h3 class="truncate">${entry.title}</h3>
-            <p class="truncate">${entry.category} · ${STATUSES[entry.status].label} · ${watched}/${total} eps (${pct}%)${entry.airDay ? html` · ${DAY_LABELS[entry.airDay]}` : ''}</p>
+            <p>${entry.category} · ${status.label} · ${watched}/${total} eps (${pct}%)${entry.airDay ? html` · ${DAY_LABELS[entry.airDay]}` : ''}${entry.rating ? html` · <span class="stars" role="img" aria-label="${entry.rating} de 5 estrelas">${starsText(entry.rating)}</span>` : ''}</p>
+            <div class="progress progress-slim ${pct >= 100 ? 'is-complete' : ''}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Progresso de ${entry.title}"><span style="width:${pct}%"></span></div>
         </div>
         <div class="actions">
-            ${readonly
-                ? (hasDetails ? html`<button type="button" class="icon-button sm" data-action="details" aria-label="Detalhes de ${entry.title}" title="Detalhes">${icon('book', { size: 16 })}</button>` : '')
-                : html`
-                    ${entry.status !== 'planned' ? html`<button type="button" class="button button-primary button-sm" data-action="inc" aria-label="Marcar mais 1 episódio de ${entry.title}">+1 Ep</button>
-                    <button type="button" class="icon-button sm" data-action="seasons" aria-label="Temporadas de ${entry.title}" title="Temporadas">${icon('layers', { size: 16 })}</button>` : ''}
-                    ${favoriteButton(entry)}
-                    <button type="button" class="icon-button sm" data-action="edit" aria-label="Editar ${entry.title}" title="Editar">${icon('edit', { size: 16 })}</button>
-                    <button type="button" class="icon-button sm danger" data-action="delete" aria-label="Excluir ${entry.title}" title="Excluir">${icon('trash', { size: 16 })}</button>`}
+            ${readonly ? '' : html`<div class="status-pick">${statusSelect(entry)}</div>`}
+            ${hasDetails ? html`<button type="button" class="icon-button sm" data-action="details" aria-label="Detalhes de ${entry.title}" title="Detalhes">${icon('book', { size: 16 })}</button>` : ''}
+            ${readonly ? '' : html`
+                ${entry.status === 'watching' ? html`<button type="button" class="button button-primary button-sm" data-action="inc" aria-label="Marcar mais 1 episódio de ${entry.title}">+1 Ep</button>` : ''}
+                ${entry.status !== 'planned' ? html`<button type="button" class="icon-button sm" data-action="seasons" aria-label="Temporadas de ${entry.title}" title="Temporadas">${icon('layers', { size: 16 })}</button>` : ''}
+                ${favoriteButton(entry)}
+                <button type="button" class="icon-button sm" data-action="share" aria-label="Compartilhar ${entry.title}" title="Compartilhar">${icon('share', { size: 16 })}</button>
+                <button type="button" class="icon-button sm" data-action="edit" aria-label="Editar ${entry.title}" title="Editar">${icon('edit', { size: 16 })}</button>
+                <button type="button" class="icon-button sm danger" data-action="delete" aria-label="Excluir ${entry.title}" title="Excluir">${icon('trash', { size: 16 })}</button>`}
         </div>
     </article>`;
 }

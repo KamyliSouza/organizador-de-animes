@@ -10,7 +10,7 @@ const USERNAME_RX = /^[a-z0-9_]{3,20}$/;
 const EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const COPY = {
-    login: { title: 'Entrar', lead: 'Bem-vindo de volta! Entre para ver sua biblioteca.', submit: 'Entrar' },
+    login: { title: 'Entrar', lead: 'Boas-vindas de volta! Entre para ver sua biblioteca.', submit: 'Entrar' },
     signup: { title: 'Criar conta', lead: 'Leva menos de um minuto. Seu perfil começa privado.', submit: 'Criar conta' },
     forgot: { title: 'Recuperar senha', lead: 'Digite seu e-mail e enviaremos um link para criar uma nova senha.', submit: 'Enviar link' },
     recovery: { title: 'Nova senha', lead: 'Escolha uma nova senha para a sua conta.', submit: 'Salvar nova senha' },
@@ -142,16 +142,16 @@ export function mount(root, ctx) {
                 const { needsConfirmation } = await be.auth.signUp({ email, password, username: val('#au-username').trim() });
                 if (needsConfirmation) {
                     form.hidden = true;
-                    showSuccess(html`<strong>Quase lá!</strong> Enviamos um e-mail de confirmação para <strong>${email}</strong>. Clique no link para ativar a conta e depois <a href="#/entrar">entre aqui</a>. Não achou? Olhe o spam.`);
+                    showSuccess(html`<strong>Quase lá!</strong> Enviamos um e-mail de confirmação para <strong>${email}</strong>. Clique no link para ativar a conta e depois <a href="#/entrar">entre aqui</a>. Se não achar, veja a caixa de spam.`);
                     return;
                 }
                 await refreshSession();
                 navigate('/');
-                toast('Conta criada! Seja bem-vindo(a).', { type: 'success' });
+                toast('Conta criada! Boas-vindas.', { type: 'success' });
             } else if (mode === 'forgot') {
                 await be.auth.sendPasswordReset(email);
                 form.hidden = true;
-                showSuccess(html`Se existir uma conta com <strong>${email}</strong>, o link para criar uma nova senha já está a caminho. Confira também o spam.`);
+                showSuccess(html`Se existir uma conta com <strong>${email}</strong>, o link para criar uma nova senha já está a caminho. Veja também a caixa de spam.`);
                 return;
             } else if (mode === 'recovery') {
                 await be.auth.updatePassword(password);

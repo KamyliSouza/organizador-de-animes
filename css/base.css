@@ -90,6 +90,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .stack { display: flex; flex-direction: column; gap: 16px; }
 .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .row-between { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.row-between .button { min-width: 0; max-width: 100%; white-space: normal; text-align: center; }   /* botões longos quebram em vez de estourar a tela */
 .grow { flex: 1 1 auto; min-width: 0; }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .muted { color: var(--subtitle-color); }

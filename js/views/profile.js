@@ -5,6 +5,7 @@ import { copyText, html, on, setHtml } from '../core/dom.js';
 import { confirmDialog } from '../core/dialogs.js';
 import { messageOf } from '../core/errors.js';
 import { icon } from '../core/icons.js';
+import { viewPalette } from '../core/palette.js';
 import { refresh } from '../core/router.js';
 import { toast } from '../core/toast.js';
 import { MAX_FAVORITES } from '../domain/entry.js';
@@ -84,13 +85,16 @@ export async function mount(root, ctx) {
 
     const own = profile.relation === 'self';
     const canView = profile.canView;
+    // Enquanto você estiver neste perfil, a página usa as cores escolhidas pela pessoa (sai ao sair da tela).
+    // Vale também para perfil privado ainda trancado: as cores não revelam nada da biblioteca.
+    const restorePalette = profile.palette ? viewPalette(profile.palette) : null;
     document.title = `${profile.displayName} (@${profile.username}) · ${config.siteName}`;
     // Obras fixadas pela pessoa (o site limita a MAX_FAVORITES; aqui também, caso alguém grave mais direto pela API)
     const favorites = entries.filter((e) => e.favorite).slice(0, MAX_FAVORITES);
 
     setHtml(root, html`
         ${own ? html`<div class="notice-box">${icon(profile.isPublic ? 'globe' : 'lock')}<div>
-            <strong>Prévia do seu perfil.</strong> ${profile.isPublic ? 'É assim que seus amigos veem.' : 'Ele está privado: só quem você aceitar como seguidor vê a biblioteca.'}
+            <strong>Prévia do seu perfil.</strong> ${profile.isPublic ? 'É assim que outras pessoas veem.' : 'Ele está privado: só quem você aprovar vê a biblioteca.'}
             <a href="#/configuracoes">Editar perfil</a> · <a href="#/configuracoes/conta">Privacidade</a></div></div>` : ''}
         <header class="profile-head glass-panel">
             ${avatar(profile.displayName || profile.username, 84, avatarSrc(profile))}
@@ -108,7 +112,7 @@ export async function mount(root, ctx) {
             </div>
         </header>
         ${canView ? html`
-        ${statTilesHtml(entries)}
+        <div data-tiles>${statTilesHtml(entries)}</div>
         ${favorites.length ? html`
             <section class="fav-section" data-favorites aria-labelledby="fav-title">
                 <h2 id="fav-title">${icon('heart', { size: 20 })} Favoritos</h2>
@@ -120,11 +124,18 @@ export async function mount(root, ctx) {
     let browser = null;
 
     if (canView) {
+        const tiles = root.querySelector('[data-tiles]');
         browser = mountLibraryBrowser(root.querySelector('[data-browser]'), {
             entries, readonly: true,
             actions: { details: (entry) => openDetailsModal(entry) },
+            onStatusChange: (status) => setHtml(tiles, statTilesHtml(entries, { active: status })),
         });
-        offs.push(on(root, 'click', '[data-favorites] [data-action="details"]', (_, btn) => {
+        // Os cards com os números filtram a lista pelo status correspondente.
+        offs.push(on(tiles, 'click', '[data-stat]', (_, btn) => {
+            browser.setStatus(btn.dataset.stat);
+            tiles.querySelector(`[data-stat="${btn.dataset.stat}"]`)?.focus({ preventScroll: true });
+        }));
+        offs.push(on(root, 'click', '[data-favorites] [data-action="details"], [data-favorites] [data-action="cover"]', (_, btn) => {
             const entry = entries.find((e) => e.id === btn.closest('[data-id]')?.dataset.id);
             if (entry) openDetailsModal(entry);
         }));
@@ -153,7 +164,7 @@ export async function mount(root, ctx) {
             }
             case 'follow':
                 await run(btn, async () => { profile.relation = await be.follows.follow(profile.username); },
-                    profile.isPublic ? `Você agora segue @${profile.username}.` : 'Pedido enviado! Você será avisado quando a pessoa aceitar (confira esta página).');
+                    profile.isPublic ? `Você agora segue @${profile.username}.` : 'Pedido enviado! Volte aqui depois para ver se a pessoa aceitou.');
                 break;
             case 'unfollow': {
                 const yes = await confirmDialog({ title: 'Deixar de seguir', message: `Deixar de seguir @${profile.username}? ${profile.isPublic ? '' : 'Como o perfil é privado, você precisaria pedir de novo.'}`.trim(), confirmLabel: 'Deixar de seguir', danger: true });
@@ -173,5 +184,5 @@ export async function mount(root, ctx) {
         openConnectionsModal({ username: profile.username, kind: btn.dataset.conn, own, be, onChanged: () => refresh() });
     }));
 
-    return () => { offs.forEach((off) => off()); browser?.destroy(); };
+    return () => { offs.forEach((off) => off()); browser?.destroy(); restorePalette?.(); };
 }

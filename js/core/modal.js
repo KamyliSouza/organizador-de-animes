@@ -3,6 +3,47 @@ import { icon } from './icons.js';
 
 const stack = [];
 
+// ---------------------------------------------------------------------------------------
+// Botão "voltar" (do navegador ou do celular): fecha o modal do topo em vez de sair da página.
+// Cada modal aberto empurra uma entrada no histórico (com o mesmo endereço). Ao fechar por outro
+// caminho (X, Esc, clique no fundo, botão do modal) a entrada é desfeita com history.back().
+// Se a pessoa for para outra tela com o modal aberto (hashchange), todos os modais fecham.
+// ---------------------------------------------------------------------------------------
+let seq = 0;
+let ignorePop = 0;          // quantos "popstate" vieram de um history.back() nosso (não do usuário)
+let ignoreTimer = null;
+
+try { if (history.state?.kamylistModal) history.replaceState(null, ''); } catch { /* ok */ }
+
+function pushEntry(api) {
+    try { history.pushState({ kamylistModal: api.id }, ''); api.hasEntry = true; } catch { api.hasEntry = false; }
+}
+
+/** Desfaz a entrada do histórico de um modal fechado por X/Esc/botão. Só mexe se ela ainda é a atual. */
+function dropEntry(api) {
+    if (!api.hasEntry) return;
+    // setTimeout: se o fechamento veio de um link (que navega logo depois), a entrada atual já será outra e não voltamos nada.
+    setTimeout(() => {
+        if (history.state?.kamylistModal !== api.id || location.hash !== api.hashAtOpen) return;
+        ignorePop++;
+        clearTimeout(ignoreTimer);
+        ignoreTimer = setTimeout(() => { ignorePop = 0; }, 800);
+        history.back();
+    }, 0);
+}
+
+window.addEventListener('popstate', () => {
+    if (ignorePop > 0) { ignorePop--; return; }
+    const top = stack[stack.length - 1];
+    if (top) { top.close({ fromHistory: true }); return; }
+    // Sobrou uma entrada de modal no histórico (o modal já tinha fechado): pula para a anterior.
+    if (history.state?.kamylistModal) history.back();
+});
+
+window.addEventListener('hashchange', () => {
+    [...stack].forEach((m) => m.close({ fromHistory: true }));
+});
+
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 function syncScrollLock() {
@@ -41,12 +82,16 @@ export function openModal({ title, iconName = '', size = 'md', content, onClose,
 
     let closed = false;
     const api = {
+        id: ++seq,
+        hasEntry: false,
+        hashAtOpen: location.hash,
         el: dialog,
         body,
         setTitle(t) { overlay.querySelector('h2 span').textContent = t; },
-        close() {
+        close({ fromHistory = false } = {}) {
             if (closed) return;
             closed = true;
+            if (!fromHistory) dropEntry(api);
             const i = stack.indexOf(api);
             if (i >= 0) stack.splice(i, 1);
             overlay.remove();
@@ -79,6 +124,7 @@ export function openModal({ title, iconName = '', size = 'md', content, onClose,
 
     document.body.appendChild(overlay);
     stack.push(api);
+    pushEntry(api);
     syncScrollLock();
 
     const firstField = (initialFocus && body.querySelector(initialFocus))

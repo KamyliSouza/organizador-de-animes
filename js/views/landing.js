@@ -14,9 +14,9 @@ export function mount(root) {
     setHtml(root, html`
         <section class="hero glass-panel">
             <div>
-                <span class="eyebrow">${icon('sparkles', { size: 14 })} Tracker de animes entre amigos</span>
-                <h1>Organize seus animes e <em>compartilhe</em> com a galera.</h1>
-                <p class="lead">Marque episódios, acompanhe temporadas, veja a agenda da semana e mostre sua lista num perfil público. Tudo num lugar só.</p>
+                <span class="eyebrow">${icon('sparkles', { size: 14 })} Sua lista de animes, para compartilhar</span>
+                <h1>Organize seus animes e <em>compartilhe</em> com quem quiser.</h1>
+                <p class="lead">Marque episódios, acompanhe temporadas, veja a agenda da semana e mostre sua lista em um perfil público. Tudo em um só lugar.</p>
                 <div class="hero-cta">
                     <a class="button button-primary" href="#/criar-conta">${icon('plus', { size: 18 })} Criar minha conta</a>
                     <a class="button button-secondary" href="#/entrar">${icon('logIn', { size: 18 })} Já tenho conta</a>
@@ -41,12 +41,12 @@ export function mount(root) {
             <article class="feature glass-panel">
                 <span class="stat-icon">${icon('layers', { size: 20 })}</span>
                 <h3>Temporadas e episódios</h3>
-                <p>Marque episódio por episódio, por temporada, com OVAs e filmes. O status muda sozinho quando você avança.</p>
+                <p>Marque episódio por episódio, por temporada, com OVAs e filmes. O status muda automaticamente conforme você avança.</p>
             </article>
             <article class="feature glass-panel">
                 <span class="stat-icon">${icon('globe', { size: 20 })}</span>
                 <h3>Perfil público</h3>
-                <p>Você escolhe o que mostrar. Seus amigos veem sua lista por um link, e suas anotações continuam privadas se quiser.</p>
+                <p>Você escolhe o que mostrar. Outras pessoas veem sua lista por um link. Suas anotações continuam privadas, se você preferir.</p>
             </article>
             <article class="feature glass-panel">
                 <span class="stat-icon">${icon('calendar', { size: 20 })}</span>
@@ -54,5 +54,5 @@ export function mount(root) {
                 <p>Veja quais animes saem em cada dia e dê +1 Ep na hora. Busca automática no MyAnimeList e no AniList.</p>
             </article>
         </section>`);
-    document.title = `${config.siteName} — seu tracker de animes`;
+    document.title = `${config.siteName} — sua lista de animes`;
 }

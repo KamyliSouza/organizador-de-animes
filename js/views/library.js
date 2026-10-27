@@ -4,7 +4,7 @@ import { confirmDialog } from '../core/dialogs.js';
 import { messageOf } from '../core/errors.js';
 import { icon } from '../core/icons.js';
 import { toast } from '../core/toast.js';
-import { MAX_FAVORITES, addNextEpisode, favoriteCount } from '../domain/entry.js';
+import { MAX_FAVORITES, STATUSES, addNextEpisode, applyStatus, favoriteCount } from '../domain/entry.js';
 import { readLegacyEntries } from '../domain/backup.js';
 import { REQUIRED_SCHEMA } from '../services/schema.js';
 import { backend, isCloud, state } from '../services/session.js';
@@ -43,7 +43,7 @@ export async function mount(root) {
             <div>
                 <span class="eyebrow">${icon('film', { size: 14 })} ${cloud ? 'Minha biblioteca' : 'Modo local'}</span>
                 <h1 style="margin-top:10px">${cloud && name ? `Olá, ${name}!` : 'Minha biblioteca'}</h1>
-                <p class="lead">Gerenciador de animes, séries e filmes.</p>
+                <p class="lead">Sua lista de animes, séries e filmes.</p>
             </div>
             <div class="page-head-actions">
                 <button type="button" class="button button-secondary" data-act="schedule">${icon('calendar', { size: 17 })} Agenda</button>
@@ -59,8 +59,9 @@ export async function mount(root) {
     const banners = root.querySelector('[data-banners]');
     let browser = null;
 
+    const paintTiles = () => setHtml(tiles, statTilesHtml(entries, { active: browser?.getStatus() ?? 'all' }));
     const refresh = () => {
-        setHtml(tiles, statTilesHtml(entries));
+        paintTiles();
         browser?.setEntries(entries);
     };
 
@@ -74,7 +75,7 @@ export async function mount(root) {
             parts.push(html`<div class="notice-box is-warn" role="alert">${icon('alert')}<div>
                 <strong>O banco de dados precisa ser atualizado.</strong> No Supabase, abra <strong>SQL Editor → New query</strong>, cole o conteúdo de
                 <code>sql/schema.sql</code> e clique em <strong>Run</strong> (é seguro repetir). Depois recarregue esta página.
-                Até lá, algumas coisas novas (status "Em espera", favoritos, foto de perfil, seguir pessoas, feed e análises) podem não funcionar.
+                Até lá, alguns recursos novos (status "Em espera", favoritos, foto de perfil, seguir pessoas, feed, análises e cores do perfil) podem não funcionar.
             </div></div>`);
         }
 
@@ -86,12 +87,12 @@ export async function mount(root) {
         } else if (state.profile) {
             if (state.profile.isPublic) {
                 parts.push(html`<div class="notice-box">${icon('globe')}<div class="grow">
-                    <strong>Seu perfil é público.</strong> Link para os amigos: <a href="${profileLink(state.profile.username)}">@${state.profile.username}</a>
+                    <strong>Seu perfil é público.</strong> Link para compartilhar: <a href="${profileLink(state.profile.username)}">@${state.profile.username}</a>
                     <div class="notice-actions"><button type="button" class="button button-secondary button-sm" data-act="copy-link">${icon('copy', { size: 15 })} Copiar link</button></div>
                 </div></div>`);
             } else {
                 parts.push(html`<div class="notice-box">${icon('lock')}<div>
-                    <strong>Seu perfil está privado.</strong> Só você vê estas obras. Para os amigos poderem ver, ative o perfil público em
+                    <strong>Seu perfil está privado.</strong> Só você vê estas obras. Para outras pessoas verem, ative o perfil público em
                     <a href="#/configuracoes/conta">Configurações → Privacidade</a>.
                 </div></div>`);
             }
@@ -172,6 +173,15 @@ export async function mount(root) {
         edit: (entry) => openForm(entry),
         inc: increment,
         details: (entry) => openDetailsModal(entry),
+        /** Seletor de status do card: aplica a mesma regra do formulário (Concluído marca todos os episódios). */
+        status(entry, select) {
+            const next = select.value;
+            const before = entry.status;
+            if (!applyStatus(entry, next)) return;
+            schedulePersist(entry.id);
+            toast(`"${entry.title}": ${STATUSES[before].label} → ${STATUSES[next].label}.`, { type: 'success' });
+            refresh();
+        },
         favorite(entry) {
             if (!entry.favorite && favoriteCount(entries) >= MAX_FAVORITES) {
                 toast(`Você pode fixar até ${MAX_FAVORITES} favoritos. Tire um para favoritar outra obra.`, { type: 'info' });
@@ -187,7 +197,7 @@ export async function mount(root) {
         async delete(entry) {
             const yes = await confirmDialog({
                 title: 'Excluir obra', danger: true, confirmLabel: 'Excluir',
-                message: `Tem certeza que deseja remover "${entry.title}" da sua biblioteca? Isso não pode ser desfeito.`,
+                message: `Remover "${entry.title}" da sua biblioteca? Não dá para desfazer.`,
             });
             if (!yes) return;
             try {
@@ -201,7 +211,14 @@ export async function mount(root) {
         },
     };
 
-    browser = mountLibraryBrowser(root.querySelector('[data-browser]'), { entries, actions });
+    browser = mountLibraryBrowser(root.querySelector('[data-browser]'), { entries, actions, onStatusChange: () => paintTiles() });
+
+    // Os cards com os números filtram a lista pelo status correspondente.
+    const offTiles = on(tiles, 'click', '[data-stat]', (_, btn) => {
+        const status = btn.dataset.stat;
+        browser.setStatus(status);
+        tiles.querySelector(`[data-stat="${status}"]`)?.focus({ preventScroll: true });
+    });
 
     // --- cabeçalho e avisos ---------------------------------------------------------
     const off = on(root, 'click', '[data-act]', async (_, btn) => {
@@ -246,5 +263,5 @@ export async function mount(root) {
         }).catch(() => {});
     }
 
-    return () => { off(); browser.destroy(); };
+    return () => { off(); offTiles(); browser.destroy(); };
 }

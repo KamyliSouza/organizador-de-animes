@@ -42,6 +42,11 @@ create unique index if not exists profiles_username_key on public.profiles (user
 alter table public.profiles add column if not exists avatar_v bigint not null default 0;
 alter table public.profiles drop constraint if exists profiles_avatar_v;
 alter table public.profiles add  constraint profiles_avatar_v check (avatar_v >= 0);
+--   * palette: preset de cores escolhido pela pessoa (ex.: 'oceano'). Aceita qualquer id curto (minúsculas, números e
+--     hífen): quem decide quais presets existem é o site (css/palettes.css), então criar um preset novo não exige SQL.
+alter table public.profiles add column if not exists palette text not null default 'default';
+alter table public.profiles drop constraint if exists profiles_palette_format;
+alter table public.profiles add  constraint profiles_palette_format check (palette ~ '^[a-z0-9-]{1,24}$');
 
 
 -- ---------------------------------------------------------------------
@@ -464,7 +469,8 @@ returns table (
   relation        text,
   can_view        boolean,
   followers_count bigint,
-  following_count bigint
+  following_count bigint,
+  palette         text
 )
 language sql
 stable
@@ -472,7 +478,7 @@ security definer
 set search_path = ''
 as $$
   with t as (
-    select p.id, p.username, p.display_name, p.bio, p.avatar_v, p.is_public, p.show_notes,
+    select p.id, p.username, p.display_name, p.bio, p.avatar_v, p.is_public, p.show_notes, p.palette,
            (select auth.uid()) as me
     from public.profiles p
     where p.username = lower(coalesce(p_username, ''))
@@ -497,7 +503,8 @@ as $$
          case when r.is_public or r.rel in ('self', 'accepted')
               then (select count(*) from public.follows f where f.followee_id = r.id and f.status = 'accepted') end,
          case when r.is_public or r.rel in ('self', 'accepted')
-              then (select count(*) from public.follows f where f.follower_id = r.id and f.status = 'accepted') end
+              then (select count(*) from public.follows f where f.follower_id = r.id and f.status = 'accepted') end,
+         r.palette                         -- as cores são só visuais: quem abre o perfil sempre as vê (até o perfil privado trancado)
   from r;
 $$;
 
@@ -684,12 +691,13 @@ $$;
 --   2 = Em espera, favoritos e códigos de obra
 --   3 = foto de perfil (coluna avatar_v e armazenamento "avatars")
 --   4 = seguir, feed e análises
+--   5 = cores do perfil (coluna palette)
 create or replace function public.schema_version()
 returns integer
 language sql
 immutable
 set search_path = ''
-as $$ select 4 $$;
+as $$ select 5 $$;
 
 -- Só quem precisa pode executar cada função.
 revoke all on function public.get_public_entries(text)            from public;

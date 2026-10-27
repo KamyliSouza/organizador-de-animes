@@ -20,12 +20,12 @@ function privacyPanel(p) {
             <label class="switch-row">
                 <input type="checkbox" id="st-public" ${p.isPublic ? 'checked' : ''}>
                 <span><span class="switch-title">Perfil público</span><br>
-                <span class="switch-desc">Qualquer pessoa com o link (e quem usar a página Explorar) vê sua lista de obras e análises. Desligado, só quem você aceitar como seguidor vê (os pedidos ficam em Feed → Pedidos). Ligar aceita os pedidos pendentes.</span></span>
+                <span class="switch-desc">Qualquer pessoa com o link (ou que use o Explorar) vê sua lista e suas análises. Desligado, só quem você aprovar vê (os pedidos ficam em Feed → Pedidos). Ao ligar, os pedidos pendentes são aprovados.</span></span>
             </label>
             <label class="switch-row">
                 <input type="checkbox" id="st-notes" ${p.showNotes ? 'checked' : ''}>
                 <span><span class="switch-title">Mostrar minhas anotações</span><br>
-                <span class="switch-desc">Por padrão o seu diário fica só para você, mesmo com o perfil público ou para quem segue você. Suas análises não são anotações: elas aparecem para quem vê a sua lista.</span></span>
+                <span class="switch-desc">Por padrão, suas anotações ficam só com você, mesmo com o perfil público. As análises são diferentes: aparecem para quem vê a sua lista.</span></span>
             </label>
             <div data-link-box></div>
             <button type="submit" class="button button-primary" data-save>Salvar privacidade</button>

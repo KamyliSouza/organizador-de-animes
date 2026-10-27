@@ -1,6 +1,6 @@
 // Script clássico (não é módulo): roda antes de tudo e continua funcionando mesmo se o app falhar ao carregar.
 //  1) marca <html class="js"> (o CSS usa isso para saber que o JavaScript está ligado);
-//  2) aplica o tema salvo antes da página pintar, evitando o "flash" de cor errada;
+//  2) aplica o tema e o preset de cores salvos antes da página pintar, evitando o "flash" de cor errada;
 //  3) vigia a inicialização: se o app não aparecer em 12 s (internet ruim, arquivo bloqueado...),
 //     troca o "Carregando…" por um aviso com botão de recarregar, em vez de ficar travado para sempre.
 (function () {
@@ -11,6 +11,11 @@
         var t = localStorage.getItem('kamylist_theme');
         if (t === 'light' || t === 'dark') root.setAttribute('data-theme', t);
     } catch (e) { /* armazenamento bloqueado: segue o tema do sistema */ }
+
+    try {   // combinação de cores da pessoa (cache do último login): aplicado antes da página pintar
+        var pal = localStorage.getItem('kamylist_palette');
+        if (pal && /^[a-z0-9-]{1,24}$/.test(pal) && pal !== 'default') root.setAttribute('data-palette', pal);
+    } catch (e) { /* ok */ }
 
     setTimeout(function () {
         var box = document.querySelector('.boot-loading');   // some quando o app assume a tela

@@ -4,11 +4,13 @@ import { config } from '../config.js';
 import { debounce, html, on, setHtml } from '../core/dom.js';
 import { messageOf } from '../core/errors.js';
 import { icon, spinner } from '../core/icons.js';
+import { ownPalette, setOwnPalette } from '../core/palette.js';
 import { toast } from '../core/toast.js';
 import { prepareAvatar } from '../services/avatarImage.js';
 import { backend, isCloud, setProfile, state } from '../services/session.js';
 import { avatar, avatarSrc } from '../ui/avatar.js';
 import { bindDataPanel, dataPanelHtml } from '../ui/dataPanel.js';
+import { bindPalettePicker, palettePickerHtml, selectPalette } from '../ui/palettePicker.js';
 import { guardTabs, settingsHeader } from '../ui/settingsShell.js';
 
 const USERNAME_RX = /^[a-z0-9_]{3,20}$/;
@@ -29,7 +31,7 @@ function photoPanel(p) {
                 <button type="button" class="button button-ghost" data-act="avatar-remove" ${has ? '' : 'hidden'}>${icon('trash', { size: 17 })} Remover foto</button>
             </div>
         </div>
-        <p class="field-hint">A foto é pública e fica quadrada: o navegador recorta o centro e reduz para 128×128 (poucos KB) antes de enviar. Existe uma foto só por conta; ao trocar ou remover, a anterior é apagada de verdade.</p>
+        <p class="field-hint">A foto é pública. O navegador recorta o centro em formato quadrado e reduz o tamanho antes de enviar. Só existe uma foto por conta: ao trocar ou remover, a anterior é apagada.</p>
         <p class="field-hint" data-avatar-status aria-live="polite"></p>
     </section>`;
 }
@@ -44,7 +46,7 @@ function identityPanel(p) {
                 <input id="st-display" class="input" maxlength="40" autocomplete="nickname" value="${p.displayName}">
             </div>
             <div class="field">
-                <label for="st-bio">Bio</label>
+                <label for="st-bio">Sobre você</label>
                 <textarea id="st-bio" class="textarea" maxlength="200" rows="3" placeholder="Conte um pouco sobre você e seus animes favoritos...">${p.bio}</textarea>
                 <p class="field-hint" data-bio-count aria-live="off">${p.bio.length}/200</p>
             </div>
@@ -57,6 +59,44 @@ function identityPanel(p) {
             <button type="submit" class="button button-primary" data-save>Salvar personalização</button>
         </form>
     </section>`;
+}
+
+function palettePanel(current, cloud) {
+    return html`
+    <section class="panel panel-wide glass-panel" aria-labelledby="st-palette">
+        <h2 id="st-palette">${icon('sparkles')} Cores</h2>
+        <p class="field-hint">${cloud
+            ? 'Escolha uma combinação de cores. Ela vale para o site todo enquanto você estiver com login. Quem abrir seu perfil vê estas cores só enquanto estiver nele. A escolha é salva na hora.'
+            : 'Escolha uma combinação de cores para o site. A escolha fica salva neste navegador.'}</p>
+        ${palettePickerHtml(current)}
+        <p class="field-hint">Todas as combinações têm bom contraste de leitura (padrão WCAG AA), nos temas claro e escuro. Para ainda mais contraste, use "Alto contraste".</p>
+        <p class="field-hint" data-palette-status aria-live="polite"></p>
+    </section>`;
+}
+
+/** Liga o seletor: aplica na hora, salva em seguida e desfaz se não conseguir salvar. */
+function bindPalette(root, be, cloud) {
+    const status = root.querySelector('[data-palette-status]');
+    let saving = Promise.resolve();
+    return bindPalettePicker(root, (id) => {
+        const before = ownPalette();
+        setOwnPalette(id);            // aparece na hora
+        if (!cloud) { status.textContent = 'Cores salvas neste navegador.'; return; }
+        status.textContent = 'Salvando...';
+        saving = saving.then(async () => {
+            try {
+                const updated = await be.profiles.updateMine({ palette: id });
+                setProfile(updated);
+                status.textContent = 'Cores salvas.';
+            } catch (err) {
+                console.error(err);
+                setOwnPalette(before);
+                selectPalette(root, before);
+                status.textContent = '';
+                toast(messageOf(err, 'Não foi possível salvar as cores.'), { type: 'error' });
+            }
+        });
+    });
 }
 
 export function mount(root) {
@@ -75,8 +115,10 @@ export function mount(root) {
                 </div>
             </header>
             <div class="notice-box">${icon('info')}<div>Login e perfis públicos estão desativados porque o Supabase ainda não foi configurado. Siga o <code>README.md</code> para ativar.</div></div>
-            <div class="settings-grid">${dataPanelHtml(false)}</div>`);
-        return bindDataPanel(root, be);
+            <div class="settings-grid">${palettePanel(ownPalette(), false)}${dataPanelHtml(false)}</div>`);
+        const offData = bindDataPanel(root, be);
+        const offPalette = bindPalette(root, be, false);
+        return () => { offData(); offPalette(); };
     }
 
     document.title = `Personalização · ${config.siteName}`;
@@ -87,6 +129,7 @@ export function mount(root) {
         <div class="settings-grid">
             ${photoPanel(profile)}
             ${identityPanel(profile)}
+            ${palettePanel(profile.palette, true)}
         </div>`);
 
     const $ = (s) => root.querySelector(s);
@@ -217,6 +260,7 @@ export function mount(root) {
             || displayInput.value.trim() !== p.displayName
             || bio.value.trim() !== p.bio;
     };
+    offs.push(bindPalette(root, be, true));
     offs.push(guardTabs(root, isDirty));
     offs.push(() => check.cancel());
     offs.push(() => { if (blobUrl) URL.revokeObjectURL(blobUrl); });

@@ -1,6 +1,6 @@
 # KamyList — tracker de animes com login e perfis públicos
 
-Organize animes, séries e filmes, marque episódios por temporada, veja a agenda da semana e compartilhe sua lista com os amigos por um link (`#/u/seu_usuario`).
+Organize animes, séries e filmes, marque episódios por temporada, veja a agenda da semana e compartilhe sua lista com quem quiser por um link (`#/u/seu_usuario`).
 
 É um site **100% estático** (HTML + CSS + JavaScript puro, sem build), então roda direto no **GitHub Pages**. O login e os perfis ficam no **Supabase** (plano gratuito basta), que guarda as contas e as listas.
 
@@ -51,7 +51,7 @@ Isso é necessário para os links de **confirmar e-mail** e **recuperar senha** 
 Em **Authentication → Sign In / Providers → Email** você escolhe:
 
 - **Confirm email** ligado (padrão): quem cria a conta recebe um e-mail e precisa clicar no link. É o mais seguro.
-- **Confirm email** desligado: a pessoa entra na hora. Para um grupo pequeno de amigos costuma ser mais prático, e evita o limite de e-mails do plano gratuito (poucos e-mails por hora).
+- **Confirm email** desligado: a pessoa entra na hora. Para um grupo pequeno costuma ser mais prático, e evita o limite de e-mails do plano gratuito (poucos e-mails por hora).
 
 ### 5. Publicar no GitHub Pages
 
@@ -59,7 +59,7 @@ Em **Authentication → Sign In / Providers → Email** você escolhe:
 2. No GitHub: **Settings → Pages → Build and deployment → Source: Deploy from a branch**, escolha `main` e a pasta `/ (root)`.
 3. Em um ou dois minutos o site estará em `https://SEU_USUARIO.github.io/NOME_DO_REPO/`.
 
-Pronto: crie sua conta, abra **Perfil e configurações**, ative **Perfil público** e mande o link para os amigos.
+Pronto: crie sua conta, abra **Perfil e configurações**, ative **Perfil público** e mande o link para quem quiser.
 
 ---
 
@@ -69,10 +69,11 @@ Pronto: crie sua conta, abra **Perfil e configurações**, ative **Perfil públi
 
 Sem esse passo, estas coisas não funcionam (o site mostra um aviso amarelo na biblioteca quando o banco está desatualizado):
 
-- salvar uma obra como **Dropado** ou **Em espera** (o banco antigo só conhece Assistindo, Quero Ver e Concluído);
+- salvar uma obra como **Dropado** ou **Em espera** (o banco antigo só conhece Assistindo, Quero ver e Concluído);
 - marcar obras como **favoritas** e guardar o código da fonte (para detectar obras repetidas);
 - a **foto de perfil** (o SQL cria o armazenamento `avatars` e a coluna que guarda a versão da foto);
 - **seguir pessoas**, os **pedidos** para perfis privados, o **feed** e as **análises** (o SQL cria a tabela de seguidores, as colunas da análise e as funções do feed);
+- as **cores do perfil** (o SQL cria a coluna `palette`);
 - o botão **Excluir minha conta**.
 
 ---
@@ -93,7 +94,7 @@ python3 -m http.server 8000
 
 Em **Perfil** (menu do topo) a conta tem duas abas, cada uma com o próprio botão de salvar (o que foi digitado numa aba não é salvo pela outra, e o site avisa antes de descartar alterações ao trocar de aba):
 
-- **Personalização** (`#/configuracoes`): foto de perfil, nome de exibição, bio e nome de usuário.
+- **Personalização** (`#/configuracoes`): foto de perfil, nome de exibição, "sobre você", nome de usuário e **cores** (veja "Cores do perfil").
 - **Configurações** (`#/configuracoes/conta`): privacidade (perfil público, mostrar anotações), e-mail e senha, sair da conta, backup e a zona de perigo (excluir a conta).
 
 ## Foto de perfil
@@ -101,7 +102,7 @@ Em **Perfil** (menu do topo) a conta tem duas abas, cada uma com o próprio bot�
 - Em **Personalização → Foto de perfil → Escolher/Trocar foto**. Aceita JPG, PNG, WebP e GIF de até 12 MB.
 - O **navegador** recorta um quadrado no centro e reduz para **128×128** em WebP (JPEG nos navegadores sem suporte a WebP), geralmente com **3 a 10 KB**. Só essa versão pequena é enviada. O servidor ainda recusa qualquer arquivo acima de **64 KB** ou que não seja WebP/JPEG.
 - Fica uma **única foto por conta**: o arquivo se chama como o ID da conta, então trocar **sobrescreve** a anterior (nada de imagens antigas acumulando). **Remover foto** e **Excluir a conta** apagam o arquivo de verdade do Storage.
-- A foto é **pública** (qualquer pessoa que veja o perfil, o Explorar ou o menu do site pode vê-la); só a dona consegue enviar, trocar ou apagar a dela.
+- A foto é **pública** (qualquer pessoa que veja o perfil, o Explorar ou o menu do site pode vê-la); só a própria pessoa consegue enviar, trocar ou apagar a sua.
 - O número da versão vai no endereço da imagem (`?v=...`), por isso uma foto trocada aparece na hora, sem ficar presa no cache.
 
 **Limites do plano gratuito do Supabase** (valem na data desta versão; confira em *Settings → Billing / Usage*):
@@ -118,17 +119,17 @@ Se você apagar usuários direto no painel do Supabase (*Authentication → User
 
 ## Perfis e privacidade
 
-- Todo perfil **começa privado**. Só aparece em **Explorar** e mostra a biblioteca para qualquer pessoa em `#/u/usuario` depois que a pessoa ativa **Perfil público**. Enquanto for privado, só as seguidoras aceitas veem a biblioteca (veja "Seguir pessoas").
-- As **anotações** (diário) continuam só para a dona da conta, mesmo com o perfil público. Para mostrá-las, ative **Mostrar minhas anotações**. Isso é garantido no banco, não só na tela.
-- Quem não está logado pode ver perfis públicos, mas não consegue ler nem editar nada além disso.
+- Todo perfil **começa privado**. Só aparece em **Explorar** e mostra a biblioteca para qualquer pessoa em `#/u/usuario` depois que a pessoa ativa **Perfil público**. Enquanto for privado, só quem a pessoa aprovou vê a biblioteca (veja "Seguir pessoas").
+- As **anotações** (diário) continuam só para quem criou a conta, mesmo com o perfil público. Para mostrá-las, ative **Mostrar minhas anotações**. Isso é garantido no banco, não só na tela.
+- Quem não entrou na conta pode ver perfis públicos, mas não consegue ler nem editar nada além disso.
 - Trocar o nome de usuário muda o link do perfil (o antigo deixa de funcionar).
 - **Excluir a conta:** em **Perfil → Configurações → Zona de perigo**. É preciso digitar o nome de usuário para confirmar. Apaga a conta, o perfil, a foto, as obras e os vínculos de seguir, para sempre (exporte um backup antes se quiser guardar a lista). O link do perfil deixa de existir e o nome de usuário volta a ficar livre.
 
 ## Seguir pessoas
 
-- No perfil de alguém (`#/u/usuario`) há o botão **Seguir**. Em **perfil público** o vínculo é imediato. Em **perfil privado** o botão é **Pedir para seguir**: o pedido fica *pendente* até a dona aceitar. Quem pediu pode **cancelar** o pedido a qualquer momento.
-- A dona do perfil privado vê um número vermelho no menu **Feed** quando há pedidos esperando e responde em **Feed → Pedidos** (**Aceitar** ou **Recusar**). Quem foi recusada pode pedir de novo.
-- Em **Seguidores** (no próprio perfil) a dona pode **Remover** alguém: a pessoa perde o acesso na hora. Quem segue pode **Deixar de seguir** quando quiser (num perfil privado precisará pedir de novo).
+- No perfil de alguém (`#/u/usuario`) há o botão **Seguir**. Em **perfil público** o vínculo é imediato. Em **perfil privado** o botão é **Pedir para seguir**: o pedido fica *pendente* até a pessoa dona do perfil aprovar. Quem pediu pode **cancelar** o pedido a qualquer momento.
+- Quem tem um perfil privado vê um número vermelho no menu **Feed** quando há pedidos esperando e responde em **Feed → Pedidos** (**Aceitar** ou **Recusar**). Quem teve o pedido recusado pode pedir de novo.
+- Em **Seguidores** (no próprio perfil) dá para **Remover** alguém: a pessoa perde o acesso na hora. Quem segue pode **Deixar de seguir** quando quiser (num perfil privado precisará pedir de novo).
 - Se um perfil privado **vira público**, os pedidos pendentes são aceitos automaticamente (eles já poderiam ver tudo). Se um perfil público **vira privado**, quem já seguia continua seguindo.
 - Cada conta pode seguir até **1000** perfis.
 
@@ -136,9 +137,9 @@ Se você apagar usuários direto no painel do Supabase (*Authentication → User
 
 | Quem vê | O que aparece |
 |---|---|
-| Qualquer pessoa / quem ainda não foi aceita | só **nome**, **@usuário** e **foto** (sem bio, obras, análises, estatísticas nem número de seguidores) e o botão de seguir |
-| Seguidora aceita | a biblioteca inteira, as análises, a bio e as contagens. As **anotações privadas continuam escondidas**, a não ser que a dona ative **Mostrar minhas anotações** |
-| A própria dona | tudo (a tela do perfil é uma prévia do que as seguidoras veem) |
+| Qualquer pessoa / quem ainda não teve o pedido aceito | só **nome**, **@usuário**, **foto** e as **cores do perfil** (sem bio, obras, análises, estatísticas nem número de seguidores) e o botão de seguir |
+| Quem teve o pedido aceito | a biblioteca inteira, as análises, a bio e as contagens. As **anotações privadas continuam escondidas**, a não ser que a pessoa ative **Mostrar minhas anotações** |
+| A própria pessoa | tudo (a tela do perfil é uma prévia do que quem segue vê) |
 
 Observação: perfis privados continuam **encontráveis pelo nome de usuário** (é assim que dá para pedir para seguir), mas só com esse cartão limitado. Eles não aparecem na lista do **Explorar**.
 
@@ -158,20 +159,39 @@ O feed **não atualiza sozinho**: ele carrega quando você abre a tela e no bot�
 
 Ao adicionar ou editar uma obra existe o campo **Minha análise** (até **2000 caracteres**) com a opção **Contém spoilers**.
 
-- A **análise** é para ser lida: aparece no detalhe da obra e no feed para quem pode ver a sua biblioteca (todo mundo, se o perfil for público; só as seguidoras aceitas, se for privado).
+- A **análise** é para ser lida: aparece no detalhe da obra e no feed para quem pode ver a sua biblioteca (todo mundo, se o perfil for público; só quem teve o pedido aceito, se for privado).
 - As **anotações** são outra coisa: continuam sendo o seu diário, só você vê (a não ser que ative **Mostrar minhas anotações**).
 - Análise marcada como **spoiler** aparece **escondida** atrás do botão **Mostrar análise** (no feed e no detalhe). Análises longas vêm recolhidas, com **Ler mais**.
 - A marcação de spoiler só vale se houver texto na análise.
 
+## Cores do perfil
+
+Em **Perfil → Personalização → Cores** cada pessoa escolhe uma entre 8 combinações: Ameixa (padrão), Oceano, Floresta, Pôr do sol, Cereja, Índigo, Grafite e **Alto contraste** (preto e branco no tema claro; preto e amarelo no escuro). A escolha é salva na hora.
+
+- **Para quem escolheu:** a combinação vale para o site inteiro (nos temas claro e escuro) sempre que a pessoa estiver com a sessão iniciada, em qualquer aparelho.
+- **Para quem visita:** ao abrir o perfil de outra pessoa (com ou sem login, público ou privado ainda trancado), a página usa as cores dela. Ao sair do perfil, volta para as cores de quem está visitando.
+- Todas as combinações passam no contraste de leitura **WCAG AA** (texto 4,5:1; botões e bordas 3:1) nos dois temas. Para conferir depois de mudar algo: `node tools/palettes.mjs --check`.
+- **Criar ou ajustar uma combinação:** edite a lista em `tools/palettes.mjs` e rode `node tools/palettes.mjs` (sem `--check`): ele confere o contraste e gera o `css/palettes.css`. Adicione o nome também em `js/domain/palettes.js`. Não é preciso mudar o SQL.
+- No modo local (sem Supabase) a escolha fica guardada só neste navegador.
+
 ## Status das obras
 
-**Assistindo**, **Quero Ver**, **Concluído**, **Em espera** e **Dropado**. *Em espera* é para o anime que você pausou e pretende retomar; *Dropado* é para o que você abandonou. As duas aparecem com a capa em tons de cinza e têm contador próprio no topo. Marcar um episódio numa obra em espera ou dropada a coloca de volta em *Assistindo*.
+**Assistindo**, **Quero ver**, **Concluído**, **Em espera** e **Dropado**. *Em espera* é para o anime que você pausou e pretende retomar; *Dropado* é para o que você abandonou. As duas aparecem com a capa em tons de cinza e têm contador próprio no topo.
+
+- **Trocar o status:** todo card (e cada linha, no modo lista) tem um seletor de status. Ao escolher *Concluído*, todos os episódios são marcados como vistos.
+- **+1 Ep:** o botão só aparece em obras *Assistindo*. Para começar uma obra de *Quero ver*, mude o status para *Assistindo* ou marque episódios em **Temporadas**. Marcar um episódio em **Temporadas** numa obra em espera ou dropada a coloca de volta em *Assistindo*.
+- **Números no topo:** cada número (Obras, Assistindo, Quero ver…) é um botão que filtra a lista pelo status correspondente. O mesmo vale no perfil de outras pessoas.
+- **Capa:** clicar na capa abre os detalhes da obra, nos cards e no modo lista (também no perfil de outras pessoas).
 
 Ao salvar uma obra como **Concluído**, todos os episódios de todas as temporadas são marcados como vistos (só quando o status *muda* para Concluído: editar uma obra que já estava concluída não mexe nos episódios).
 
 ## Favoritos
 
 O coração no card fixa a obra como favorita (até **8**). No perfil, os favoritos aparecem numa seção **Favoritos** logo acima da biblioteca, inclusive para quem visita o perfil público. O limite é aplicado pelo site (no banco o campo é só um marcador).
+
+## Botão voltar
+
+O botão voltar do navegador (ou do celular) fecha o modal aberto (estatísticas, detalhes, formulário…) em vez de sair da tela. Com dois modais abertos, fecha um por vez. Fechar pelo X ou pelo Esc não deixa "entrada fantasma" no histórico.
 
 ## Obras repetidas
 
@@ -214,7 +234,7 @@ Para buscar séries e filmes:
 
 ```
 index.html              página única (carrega CSS e js/main.js)
-css/                    tokens (cores), base, componentes e telas
+css/                    tokens (cores), palettes.css (combinações de cores, gerado), base, componentes e telas
 js/
   main.js               inicia tudo e define as rotas
   config.js             o único arquivo que você precisa editar
@@ -223,6 +243,7 @@ js/
   services/             backends (local e Supabase), sessão, busca (Jikan, AniList, TMDB)
   ui/                   componentes: cards, filtros, modais, cartão de compartilhar, avatar, abas da conta
   views/                telas: início, biblioteca, login, perfil, explorar, feed (atividade e pedidos), personalização, configurações
+tools/palettes.mjs      gera css/palettes.css e confere o contraste das cores (node tools/palettes.mjs --check)
 sql/schema.sql          tabelas, regras de segurança e funções do Supabase (pode rodar de novo a qualquer momento)
 ```
 
@@ -233,10 +254,10 @@ Os dois backends (`local-backend.js` e `supabase-backend.js`) têm a mesma inter
 - **Regras no banco (RLS):** cada pessoa só lê e altera as próprias obras; perfis públicos só são lidos por funções que respeitam as opções de privacidade.
 - **Sem XSS:** todo texto vindo de usuários ou de APIs é escapado antes de ir para a tela; capas só aceitam `https`.
 - **CSP:** o `index.html` só permite scripts do próprio site e do jsDelivr (onde fica a biblioteca do Supabase) e só conversa com as APIs usadas.
-- **Seguir e feed:** a tabela de seguidores não pode ser lida nem escrita direto (só por funções do banco que conferem quem está logado). Um perfil privado só entrega as obras a quem a dona aceitou, e o feed só devolve atividade de quem você segue com vínculo aceito. As anotações privadas nunca saem no feed.
+- **Seguir e feed:** a tabela de seguidores não pode ser lida nem escrita direto (só por funções do banco que conferem quem está com a sessão iniciada). Um perfil privado só entrega as obras a quem a pessoa dona do perfil aceitou, e o feed só devolve atividade de quem você segue com vínculo aceito. As anotações privadas nunca saem no feed.
 - **Fotos:** bucket `avatars` com limite de 64 KB e só WebP/JPEG; cada pessoa só envia/troca/apaga o arquivo que tem o próprio ID como nome. O site só monta o endereço da foto com ID (UUID) e versão numérica válidos.
 - **Limites:** até **2000 obras por conta**, e campos com tamanho máximo, validados no banco.
-- **Cadastro aberto:** qualquer pessoa com o link pode criar conta. Se quiser restringir a só os amigos, desligue **Authentication → Sign In / Providers → Allow new users to sign up** depois que todos tiverem criado a conta, ou crie os usuários manualmente em **Authentication → Users**.
+- **Cadastro aberto:** qualquer pessoa com o link pode criar conta. Se quiser restringir a um grupo fechado, desligue **Authentication → Sign In / Providers → Allow new users to sign up** depois que todos tiverem criado a conta, ou crie os usuários manualmente em **Authentication → Users**.
 
 ## Problemas comuns
 
@@ -245,7 +266,7 @@ Os dois backends (`local-backend.js` e `supabase-backend.js`) têm a mesma inter
 | "Não foi possível iniciar o KamyList" | URL ou chave erradas no `js/config.js`, ou sem internet |
 | "Perfil não encontrado" nas configurações | O `sql/schema.sql` não foi executado (ou a conta foi criada antes dele) |
 | Aviso amarelo "O banco de dados precisa ser atualizado", "O banco ainda não aceita este status" ou "Não foi possível excluir a conta" | O `sql/schema.sql` novo ainda não foi executado (veja "Atualizando um site que já está no ar") |
-| Botão "Seguir" ou o Feed dão erro, ou a análise não salva | O `sql/schema.sql` novo ainda não foi executado (a versão 4 cria seguidores, feed e análises) |
+| Botão "Seguir" ou o Feed dão erro, ou a análise não salva | O `sql/schema.sql` novo ainda não foi executado (a versão 5 inclui seguidores, feed, análises e cores do perfil) |
 | "O armazenamento de fotos ainda não existe" ou "A foto ficou grande demais" | O `sql/schema.sql` novo não foi executado (cria o bucket `avatars` com o limite de 64 KB) |
 | MAL mostra "Muitas buscas seguidas" ou "Serviço indisponível" | O Jikan limitou ou está lento: espere alguns segundos ou use o AniList |
 | E-mail de confirmação não chega | Veja o spam; o plano gratuito limita e-mails por hora. Para grupos pequenos, desligue **Confirm email** |

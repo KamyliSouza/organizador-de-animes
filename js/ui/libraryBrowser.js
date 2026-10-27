@@ -25,9 +25,11 @@ const SORTS = [
  * @param {object} opts
  * @param {Array} opts.entries
  * @param {boolean} [opts.readonly]
- * @param {Record<string,(entry:object, el:Element)=>void>} [opts.actions]  inc, seasons, details, share, edit, delete, add
+ * @param {Record<string,(entry:object, el:Element)=>void>} [opts.actions]  inc, seasons, details, share, edit, delete, add, status
+ *        ("cover" = clique na capa = "details"; "status" recebe o novo valor em el.value)
+ * @param {(status:string)=>void} [opts.onStatusChange]  chamado quando o filtro de status muda (botões ou cards de números)
  */
-export function mountLibraryBrowser(root, { entries = [], readonly = false, actions = {} }) {
+export function mountLibraryBrowser(root, { entries = [], readonly = false, actions = {}, onStatusChange = null }) {
     const filters = { status: 'all', category: 'all', sort: 'recent', query: '' };
     let view = loadView();
     let all = entries;
@@ -90,7 +92,14 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, acti
 
     const offs = [];
 
-    offs.push(on(root, 'click', '[data-status]', (_, b) => { filters.status = b.dataset.status; syncControls(); renderResults(); }));
+    function setStatus(status) {
+        filters.status = status === 'all' || STATUSES[status] ? status : 'all';
+        syncControls();
+        renderResults();
+        onStatusChange?.(filters.status);
+    }
+
+    offs.push(on(root, 'click', '[data-status]', (_, b) => setStatus(b.dataset.status)));
     offs.push(on(root, 'click', '[data-view]', (_, b) => { view = b.dataset.view; saveView(view); syncControls(); renderResults(); }));
     offs.push(on(root, 'change', 'select[data-filter]', (_, s) => { filters[s.dataset.filter] = s.value; renderResults(); }));
 
@@ -98,11 +107,23 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, acti
     offs.push(on(root, 'input', 'input[data-filter="query"]', (_, i) => search(i.value)));
 
     offs.push(on(results, 'click', '[data-action]', (_, btn) => {
-        const action = btn.dataset.action;
+        let action = btn.dataset.action;
         if (action === 'add') { actions.add?.(); return; }
+        if (action === 'cover') action = 'details';          // clicar na capa abre os detalhes
         const id = btn.closest('[data-id]')?.dataset.id;
         const entry = id ? byId(id) : null;
         if (entry) actions[action]?.(entry, btn);
+    }));
+
+    // Seletores dentro dos cards (status). Depois de redesenhar a lista, o foco volta para o mesmo seletor.
+    offs.push(on(results, 'change', 'select[data-change]', (_, sel) => {
+        const id = sel.closest('[data-id]')?.dataset.id;
+        const entry = id ? byId(id) : null;
+        const handler = actions[sel.dataset.change];
+        if (!entry || !handler) return;
+        handler(entry, sel);
+        const again = [...results.querySelectorAll('[data-id]')].find((c) => c.dataset.id === id)?.querySelector(`select[data-change="${sel.dataset.change}"]`);
+        again?.focus({ preventScroll: true });
     }));
 
     // "error" não borbulha: captura na fase de captura.
@@ -114,6 +135,7 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, acti
     /** Limpa os filtros e rola até a obra, destacando-a por um instante (usado em "ver na biblioteca"). */
     function reveal(id) {
         filters.status = 'all'; filters.category = 'all'; filters.query = '';
+        onStatusChange?.('all');
         root.querySelectorAll('select[data-filter]').forEach((sel) => { if (sel.dataset.filter === 'category') sel.value = 'all'; });
         const q = root.querySelector('input[data-filter="query"]');
         if (q) q.value = '';
@@ -128,6 +150,8 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, acti
 
     return {
         reveal,
+        getStatus: () => filters.status,
+        setStatus,
         setEntries(list) { all = list; renderResults(); },
         destroy() { search.cancel(); offs.forEach((off) => off()); },
     };

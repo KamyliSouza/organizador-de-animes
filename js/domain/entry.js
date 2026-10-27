@@ -4,7 +4,7 @@ import { safeUrl, toInt } from '../core/dom.js';
 
 export const STATUSES = {
     watching: { label: 'Assistindo', icon: 'play' },
-    planned: { label: 'Quero Ver', icon: 'clock' },
+    planned: { label: 'Quero ver', icon: 'clock' },
     completed: { label: 'Concluído', icon: 'check' },
     on_hold: { label: 'Em espera', icon: 'pause' },
     dropped: { label: 'Dropado', icon: 'ban' },
@@ -155,6 +155,17 @@ export function setSeasonWatched(entry, seasonIndex, all) {
 export function markAllWatched(entry) {
     for (const season of entry.seasons) season.watched = Array.from({ length: season.totalEps }, (_, i) => i + 1);
     return entry;
+}
+
+/**
+ * Troca o status de uma obra (seletor do card). Ao mudar PARA "Concluído", todos os episódios
+ * ficam como vistos (a mesma regra do formulário). Retorna true se o status mudou.
+ */
+export function applyStatus(entry, next) {
+    if (!STATUSES[next] || entry.status === next) return false;
+    entry.status = next;
+    if (next === 'completed') markAllWatched(entry);
+    return true;
 }
 
 export function setSeasonTotal(entry, seasonIndex, total) {

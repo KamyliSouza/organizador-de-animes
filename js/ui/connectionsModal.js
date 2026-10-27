@@ -1,4 +1,4 @@
-// Lista de seguidores / de quem a pessoa segue. A dona do perfil pode remover seguidores.
+// Lista de seguidores / de quem a pessoa segue. Quem é dono do perfil pode remover seguidores.
 import { el, html, on, setHtml } from '../core/dom.js';
 import { confirmDialog } from '../core/dialogs.js';
 import { messageOf } from '../core/errors.js';
@@ -19,7 +19,7 @@ const personRow = (p, canRemove) => html`
             ${avatar(p.displayName, 40, avatarSrc(p))}
             <span class="person-names"><b class="truncate">${p.displayName}</b><span class="muted small truncate">@${p.username}</span></span>
         </a>
-        ${canRemove ? html`<button type="button" class="button button-ghost button-sm" data-remove aria-label="Remover ${p.displayName} dos seus seguidores">Remover</button>` : ''}
+        ${canRemove ? html`<button type="button" class="button button-ghost button-sm" data-remove aria-label="Remover ${p.displayName} de quem segue você">Remover</button>` : ''}
     </li>`;
 
 /**
@@ -56,8 +56,8 @@ export function openConnectionsModal({ username, kind, own, be, onChanged }) {
         const person = people.find((p) => p.id === row.dataset.id);
         if (!person) return;
         const yes = await confirmDialog({
-            title: 'Remover seguidor', danger: true, confirmLabel: 'Remover',
-            message: `Remover ${person.displayName} (@${person.username}) dos seus seguidores? A pessoa deixa de ver a sua biblioteca e de receber as suas atividades. Se o seu perfil for privado, ela precisaria pedir de novo.`,
+            title: 'Remover de quem segue você', danger: true, confirmLabel: 'Remover',
+            message: `Remover ${person.displayName} (@${person.username}) de quem segue você? A pessoa deixa de ver a sua biblioteca e as suas atividades. Se o seu perfil for privado, será preciso pedir para seguir de novo.`,
         });
         if (!yes) return;
         btn.disabled = true;
@@ -65,7 +65,7 @@ export function openConnectionsModal({ username, kind, own, be, onChanged }) {
             await be.follows.removeFollower(person.id);
             people = people.filter((p) => p.id !== person.id);
             paint();
-            toast('Seguidor removido.', { type: 'success' });
+            toast('Removido de quem segue você.', { type: 'success' });
             onChanged?.(people.length);
         } catch (err) {
             btn.disabled = false;

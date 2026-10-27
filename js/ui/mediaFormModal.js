@@ -68,7 +68,7 @@ export function openMediaForm({ entry = null, onSave, existing = [], onShowExist
             ${onShowExisting ? html` <button type="button" class="link-button" data-act="show-existing">Ver na biblioteca</button>` : ''}
         </div></div>
 
-        ${isEdit ? html`<button type="button" class="button button-secondary button-block" data-act="refresh-meta">${icon('refresh', { size: 16 })} Atualizar card com dados mais recentes</button>` : ''}
+        ${isEdit ? html`<button type="button" class="button button-secondary button-block" data-act="refresh-meta">${icon('refresh', { size: 16 })} Atualizar dados da obra</button>` : ''}
 
         <div class="result-list" data-results hidden></div>
         <div class="notice-box" data-loaded hidden>${icon('checkCircle')}<span data-loaded-text></span></div>
@@ -100,12 +100,12 @@ export function openMediaForm({ entry = null, onSave, existing = [], onShowExist
 
         <div class="field">
             <label for="mf-review">Minha análise <span class="muted small">(opcional · aparece no feed)</span></label>
-            <textarea id="mf-review" class="textarea" rows="3" maxlength="${MAX_REVIEW}" placeholder="O que você achou? Quem seguir você (ou qualquer pessoa, se o perfil for público) pode ler."></textarea>
+            <textarea id="mf-review" class="textarea" rows="3" maxlength="${MAX_REVIEW}" placeholder="O que você achou? Quem pode ver sua biblioteca pode ler."></textarea>
             <div class="row-between">
                 <label class="check-row"><input type="checkbox" id="mf-spoiler"> Contém spoilers</label>
                 <span class="field-hint" data-review-count aria-live="off">0/${MAX_REVIEW}</span>
             </div>
-            <p class="field-hint">Diferente das anotações abaixo: a análise é pública para quem pode ver a sua biblioteca; as anotações só você vê (a menos que ative "Mostrar minhas anotações").</p>
+            <p class="field-hint">A análise aparece para quem vê sua biblioteca. As anotações abaixo só você vê (a menos que ative "Mostrar minhas anotações").</p>
         </div>
 
         <div class="field">
@@ -200,7 +200,7 @@ export function openMediaForm({ entry = null, onSave, existing = [], onShowExist
 
     function renderSeasons() {
         if (!draft.seasons.length) {
-            setHtml(boxes.seasons, html`<span class="muted small" style="font-style:italic">Nenhuma temporada cadastrada (será criada a 1ª Temporada).</span>`);
+            setHtml(boxes.seasons, html`<span class="muted small" style="font-style:italic">Nenhuma temporada adicionada (será criada a Temporada 1).</span>`);
             return;
         }
         setHtml(boxes.seasons, html`${draft.seasons.map((s, i) => html`
@@ -287,7 +287,7 @@ export function openMediaForm({ entry = null, onSave, existing = [], onShowExist
             if (r.genres?.length) draft.genres = r.genres;
             if (r.airDay) fields.air.value = r.airDay;
             if (r.sourceRef && !draft.sourceRef) draft.sourceRef = r.sourceRef;
-            toast('Metadados atualizados com sucesso!', { type: 'success' });
+            toast('Dados da obra atualizados!', { type: 'success' });
         } catch (err) {
             console.error(err);
             markSourceDown(source, err);

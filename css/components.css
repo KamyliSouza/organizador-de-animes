@@ -169,6 +169,8 @@
     background: color-mix(in srgb, var(--badge-color, var(--primary-color)) 14%, transparent);
     border: 1px solid color-mix(in srgb, var(--badge-color, var(--primary-color)) 32%, transparent);
 }
+.modal [data-badge] { min-width: 0; max-width: 100%; }
+.modal [data-badge] .badge { white-space: normal; max-width: 100%; }   /* texto mais longo (ex.: "Temporada assistida (12/12)") quebra em telas estreitas */
 .badge-watching  { --badge-color: var(--st-watching); }
 .badge-planned   { --badge-color: var(--st-planned); }
 .badge-completed { --badge-color: var(--st-completed); }
@@ -261,7 +263,15 @@
    Cards de estatística
    --------------------------------------------------------- */
 .stat-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
-.stat-tile { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 20px; }
+.stat-tile {
+    display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 20px;
+    width: 100%; font: inherit; color: inherit; text-align: left; cursor: pointer;
+    transition: border-color .18s ease, transform .18s ease, background-color .18s ease;
+}
+.stat-tile:hover { border-color: var(--card-border-strong); transform: translateY(-2px); }
+.stat-tile:focus-visible { outline: 3px solid var(--primary-color); outline-offset: 2px; }
+.stat-tile[aria-pressed="true"] { border-color: var(--primary-color); background: var(--notice-bg); box-shadow: 0 0 0 1px var(--primary-color) inset; }
+.stat-text { display: flex; flex-direction: column; min-width: 0; }
 .stat-icon {
     display: grid; place-items: center;
     width: 42px; height: 42px; flex: 0 0 auto;
@@ -270,9 +280,8 @@
     border: 1px solid color-mix(in srgb, var(--tile-color, var(--primary-color)) 30%, transparent);
     border-radius: 14px;
 }
-.stat-tile > div { min-width: 0; }
-.stat-label { overflow-wrap: anywhere; font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--subtitle-color); }
-.stat-value { font-size: 1.5rem; font-weight: 900; line-height: 1.1; }
+.stat-label { display: block; overflow-wrap: anywhere; font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--subtitle-color); }
+.stat-value { display: block; font-size: 1.5rem; font-weight: 900; line-height: 1.1; }
 
 /* ---------------------------------------------------------
    Cabeçalho de página
@@ -318,6 +327,10 @@
     border-radius: 14px;
 }
 .poster img { width: 100%; height: 100%; object-fit: cover; }
+/* A capa clicável (abre os detalhes) é um <button>: tira o visual de botão e mostra o foco */
+.poster-button { display: block; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+.poster-button:hover img { filter: brightness(1.06); }
+.poster-button:focus-visible { outline: 3px solid var(--primary-color); outline-offset: 2px; }
 .media-card.is-dropped .poster img, .media-row.is-dropped .thumb img { filter: grayscale(.85) brightness(.9); }
 .poster-empty { display: grid; place-items: center; width: 100%; height: 100%; color: var(--primary-text); opacity: .7; }
 .poster .air-day {
@@ -345,6 +358,9 @@
 .media-progress.is-idle { color: var(--muted-color); }
 .media-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: auto; padding-top: 4px; }
 .media-actions .push { margin-left: auto; display: flex; flex-wrap: wrap; gap: 2px; }
+.status-pick { flex: 1 1 100%; min-width: 0; }
+.status-select { width: 100%; font-weight: 700; }
+.media-actions .status-pick .select { min-height: 34px; }
 
 /* Favoritos (coração) */
 .icon-button.fav[aria-pressed="true"] { color: var(--danger); }
@@ -380,10 +396,14 @@
 .media-list { display: flex; flex-direction: column; gap: 8px; }
 .media-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 16px; }
 .media-row .thumb { width: 40px; height: 58px; flex: 0 0 auto; overflow: hidden; border-radius: 8px; border: 1px solid var(--card-border); background: var(--primary-soft); }
+.media-row .thumb.poster-button { padding: 0; }
+.media-row .progress-slim { height: 5px; margin-top: 5px; }
+.media-row .status-pick { flex: 0 0 auto; width: 138px; }
+.media-row .status-pick .select { min-height: 34px; }
 .media-row .thumb img { width: 100%; height: 100%; object-fit: cover; }
 .media-row .info { flex: 1 1 auto; min-width: 0; }
 .media-row .info h3 { font-size: .92rem; }
-.media-row .info p { font-size: .76rem; color: var(--subtitle-color); }
+.media-row .info p { font-size: .76rem; color: var(--subtitle-color); overflow-wrap: anywhere; }
 .media-row .actions { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; }
 
 /* Estados vazios e carregamento */
@@ -553,6 +573,15 @@
     .toolbar .select { flex: 1 1 140px; }
 }
 
+/* Modo lista: com o seletor de status, os botões não cabem ao lado do título em telas pequenas.
+   Aí a linha quebra: capa + título em cima, ações embaixo. */
+@media (max-width: 40em) {
+    .media-row { flex-wrap: wrap; }
+    .media-row .info { flex: 1 1 120px; }
+    .media-row .actions { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-end; }
+    .media-row .status-pick { flex: 1 1 130px; width: auto; }
+}
+
 /* Telas bem estreitas = celulares pequenos ou página com zoom/texto ampliado */
 @media (max-width: 27.5em) {
     .stat-tile { flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; }
@@ -560,9 +589,6 @@
     .media-card { grid-template-columns: 76px minmax(0, 1fr); gap: 10px; padding: 10px; }
     .media-card .poster { width: 76px; border-radius: 12px; }
     .media-actions .button-sm { white-space: normal; text-align: center; min-width: 0; overflow-wrap: anywhere; }
-    .media-row { flex-wrap: wrap; }
-    .media-row .info { flex: 1 1 120px; }
-    .media-row .actions { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-end; }
     .modal-header { padding: 14px 16px 10px; }
     .modal-body { padding: 14px 16px 18px; }
     .subpanel { padding: 12px; }

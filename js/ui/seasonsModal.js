@@ -22,7 +22,7 @@ export function openSeasonsModal({ entry, onChange }) {
                     <select id="ss-type" class="select select-sm">${SEASON_TYPES.map((t) => html`<option value="${t}">${t}</option>`)}</select>
                 </div>
                 <div class="field">
-                    <label for="ss-eps">Total de eps</label>
+                    <label for="ss-eps">Total de episódios</label>
                     <input id="ss-eps" class="input input-sm" type="number" min="1" max="${MAX_EPISODES}">
                 </div>
             </div>

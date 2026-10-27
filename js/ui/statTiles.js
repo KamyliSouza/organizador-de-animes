@@ -11,11 +11,18 @@ const TILES = [
     ['dropped', 'Dropadas', 'ban', 'var(--st-dropped)'],
 ];
 
-export function statTilesHtml(entries) {
+/**
+ * Cards com os números. Cada um é um botão: clicar filtra a lista pelo status correspondente
+ * ("Obras" mostra todas). `active` é o status que está filtrado agora ('all' = nenhum).
+ */
+export function statTilesHtml(entries, { active = 'all' } = {}) {
     const s = computeStats(entries);
-    return html`<div class="stat-grid">${TILES.map(([key, label, ic, color]) => html`
-        <div class="stat-tile glass-panel">
+    return html`<div class="stat-grid">${TILES.map(([key, label, ic, color]) => {
+        const status = key === 'total' ? 'all' : key;
+        return html`
+        <button type="button" class="stat-tile glass-panel" data-stat="${status}" aria-pressed="${String(status === active)}" title="${status === 'all' ? 'Mostrar todas as obras' : `Mostrar só: ${label}`}">
             <span class="stat-icon" style="--tile-color:${color}">${icon(ic, { size: 20 })}</span>
-            <div><p class="stat-label">${label}</p><p class="stat-value">${s[key]}</p></div>
-        </div>`)}</div>`;
+            <span class="stat-text"><span class="stat-label">${label}</span><span class="stat-value">${s[key]}</span></span>
+        </button>`;
+    })}</div>`;
 }

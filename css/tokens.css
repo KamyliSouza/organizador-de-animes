@@ -10,7 +10,7 @@
     --primary-color: #B35EAF;
     --primary-hover: #9b4d97;
     --primary-soft: rgba(179, 94, 175, 0.08);
-    --primary-text: #9b4d97;       /* contraste AA como cor de texto */
+    --primary-text: #92488e;       /* contraste AA como cor de texto (também sobre o fundo dos avisos) */
 
     /* Superfícies de ação (contraste AA com texto branco) */
     --button-bg: #9b4d97;
@@ -33,7 +33,7 @@
     /* Texto */
     --text-color: #2b2b2b;
     --subtitle-color: #666;
-    --muted-color: #7a6b79;
+    --muted-color: #726371;
     --notice-text: #555;
 
     /* Estados (texto legível sobre o fundo claro) */

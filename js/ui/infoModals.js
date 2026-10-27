@@ -91,8 +91,8 @@ export function openStatsModal(entries) {
             </div>
 
             <div>
-                <p class="field-label" style="margin-bottom:8px">Distribuição por categoria</p>
-                <div class="stacked-bar" role="img" aria-label="Distribuição por categoria">
+                <p class="field-label" style="margin-bottom:8px">Obras por categoria</p>
+                <div class="stacked-bar" role="img" aria-label="Obras por categoria">
                     ${cats.map(([c, cls]) => s.categories[c] ? html`<span class="${cls}" style="width:${(s.categories[c] / total) * 100}%"></span>` : '')}
                 </div>
                 <div class="legend">
@@ -102,7 +102,7 @@ export function openStatsModal(entries) {
             </div>
 
             <div>
-                <p class="field-label" style="margin-bottom:8px">Gêneros mais populares</p>
+                <p class="field-label" style="margin-bottom:8px">Gêneros mais vistos</p>
                 ${s.topGenres.length
                     ? html`<div class="kv-list">${s.topGenres.map(([g, n]) => html`<div class="kv"><span>${g}</span><b>${n} ${n === 1 ? 'obra' : 'obras'}</b></div>`)}</div>`
                     : html`<p class="muted small">Os gêneros aparecem quando você adiciona obras pela busca.</p>`}

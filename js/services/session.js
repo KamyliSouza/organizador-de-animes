@@ -1,12 +1,20 @@
 // Estado da sessão (quem está logado) e acesso ao backend escolhido.
 // Troca de backend em um lugar só: sem chaves do Supabase = modo local.
 import { hasSupabase } from '../config.js';
+import { clearOwnPalette, setOwnPalette } from '../core/palette.js';
 
 export const state = { backend: null, user: null, profile: null, requests: 0, ready: false };
 
 const listeners = new Set();
 // reason: 'local' (mudança feita por esta aba) ou 'external' (outra aba, expiração de sessão...)
-const emit = (reason = 'local') => listeners.forEach((fn) => { try { fn(state, reason); } catch (e) { console.error(e); } });
+const emit = (reason = 'local') => { syncPalette(); listeners.forEach((fn) => { try { fn(state, reason); } catch (e) { console.error(e); } }); };
+
+/** O preset de cores da conta vale no site todo para quem está logado. Sem conta (ou sem login): padrão. No modo local fica só o que está neste navegador. */
+function syncPalette() {
+    if (state.backend?.mode !== 'cloud') return;
+    if (!state.user) clearOwnPalette();
+    else if (state.profile) setOwnPalette(state.profile.palette);
+}
 
 export const backend = () => state.backend;
 export const isCloud = () => state.backend?.mode === 'cloud';
@@ -75,6 +83,7 @@ export async function initSession({ onRecovery } = {}) {
     state.user = await state.backend.auth.getUser();
     state.profile = state.user ? await safeProfile() : null;
     state.ready = true;
+    syncPalette();
     refreshRequests();      // sem esperar: o número aparece no menu assim que chegar
     return state;
 }

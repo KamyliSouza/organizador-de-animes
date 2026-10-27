@@ -111,6 +111,34 @@
 @media (max-width: 18.75em) {
     .settings-tabs { flex-direction: column; border-radius: 22px; }
 }
+.panel-wide { grid-column: 1 / -1; }
+.palette-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(168px, 100%), 1fr)); gap: 12px; }
+.palette-item { position: relative; min-width: 0; }
+.palette-option {
+    display: flex; flex-direction: column; gap: 6px; height: 100%; padding: 10px; cursor: pointer;
+    background: var(--card-bg); border: 2px solid var(--card-border); border-radius: 16px;
+    transition: border-color .18s ease, background-color .18s ease;
+}
+.palette-option:hover { border-color: var(--card-border-strong); }
+.palette-input:checked + .palette-option { border-color: var(--primary-color); background: var(--notice-bg); box-shadow: 0 0 0 1px var(--primary-color) inset; }
+.palette-input:focus-visible + .palette-option { outline: 3px solid var(--primary-color); outline-offset: 2px; }
+.palette-name { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 800; overflow-wrap: anywhere; }
+.palette-check { display: none; color: var(--primary-text); }
+.palette-input:checked + .palette-option .palette-check { display: inline-flex; }
+.palette-desc { font-size: .8rem; color: var(--subtitle-color); overflow-wrap: anywhere; }
+/* A amostra usa as variáveis do próprio preset (data-palette), por isso mostra as cores reais */
+.palette-preview {
+    display: flex; flex-direction: column; gap: 7px; padding: 10px; min-height: 76px; overflow: hidden;
+    background-color: var(--bg-color);
+    background-image: radial-gradient(120px 70px at 0% 0%, color-mix(in srgb, var(--primary-color) 26%, transparent), transparent 70%);
+    border: 1px solid var(--card-border-strong); border-radius: 10px;
+}
+.pv-card { display: flex; align-items: center; gap: 8px; padding: 7px 8px; background: var(--card-bg); border: 1px solid var(--card-border-strong); border-radius: 8px; }
+.pv-btn { flex: 0 0 auto; width: 34px; height: 14px; background: var(--button-bg); border-radius: 999px; }
+.pv-line { flex: 1 1 auto; min-width: 0; height: 6px; background: var(--primary-text); border-radius: 3px; }
+.pv-bars { display: flex; flex-direction: column; gap: 4px; }
+.pv-bars i { display: block; height: 5px; border-radius: 3px; background: var(--text-color); }
+.pv-bars i + i { width: 62%; background: var(--subtitle-color); }
 .settings-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 .panel { padding: 22px; display: flex; flex-direction: column; gap: 16px; }
 .panel h2 { font-size: 1.15rem; display: flex; align-items: center; gap: 10px; overflow-wrap: anywhere; }

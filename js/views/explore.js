@@ -33,7 +33,7 @@ export function mount(root) {
             <div>
                 <span class="eyebrow">${icon('compass', { size: 14 })} Comunidade</span>
                 <h1 style="margin-top:10px">Explorar perfis</h1>
-                <p class="lead">Veja o que seus amigos estão assistindo.</p>
+                <p class="lead">Veja o que outras pessoas estão assistindo.</p>
             </div>
             <div class="search-field" style="max-width:340px">
                 ${icon('search', { size: 16 })}
@@ -56,7 +56,7 @@ export function mount(root) {
             if (mine !== token) return;
             if (!list.length) {
                 setHtml(results, html`<div class="glass-panel empty-state">${icon('users', { size: 44 })}<h3>${query ? 'Nenhum perfil encontrado' : 'Ainda não há perfis públicos'}</h3>
-                    <p>${query ? 'Tente outro nome.' : 'Seja o primeiro: torne seu perfil público em Perfil e configurações.'}</p></div>`);
+                    <p>${query ? 'Tente outro nome.' : 'Comece você: deixe seu perfil público em Perfil e configurações.'}</p></div>`);
                 return;
             }
             setHtml(results, html`<div class="profile-grid">${list.map(profileCard)}</div>`);

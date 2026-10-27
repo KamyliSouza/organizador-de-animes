@@ -17,7 +17,7 @@ const PAGE = 30;
 
 // O que cada pessoa fez com a obra, conforme o tipo de atividade e o status atual.
 const VERBS = {
-    added: { planned: 'quer ver', watching: 'começou a assistir', completed: 'concluiu', on_hold: 'adicionou em espera', dropped: 'adicionou como dropado' },
+    added: { planned: 'quer ver', watching: 'começou a assistir', completed: 'concluiu', on_hold: 'colocou em espera', dropped: 'adicionou como dropado' },
     status: { planned: 'moveu para "Quero ver"', watching: 'está assistindo', completed: 'concluiu', on_hold: 'colocou em espera', dropped: 'dropou' },
     review: { _: 'escreveu uma análise de' },
 };
@@ -88,7 +88,7 @@ export function mount(root, ctx) {
             <div>
                 <span class="eyebrow">${icon('activity', { size: 14 })} Comunidade</span>
                 <h1 style="margin-top:10px">${active === 'feed' ? 'Feed' : 'Pedidos para seguir'}</h1>
-                <p class="lead">${active === 'feed' ? 'O que as pessoas que você segue andaram assistindo.' : 'Quem pediu para ver o seu perfil privado.'}</p>
+                <p class="lead">${active === 'feed' ? 'O que as pessoas que você segue andaram assistindo.' : 'Pessoas que pediram para seguir o seu perfil privado.'}</p>
             </div>
             ${active === 'feed' ? html`<div class="page-head-actions"><button type="button" class="button button-secondary" data-act="reload">${icon('refresh', { size: 17 })} Atualizar</button></div>` : ''}
         </header>

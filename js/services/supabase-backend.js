@@ -89,6 +89,7 @@ const fromProfile = (r) => (r ? {
     isPublic: Boolean(r.is_public),
     showNotes: Boolean(r.show_notes),
     avatarV: Number(r.avatar_v) || 0,
+    palette: r.palette || 'default',
 } : null);
 
 const personOf = (r) => ({
@@ -246,6 +247,7 @@ export async function createSupabaseBackend() {
                 if (patch.bio !== undefined) clean.bio = String(patch.bio).trim().slice(0, 200);
                 if (patch.isPublic !== undefined) clean.is_public = Boolean(patch.isPublic);
                 if (patch.showNotes !== undefined) clean.show_notes = Boolean(patch.showNotes);
+                if (patch.palette !== undefined) clean.palette = String(patch.palette).trim().toLowerCase().slice(0, 24);
                 const row = await ok(sb.from('profiles').update(clean).eq('id', uid).select().single(), 'Não foi possível salvar o perfil.');
                 return fromProfile(row);
             },
@@ -331,7 +333,7 @@ export async function createSupabaseBackend() {
                 await ok(sb.rpc('respond_follow_request', { p_follower: followerId, p_accept: Boolean(accept) }), 'Não foi possível responder ao pedido.');
             },
             async removeFollower(followerId) {
-                await ok(sb.rpc('remove_follower', { p_follower: followerId }), 'Não foi possível remover o seguidor.');
+                await ok(sb.rpc('remove_follower', { p_follower: followerId }), 'Não foi possível remover.');
             },
             /** kind: 'followers' | 'following' */
             async connections(username, kind) {
