@@ -1,21 +1,32 @@
-import { CATEGORIES, DAYS, MINUTES_PER_EPISODE } from './entry.js';
+import { DAYS, MINUTES_PER_EPISODE, SECTIONS, isReading, sectionOf } from './entry.js';
 
-/** Números da biblioteca: contagens, tempo estimado, categorias e gêneros. */
-export function computeStats(entries) {
+/**
+ * Números de uma seção da biblioteca: contagens por status, categorias e gêneros.
+ * "Assistir" soma episódios e tempo estimado; "Ler" soma capítulos e volumes lidos.
+ */
+export function computeStats(entries, section = 'watch') {
+    const list = entries.filter((e) => sectionOf(e) === section);
     const stats = {
-        total: entries.length,
+        section,
+        total: list.length,
         watching: 0, planned: 0, completed: 0, on_hold: 0, dropped: 0,
         episodes: 0, hours: 0, days: 0,
-        categories: Object.fromEntries(CATEGORIES.map((c) => [c, 0])),
+        chapters: 0, volumes: 0,
+        categories: Object.fromEntries(SECTIONS[section].categories.map((c) => [c, 0])),
         topGenres: [],
     };
     const genres = new Map();
 
-    for (const e of entries) {
+    for (const e of list) {
         stats[e.status] += 1;
         stats.categories[e.category] += 1;
         for (const g of e.genres) genres.set(g, (genres.get(g) || 0) + 1);
-        for (const s of e.seasons) stats.episodes += s.watched.length;
+        if (isReading(e)) {
+            stats.chapters += e.chaptersRead || 0;
+            stats.volumes += e.volumesRead || 0;
+        } else {
+            for (const s of e.seasons) stats.episodes += s.watched.length;
+        }
     }
 
     stats.hours = Math.round((stats.episodes * MINUTES_PER_EPISODE) / 60);
@@ -24,11 +35,11 @@ export function computeStats(entries) {
     return stats;
 }
 
-/** Obras "Assistindo" agrupadas pelo dia de lançamento semanal. */
+/** Obras "Assistindo" agrupadas pelo dia de lançamento semanal (só a seção Assistir tem agenda). */
 export function groupByAirDay(entries) {
     const groups = Object.fromEntries(DAYS.map((d) => [d, []]));
     for (const e of entries) {
-        if (e.status === 'watching' && groups[e.airDay]) groups[e.airDay].push(e);
+        if (e.status === 'watching' && !isReading(e) && groups[e.airDay]) groups[e.airDay].push(e);
     }
     return groups;
 }

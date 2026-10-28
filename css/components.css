@@ -179,6 +179,8 @@
 .badge-anime     { --badge-color: var(--cat-anime); }
 .badge-filme     { --badge-color: var(--cat-filme); }
 .badge-serie     { --badge-color: var(--cat-serie); }
+.badge-manga     { --badge-color: var(--primary-text); }
+.badge-novel     { --badge-color: var(--cat-serie); }
 .badge-muted     { --badge-color: var(--subtitle-color); }
 .badge-danger    { --badge-color: var(--danger); }
 
@@ -538,6 +540,8 @@
 .seg-anime { background: var(--primary-color); }
 .seg-filme { background: var(--cat-filme); }
 .seg-serie { background: var(--cat-serie); }
+.seg-manga { background: var(--primary-color); }
+.seg-novel { background: var(--cat-serie); }
 .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .82rem; color: var(--subtitle-color); margin-top: 8px; }
 .legend i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 50%; }
 .kv-list { display: flex; flex-direction: column; gap: 8px; }
@@ -580,6 +584,45 @@
     .media-row .info { flex: 1 1 120px; }
     .media-row .actions { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-end; }
     .media-row .status-pick { flex: 1 1 130px; width: auto; }
+}
+
+/* Abas Assistir / Ler (biblioteca, perfil e estatísticas) */
+.section-tabs {
+    display: flex; gap: 4px; padding: 4px; width: fit-content; max-width: 100%;
+    margin-bottom: 16px;
+    background: var(--input-bg);
+    border: 2px solid var(--card-border);
+    border-radius: var(--radius-pill);
+}
+.section-tab {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 8px 18px;
+    color: var(--subtitle-color); font-weight: 800; font-size: .92rem;
+    background: transparent; border: 0; cursor: pointer;
+    border-radius: var(--radius-pill);
+    transition: background-color .18s ease, color .18s ease;
+}
+.section-tab:hover { color: var(--text-color); }
+.section-tab[aria-selected="true"] { color: var(--button-text); background: var(--button-bg); }
+.section-tab .count {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 22px; height: 20px; padding: 0 6px;
+    font-size: .72rem; line-height: 1; font-weight: 800;
+    color: var(--subtitle-color); background: var(--primary-soft); border-radius: var(--radius-pill);
+}
+.section-tab[aria-selected="true"] .count { color: var(--button-text); background: color-mix(in srgb, var(--button-text) 22%, transparent); }
+.modal .section-tabs { margin-bottom: 0; }
+.read-facts { font-size: .86rem; color: var(--subtitle-color); }
+.read-facts b { color: var(--primary-text); }
+@media (max-width: 30em) {
+    .section-tabs { width: 100%; }
+    .section-tab { flex: 1 1 0; min-width: 0; padding: 8px 10px; font-size: .88rem; }
+}
+@media (max-width: 22em) {
+    .section-tab .icon { display: none; }
+}
+@media (max-width: 18.75em) {
+    .section-tabs { flex-direction: column; border-radius: 22px; }
 }
 
 /* Telas bem estreitas = celulares pequenos ou página com zoom/texto ampliado */

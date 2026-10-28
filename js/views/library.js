@@ -4,14 +4,16 @@ import { confirmDialog } from '../core/dialogs.js';
 import { messageOf } from '../core/errors.js';
 import { icon } from '../core/icons.js';
 import { toast } from '../core/toast.js';
-import { MAX_FAVORITES, STATUSES, addNextEpisode, applyStatus, favoriteCount } from '../domain/entry.js';
+import { MAX_FAVORITES, SECTIONS, addNextChapter, addNextEpisode, applyStatus, favoriteCount, isReading, sectionOf, statusLabel } from '../domain/entry.js';
 import { readLegacyEntries } from '../domain/backup.js';
 import { REQUIRED_SCHEMA } from '../services/schema.js';
 import { backend, isCloud, state } from '../services/session.js';
 import { openDetailsModal, openScheduleModal, openStatsModal } from '../ui/infoModals.js';
 import { mountLibraryBrowser } from '../ui/libraryBrowser.js';
 import { openMediaForm } from '../ui/mediaFormModal.js';
+import { openReadProgressModal } from '../ui/readProgressModal.js';
 import { openSeasonsModal } from '../ui/seasonsModal.js';
+import { bindSectionTabs, loadSection, saveSection, sectionCounts, sectionTabsHtml } from '../ui/sectionTabs.js';
 import { openShareModal } from '../ui/shareModal.js';
 import { statTilesHtml } from '../ui/statTiles.js';
 
@@ -43,7 +45,7 @@ export async function mount(root) {
             <div>
                 <span class="eyebrow">${icon('film', { size: 14 })} ${cloud ? 'Minha biblioteca' : 'Modo local'}</span>
                 <h1 style="margin-top:10px">${cloud && name ? `Olá, ${name}!` : 'Minha biblioteca'}</h1>
-                <p class="lead">Sua lista de animes, séries e filmes.</p>
+                <p class="lead" data-lead>Sua lista de animes, séries e filmes.</p>
             </div>
             <div class="page-head-actions">
                 <button type="button" class="button button-secondary" data-act="schedule">${icon('calendar', { size: 17 })} Agenda</button>
@@ -52,18 +54,43 @@ export async function mount(root) {
             </div>
         </header>
         <div class="stack" data-banners></div>
-        <div data-tiles></div>
-        <div data-browser class="stack"></div>`);
+        <div data-sections></div>
+        <div id="section-panel" role="tabpanel" class="stack" data-panel>
+            <div data-tiles></div>
+            <div data-browser class="stack"></div>
+        </div>`);
 
     const tiles = root.querySelector('[data-tiles]');
     const banners = root.querySelector('[data-banners]');
+    const sectionsEl = root.querySelector('[data-sections]');
+    const panel = root.querySelector('[data-panel]');
     let browser = null;
+    let section = loadSection();     // "watch" = Assistir · "read" = Ler (mangá e light novel)
 
-    const paintTiles = () => setHtml(tiles, statTilesHtml(entries, { active: browser?.getStatus() ?? 'all' }));
+    const paintTiles = () => setHtml(tiles, statTilesHtml(entries, { active: browser?.getStatus() ?? 'all', section }));
+    const paintTabs = () => {
+        setHtml(sectionsEl, sectionTabsHtml({ active: section, counts: sectionCounts(entries), panelId: 'section-panel' }));
+        panel.setAttribute('aria-labelledby', `tab-${section}`);
+    };
+    /** Texto e botões do topo mudam com a seção (a Agenda só existe em Assistir). */
+    const paintHead = () => {
+        root.querySelector('[data-lead]').textContent = section === 'read' ? 'Sua lista de mangás e light novels.' : 'Sua lista de animes, séries e filmes.';
+        root.querySelector('[data-act="schedule"]').hidden = section === 'read';
+    };
     const refresh = () => {
+        paintTabs();
         paintTiles();
         browser?.setEntries(entries);
     };
+    function switchSection(next) {
+        if (!SECTIONS[next] || next === section) return;
+        section = next;
+        saveSection(section);
+        browser?.setSection(section);      // zera status e categoria; avisa o onStatusChange
+        paintTabs();
+        paintTiles();
+        paintHead();
+    }
 
     // --- avisos -------------------------------------------------------------------
     let schemaOutdated = false;   // o banco do Supabase está numa versão mais antiga que a do site
@@ -75,7 +102,7 @@ export async function mount(root) {
             parts.push(html`<div class="notice-box is-warn" role="alert">${icon('alert')}<div>
                 <strong>O banco de dados precisa ser atualizado.</strong> No Supabase, abra <strong>SQL Editor → New query</strong>, cole o conteúdo de
                 <code>sql/schema.sql</code> e clique em <strong>Run</strong> (é seguro repetir). Depois recarregue esta página.
-                Até lá, alguns recursos novos (status "Em espera", favoritos, foto de perfil, seguir pessoas, feed, análises e cores do perfil) podem não funcionar.
+                Até lá, alguns recursos novos (mangás e light novels, status "Em espera", favoritos, foto de perfil, seguir pessoas, feed, análises e cores do perfil) podem não funcionar.
             </div></div>`);
         }
 
@@ -146,8 +173,9 @@ export async function mount(root) {
     function openForm(entry = null) {
         openMediaForm({
             entry,
+            section: entry ? sectionOf(entry) : section,
             existing: entries,
-            onShowExisting: (found) => browser?.reveal(found.id),
+            onShowExisting: (found) => { switchSection(sectionOf(found)); browser?.reveal(found.id); },
             onSave: async (data) => {
                 if (entry?.id) {
                     const saved = await be.library.update({ ...data, id: entry.id });
@@ -164,7 +192,7 @@ export async function mount(root) {
     }
 
     function increment(entry) {
-        if (addNextEpisode(entry)) schedulePersist(entry.id);
+        if ((isReading(entry) ? addNextChapter(entry) : addNextEpisode(entry))) schedulePersist(entry.id);
         refresh();
     }
 
@@ -179,12 +207,13 @@ export async function mount(root) {
             const before = entry.status;
             if (!applyStatus(entry, next)) return;
             schedulePersist(entry.id);
-            toast(`"${entry.title}": ${STATUSES[before].label} → ${STATUSES[next].label}.`, { type: 'success' });
+            const sec = sectionOf(entry);
+            toast(`"${entry.title}": ${statusLabel(before, sec)} → ${statusLabel(next, sec)}.`, { type: 'success' });
             refresh();
         },
         favorite(entry) {
-            if (!entry.favorite && favoriteCount(entries) >= MAX_FAVORITES) {
-                toast(`Você pode fixar até ${MAX_FAVORITES} favoritos. Tire um para favoritar outra obra.`, { type: 'info' });
+            if (!entry.favorite && favoriteCount(entries, sectionOf(entry)) >= MAX_FAVORITES) {
+                toast(`Você pode fixar até ${MAX_FAVORITES} favoritos em ${SECTIONS[sectionOf(entry)].label}. Tire um para favoritar outra obra.`, { type: 'info' });
                 return;
             }
             entry.favorite = !entry.favorite;
@@ -193,6 +222,7 @@ export async function mount(root) {
             refresh();
         },
         seasons: (entry) => openSeasonsModal({ entry, onChange: (e) => { schedulePersist(e.id); refresh(); } }),
+        progress: (entry) => openReadProgressModal({ entry, onChange: (e) => { schedulePersist(e.id); refresh(); } }),
         share: (entry) => openShareModal({ entry, owner: cloud ? state.profile?.username : '' }),
         async delete(entry) {
             const yes = await confirmDialog({
@@ -211,7 +241,8 @@ export async function mount(root) {
         },
     };
 
-    browser = mountLibraryBrowser(root.querySelector('[data-browser]'), { entries, actions, onStatusChange: () => paintTiles() });
+    browser = mountLibraryBrowser(root.querySelector('[data-browser]'), { entries, section, actions, onStatusChange: () => paintTiles() });
+    const offTabs = bindSectionTabs(sectionsEl, switchSection);
 
     // Os cards com os números filtram a lista pelo status correspondente.
     const offTiles = on(tiles, 'click', '[data-stat]', (_, btn) => {
@@ -224,7 +255,7 @@ export async function mount(root) {
     const off = on(root, 'click', '[data-act]', async (_, btn) => {
         switch (btn.dataset.act) {
             case 'add': openForm(null); break;
-            case 'stats': openStatsModal(entries); break;
+            case 'stats': openStatsModal(entries, { section }); break;
             case 'schedule': openScheduleModal({ getEntries: () => entries, onIncrement: increment }); break;
             case 'copy-link': {
                 const ok = await copyText(profileLink(state.profile.username));
@@ -255,6 +286,7 @@ export async function mount(root) {
     });
 
     renderBanners();
+    paintHead();
     refresh();
 
     if (cloud && state.user) {
@@ -263,5 +295,5 @@ export async function mount(root) {
         }).catch(() => {});
     }
 
-    return () => { off(); offTiles(); browser.destroy(); };
+    return () => { off(); offTiles(); offTabs(); browser.destroy(); };
 }

@@ -32,6 +32,7 @@ function friendly(error, fallback) {
     if (has('Bucket not found')) return 'O armazenamento de fotos ainda não existe no Supabase. Rode o sql/schema.sql de novo (SQL Editor).';
     if (has('maximum allowed size') || error?.statusCode === '413' || error?.status === 413) return 'A foto ficou grande demais (o limite é 64 KB). Tente outra imagem.';
     if (has('mime type') && has('not supported')) return 'Formato de imagem não aceito pelo servidor. Tente outra imagem.';
+    if (has('entries_category')) return 'O banco ainda não aceita mangás e light novels. Rode o sql/schema.sql de novo no Supabase (SQL Editor).';
     if (has('entries_status')) return 'O banco ainda não aceita este status ("Dropado" ou "Em espera"). Rode o sql/schema.sql de novo no Supabase (SQL Editor).';
     if (code === 'PGRST204' || has('schema cache')) return 'O banco de dados está desatualizado. Rode o sql/schema.sql de novo no Supabase (SQL Editor) e recarregue a página.';
     if (code === '23514') return has('Limite') ? 'Limite de obras da conta atingido.' : 'Algum dado está em formato inválido.';
@@ -67,6 +68,11 @@ const toRow = (e) => ({
     description: e.description || null,
     genres: e.genres,
     seasons: e.seasons,
+    chapters_read: e.chaptersRead || 0,
+    chapters_total: e.chaptersTotal || 0,
+    volumes_read: e.volumesRead || 0,
+    volumes_total: e.volumesTotal || 0,
+    origin: e.origin || null,
     favorite: e.favorite === true,
     source_ref: e.sourceRef || null,
     review: e.review || null,
@@ -77,6 +83,7 @@ const fromRow = (r) => normalizeEntry({
     id: r.id, title: r.title, category: r.category, status: r.status, rating: r.rating,
     tags: r.tags, airDay: r.air_day, notes: r.notes, coverImage: r.cover_image,
     description: r.description, genres: r.genres, seasons: r.seasons, createdAt: r.created_at,
+    chaptersRead: r.chapters_read, chaptersTotal: r.chapters_total, volumesRead: r.volumes_read, volumesTotal: r.volumes_total, origin: r.origin,
     favorite: r.favorite, sourceRef: r.source_ref,
     review: r.review, reviewSpoiler: r.review_spoiler,
 });

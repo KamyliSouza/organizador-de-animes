@@ -3,9 +3,10 @@
 // lento ele também responde 5xx. Por isso aqui os pedidos saem espaçados, repetem sozinhos em
 // falhas passageiras e respostas iguais ficam guardadas por alguns minutos.
 import { fetchJson } from '../http.js';
-import { dayToPortuguese, firstSeason, seasonTypeOf, starsFrom } from './shared.js';
+import { dayToPortuguese, firstSeason, readCategoryOf, readRef, seasonTypeOf, starsFrom } from './shared.js';
 
 const BASE = 'https://api.jikan.moe/v4/anime';
+const BASE_MANGA = 'https://api.jikan.moe/v4/manga';
 const GAP_MS = 400;          // intervalo mínimo entre pedidos (limite do Jikan: 3/s)
 const CACHE_MS = 5 * 60 * 1000;
 const MAX_CACHE = 60;
@@ -23,8 +24,8 @@ async function waitForSlot() {
     if (wait > 0) await sleep(wait);
 }
 
-function get(path) {
-    const url = BASE + path;
+function get(path, base = BASE) {
+    const url = base + path;
     const hit = cache.get(url);
     if (hit && Date.now() - hit.at < CACHE_MS) return hit.promise;
 
@@ -103,4 +104,28 @@ export async function searchWorks(query, { limit = 5 } = {}) {
 export async function searchSeasons(query) {
     const json = await get(`?q=${encodeURIComponent(query)}&limit=4`);
     return (json.data || []).map((a) => ({ name: titleOf(a), eps: a.episodes || 12 }));
+}
+
+const ORIGIN_BY_TYPE = { manhwa: 'KR', manhua: 'CN' };
+
+/** Mangás e light novels (mesmo formato do AniList). Tipos "Manhwa"/"Manhua" viram mangá com selo de origem. */
+export async function searchReadings(query, { limit = 5 } = {}) {
+    const json = await get(`?q=${encodeURIComponent(query)}&limit=${limit}`, BASE_MANGA);
+    return (json.data || []).map((a) => {
+        const genres = (a.genres || []).map((g) => g.name);
+        const category = readCategoryOf(a.type);
+        return {
+            sourceRef: readRef(a.mal_id, 0),
+            title: titleOf(a),
+            category,
+            origin: ORIGIN_BY_TYPE[String(a.type || '').toLowerCase()] || '',
+            coverImage: a.images?.jpg?.large_image_url || a.images?.jpg?.image_url || '',
+            description: a.synopsis || '',
+            genres,
+            rating: starsFrom(a.score, 10),
+            tags: [category, ...genres.slice(0, 3)],
+            chaptersTotal: a.chapters || 0,
+            volumesTotal: a.volumes || 0,
+        };
+    });
 }

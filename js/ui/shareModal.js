@@ -4,7 +4,7 @@ import { copyText, downloadBlob, el, html, on } from '../core/dom.js';
 import { icon } from '../core/icons.js';
 import { openModal } from '../core/modal.js';
 import { toast } from '../core/toast.js';
-import { STATUSES, progressOf } from '../domain/entry.js';
+import { isReading, progressOf, readProgress, readSummary, sectionOf, statusLabel } from '../domain/entry.js';
 import { starsText } from './mediaCard.js';
 
 const W = 1080;
@@ -140,7 +140,7 @@ export async function drawShareCard(entry, owner = '') {
     const afterTitle = 880 + (lines.length - 1) * 70;
 
     // Status
-    const label = STATUSES[entry.status].label.toUpperCase();
+    const label = statusLabel(entry.status, sectionOf(entry)).toUpperCase();
     ctx.font = font(900, 30);
     const pillW = ctx.measureText(label).width + 64;
     const pillY = afterTitle + 38;
@@ -155,19 +155,23 @@ export async function drawShareCard(entry, owner = '') {
 
     // Progresso
     const { watched, total, pct } = progressOf(entry);
+    const reading = isReading(entry);
+    const showBar = !reading || readProgress(entry).known;     // mangá em publicação (sem total): só o texto
     const barW = 700, barX = (W - barW) / 2, barY = pillY + 112;
     if (entry.status !== 'planned') {
-        roundRect(ctx, barX, barY, barW, 20, 10);
-        ctx.fillStyle = 'rgba(255,255,255,.14)';
-        ctx.fill();
-        if (pct > 0) {
+        if (showBar) roundRect(ctx, barX, barY, barW, 20, 10);
+        if (showBar) {
+            ctx.fillStyle = 'rgba(255,255,255,.14)';
+            ctx.fill();
+        }
+        if (showBar && pct > 0) {
             roundRect(ctx, barX, barY, Math.max(20, (barW * pct) / 100), 20, 10);
             ctx.fillStyle = '#d178cd';
             ctx.fill();
         }
         ctx.fillStyle = '#cdb6cc';
         ctx.font = font(700, 32);
-        ctx.fillText(`${watched} / ${total} episódios · ${pct}%`, W / 2, barY + 66);
+        ctx.fillText(reading ? `${readSummary(entry)}${showBar ? ` · ${pct}%` : ''}` : `${watched} / ${total} episódios · ${pct}%`, W / 2, barY + 66);
     }
 
     // Estrelas
@@ -215,7 +219,7 @@ export async function openShareModal({ entry, owner = '' }) {
 
     on(content, 'click', '[data-act="copy"]', async () => {
         const stars = entry.rating > 0 ? ` (${'⭐'.repeat(entry.rating)})` : '';
-        const text = `🎬 **${entry.title}** — ${STATUSES[entry.status].label}${stars} via ${config.siteName}`;
+        const text = `${isReading(entry) ? '📖' : '🎬'} **${entry.title}** — ${statusLabel(entry.status, sectionOf(entry))}${stars} via ${config.siteName}`;
         const copied = await copyText(text);
         toast(copied ? 'Texto copiado!' : 'Não foi possível copiar.', { type: copied ? 'success' : 'error' });
     });

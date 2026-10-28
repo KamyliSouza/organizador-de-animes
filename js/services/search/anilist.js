@@ -1,7 +1,7 @@
 // AniList (GraphQL).
 import { cleanHtmlText } from '../../core/dom.js';
 import { fetchJson } from '../http.js';
-import { firstSeason, seasonTypeOf, starsFrom } from './shared.js';
+import { firstSeason, readCategoryOf, readRef, seasonTypeOf, starsFrom } from './shared.js';
 
 const URL = 'https://graphql.anilist.co';
 
@@ -20,6 +20,16 @@ const SEASONS_QUERY = `
 query ($search: String, $perPage: Int) {
   Page (perPage: $perPage) {
     media (search: $search, type: ANIME, sort: SEARCH_MATCH) { title { english romaji } episodes }
+  }
+}`;
+
+const READINGS_QUERY = `
+query ($search: String, $perPage: Int) {
+  Page (perPage: $perPage) {
+    media (search: $search, type: MANGA, sort: SEARCH_MATCH) {
+      id idMal title { english romaji }
+      chapters volumes averageScore description coverImage { large } genres format countryOfOrigin
+    }
   }
 }`;
 
@@ -72,4 +82,26 @@ export async function searchWorks(query, { limit = 5 } = {}) {
 export async function searchSeasons(query) {
     const media = await gql(SEASONS_QUERY, { search: query, perPage: 4 });
     return media.map((a) => ({ name: a.title?.english || a.title?.romaji || '', eps: a.episodes || 12 }));
+}
+
+/** Mangás e light novels. Resultado: { sourceRef, title, category, origin, coverImage, description, genres, rating, tags, chaptersTotal, volumesTotal } */
+export async function searchReadings(query, { limit = 5 } = {}) {
+    const media = await gql(READINGS_QUERY, { search: query, perPage: limit });
+    return media.map((a) => {
+        const genres = a.genres || [];
+        const category = readCategoryOf(a.format);
+        return {
+            sourceRef: readRef(a.idMal, a.id),
+            title: a.title?.english || a.title?.romaji || '',
+            category,
+            origin: /^[A-Z]{2}$/.test(a.countryOfOrigin || '') ? a.countryOfOrigin : '',
+            coverImage: a.coverImage?.large || '',
+            description: cleanHtmlText(a.description),
+            genres,
+            rating: starsFrom(a.averageScore, 100),
+            tags: [category, ...genres.slice(0, 3)],
+            chaptersTotal: a.chapters || 0,
+            volumesTotal: a.volumes || 0,
+        };
+    });
 }

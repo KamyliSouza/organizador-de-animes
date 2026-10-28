@@ -74,6 +74,7 @@ Sem esse passo, estas coisas não funcionam (o site mostra um aviso amarelo na b
 - a **foto de perfil** (o SQL cria o armazenamento `avatars` e a coluna que guarda a versão da foto);
 - **seguir pessoas**, os **pedidos** para perfis privados, o **feed** e as **análises** (o SQL cria a tabela de seguidores, as colunas da análise e as funções do feed);
 - as **cores do perfil** (o SQL cria a coluna `palette`);
+- **mangás e light novels** (o SQL libera as categorias *Mangá* e *Light novel* e cria as colunas de capítulos, volumes e origem — a versão do banco passa a ser a **6**);
 - o botão **Excluir minha conta**.
 
 ---
@@ -174,6 +175,20 @@ Em **Perfil → Personalização → Cores** cada pessoa escolhe uma entre 8 com
 - **Criar ou ajustar uma combinação:** edite a lista em `tools/palettes.mjs` e rode `node tools/palettes.mjs` (sem `--check`): ele confere o contraste e gera o `css/palettes.css`. Adicione o nome também em `js/domain/palettes.js`. Não é preciso mudar o SQL.
 - No modo local (sem Supabase) a escolha fica guardada só neste navegador.
 
+## Mangás e light novels
+
+A biblioteca (e o perfil de quem você visita) tem duas abas: **Assistir** (animes, filmes e séries) e **Ler** (mangás e light novels). Cada aba tem os próprios números, filtros, favoritos e estatísticas. A última aba usada fica lembrada neste navegador; no perfil de outra pessoa abre a primeira aba que tiver obras.
+
+- **Categorias:** *Mangá* e *Light novel*. Manhwa (Coreia) e manhua (China) são cadastrados como *Mangá* e ganham um selo de origem ("Manhwa", "Manhua") nos cards, na lista e nos detalhes.
+- **Progresso por contadores:** capítulos lidos / total e volumes lidos / total. O botão **+1 Cap** soma um capítulo (só em obras *Lendo*) e **Progresso** abre a janela para ajustar os quatro números. Total **0** quer dizer "não sei" (obra em publicação): o card mostra só o que já foi lido, sem barra de progresso. Os lidos nunca passam do total.
+- **Status de leitura:** *Lendo*, *Quero ler*, *Concluído*, *Em espera* e *Dropado* (por baixo são os mesmos status dos animes, só mudam os nomes). Ao escolher *Concluído*, capítulos e volumes vão até o total, quando ele é conhecido. Obras *Quero ler* ainda não têm +1 Cap: para começar, mude o status para *Lendo*.
+- **Busca:** **AniList** e **MyAnimeList** (via Jikan), sem chave. A busca preenche título, capa, sinopse, gêneros, totais e origem. O TMDB não tem mangá, por isso não aparece na lista. A mesma obra vinda das duas fontes é reconhecida como repetida.
+- **Sem temporadas nem agenda:** mangás não usam temporadas, e a **Agenda** da semana existe só na aba *Assistir*.
+- **Favoritos:** o limite de **8** vale por aba (8 em Assistir e 8 em Ler).
+- **Estatísticas:** o modal tem duas abas. *Ler* mostra capítulos e volumes lidos, mangá × light novel e os gêneros mais lidos.
+- **Feed e compartilhar:** o feed usa "começou a ler" e "concluiu a leitura"; o cartão de compartilhar mostra o progresso de leitura.
+- **Backup:** o `.json` exportado leva os novos campos, e backups antigos (de antes dos mangás) continuam entrando normalmente.
+
 ## Status das obras
 
 **Assistindo**, **Quero ver**, **Concluído**, **Em espera** e **Dropado**. *Em espera* é para o anime que você pausou e pretende retomar; *Dropado* é para o que você abandonou. As duas aparecem com a capa em tons de cinza e têm contador próprio no topo.
@@ -216,7 +231,7 @@ Se mesmo assim a capa não puder entrar, o cartão sai sem ela e mostra um aviso
 
 ## Busca de séries e filmes (TMDB, opcional)
 
-A busca de **animes** funciona sem chave, com duas fontes: **AniList** (a primeira da lista e a padrão) e **MyAnimeList** (via Jikan). A fonte escolhida fica lembrada neste navegador.
+A busca de **animes** e de **mangás/light novels** funciona sem chave, com duas fontes: **AniList** (a primeira da lista e a padrão) e **MyAnimeList** (via Jikan). A fonte escolhida fica lembrada neste navegador.
 
 - No **MyAnimeList** as sequências (2ª temporada, filmes) são buscadas quando você escolhe a obra, por isso há uma pequena espera. O Jikan limita o número de buscas por segundo; o site espaça os pedidos, tenta de novo sozinho quando o serviço pede calma ou está lento e avisa quando mesmo assim não deu. Se o MAL estiver fora do ar, troque para o AniList.
 
@@ -241,7 +256,7 @@ js/
   core/                 DOM seguro, roteador, modal, toasts, tema, ícones
   domain/               regras puras: obras, temporadas, estatísticas, backup
   services/             backends (local e Supabase), sessão, busca (Jikan, AniList, TMDB)
-  ui/                   componentes: cards, filtros, modais, cartão de compartilhar, avatar, abas da conta
+  ui/                   componentes: cards, filtros, modais, cartão de compartilhar, avatar, abas da conta, abas Assistir/Ler, progresso de leitura
   views/                telas: início, biblioteca, login, perfil, explorar, feed (atividade e pedidos), personalização, configurações
 tools/palettes.mjs      gera css/palettes.css e confere o contraste das cores (node tools/palettes.mjs --check)
 sql/schema.sql          tabelas, regras de segurança e funções do Supabase (pode rodar de novo a qualquer momento)
@@ -266,7 +281,8 @@ Os dois backends (`local-backend.js` e `supabase-backend.js`) têm a mesma inter
 | "Não foi possível iniciar o KamyList" | URL ou chave erradas no `js/config.js`, ou sem internet |
 | "Perfil não encontrado" nas configurações | O `sql/schema.sql` não foi executado (ou a conta foi criada antes dele) |
 | Aviso amarelo "O banco de dados precisa ser atualizado", "O banco ainda não aceita este status" ou "Não foi possível excluir a conta" | O `sql/schema.sql` novo ainda não foi executado (veja "Atualizando um site que já está no ar") |
-| Botão "Seguir" ou o Feed dão erro, ou a análise não salva | O `sql/schema.sql` novo ainda não foi executado (a versão 5 inclui seguidores, feed, análises e cores do perfil) |
+| Botão "Seguir" ou o Feed dão erro, ou a análise não salva | O `sql/schema.sql` novo ainda não foi executado (a versão 5 inclui seguidores, feed, análises e cores do perfil; a 6, mangás e light novels) |
+| "O banco ainda não aceita mangás e light novels" ao salvar | O `sql/schema.sql` da versão 6 ainda não foi executado |
 | "O armazenamento de fotos ainda não existe" ou "A foto ficou grande demais" | O `sql/schema.sql` novo não foi executado (cria o bucket `avatars` com o limite de 64 KB) |
 | MAL mostra "Muitas buscas seguidas" ou "Serviço indisponível" | O Jikan limitou ou está lento: espere alguns segundos ou use o AniList |
 | E-mail de confirmação não chega | Veja o spam; o plano gratuito limita e-mails por hora. Para grupos pequenos, desligue **Confirm email** |

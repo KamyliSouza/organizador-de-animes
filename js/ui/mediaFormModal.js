@@ -1,20 +1,20 @@
-// Modal "Adicionar / Editar obra": busca em MAL/AniList/TMDB, temporadas, tags, notas...
+// Modal "Adicionar / Editar obra": busca em MAL/AniList/TMDB, temporadas (ou capítulos e volumes, nos mangás), tags, notas...
 import { el, html, on, safeUrl, setHtml, toInt } from '../core/dom.js';
 import { icon, spinner } from '../core/icons.js';
 import { choiceDialog } from '../core/dialogs.js';
 import { openModal } from '../core/modal.js';
 import { messageOf } from '../core/errors.js';
 import { toast } from '../core/toast.js';
-import { CATEGORIES, DAYS, DAY_LABELS, MAX_EPISODES, MAX_REVIEW, SEASON_TYPES, STATUSES, cloneEntry, emptyEntry, findDuplicate, markAllWatched, normalizeSeason, progressOf, titleKey } from '../domain/entry.js';
-import { DEFAULT_SOURCE, SOURCES, searchSeasons, searchWorks, sourceAvailable } from '../services/search/index.js';
+import { DAYS, DAY_LABELS, MAX_CHAPTERS, MAX_EPISODES, MAX_REVIEW, MAX_VOLUMES, SEASON_TYPES, SECTIONS, cloneEntry, emptyEntryFor, findDuplicate, isReading, markAllWatched, normalizeSeason, originLabel, progressOf, readSummary, statusLabel, statusesOf, titleKey } from '../domain/entry.js';
+import { DEFAULT_SOURCE, READ_SOURCES, SOURCES, searchReadings, searchSeasons, searchWorks, sourceAvailable } from '../services/search/index.js';
 
 const SOURCE_KEY = 'kamylist_last_source';
 const LEGACY_SOURCE_KEY = 'media_tracker_last_source';
 
-function loadSource() {
+function loadSource(list = SOURCES) {
     try {
         const s = localStorage.getItem(SOURCE_KEY) || localStorage.getItem(LEGACY_SOURCE_KEY);
-        return SOURCES.some((x) => x.id === s) && sourceAvailable(s) ? s : DEFAULT_SOURCE;
+        return list.some((x) => x.id === s) && sourceAvailable(s) ? s : DEFAULT_SOURCE;
     } catch { return DEFAULT_SOURCE; }
 }
 const saveSource = (s) => { try { localStorage.setItem(SOURCE_KEY, s); } catch { /* ok */ } };
@@ -32,16 +32,20 @@ function mergeSeasons(oldSeasons, nextSeasons) {
 /**
  * @param {object} opts
  * @param {object|null} opts.entry   Obra a editar (null = nova).
+ * @param {'watch'|'read'} [opts.section]  Seção da obra nova (Assistir ou Ler). Na edição vale a da própria obra.
  * @param {(entry:object)=>Promise<void>} opts.onSave
  * @param {object[]} [opts.existing]   Obras que já estão na biblioteca (para avisar de repetidas).
  * @param {(entry:object)=>void} [opts.onShowExisting]  Chamado ao escolher "ver na biblioteca" numa repetida.
  */
-export function openMediaForm({ entry = null, onSave, existing = [], onShowExisting }) {
+export function openMediaForm({ entry = null, section = 'watch', onSave, existing = [], onShowExisting }) {
     const isEdit = Boolean(entry?.id);
-    const draft = cloneEntry(entry || emptyEntry());
+    const reading = entry ? isReading(entry) : section === 'read';    // mangá/light novel: capítulos e volumes, sem temporadas
+    const sec = reading ? 'read' : 'watch';
+    const sourceList = reading ? READ_SOURCES : SOURCES;
+    const draft = cloneEntry(entry || emptyEntryFor(sec));
     const baseRef = draft.sourceRef || '';   // código da obra antes de escolher outro resultado
     let pickedKey = '';                      // título (normalizado) do resultado escolhido na busca
-    let source = loadSource();
+    let source = loadSource(sourceList);
     let found = [];   // resultados da última busca
 
     const content = el(html`
@@ -50,7 +54,7 @@ export function openMediaForm({ entry = null, onSave, existing = [], onShowExist
             <div class="field">
                 <label for="mf-source">Fonte de busca</label>
                 <select id="mf-source" class="select select-sm">
-                    ${SOURCES.map((s) => html`<option value="${s.id}" ${sourceAvailable(s.id) ? '' : 'disabled'}>${s.label}${sourceAvailable(s.id) ? '' : ' (configure a chave)'}</option>`)}
+                    ${sourceList.map((s) => html`<option value="${s.id}" ${sourceAvailable(s.id) ? '' : 'disabled'}>${s.label}${sourceAvailable(s.id) ? '' : ' (configure a chave)'}</option>`)}
                 </select>
             </div>
         </div>
@@ -58,7 +62,7 @@ export function openMediaForm({ entry = null, onSave, existing = [], onShowExist
         <div class="field">
             <label for="mf-title">Título da obra</label>
             <div class="input-row">
-                <input id="mf-title" class="input" required maxlength="200" autocomplete="off" placeholder="Ex: Diários de uma Apotecária...">
+                <input id="mf-title" class="input" required maxlength="200" autocomplete="off" placeholder="${reading ? 'Ex: Frieren: Além do Fim da Jornada...' : 'Ex: Diários de uma Apotecária...'}">
                 <button type="button" class="button button-secondary" data-act="search">${icon('search', { size: 16 })} Buscar</button>
             </div>
         </div>
@@ -73,6 +77,34 @@ export function openMediaForm({ entry = null, onSave, existing = [], onShowExist
         <div class="result-list" data-results hidden></div>
         <div class="notice-box" data-loaded hidden>${icon('checkCircle')}<span data-loaded-text></span></div>
 
+        ${reading ? html`
+        <div class="subpanel">
+            <span class="field-label" style="color:var(--primary-text)">Progresso de leitura</span>
+            <div class="form-grid">
+                <div class="field">
+                    <label for="mf-ch">Capítulos lidos</label>
+                    <input id="mf-ch" class="input input-sm" type="number" inputmode="numeric" min="0" max="${MAX_CHAPTERS}">
+                </div>
+                <div class="field">
+                    <label for="mf-ch-total">Total de capítulos</label>
+                    <input id="mf-ch-total" class="input input-sm" type="number" inputmode="numeric" min="0" max="${MAX_CHAPTERS}">
+                </div>
+                <div class="field">
+                    <label for="mf-vol">Volumes lidos</label>
+                    <input id="mf-vol" class="input input-sm" type="number" inputmode="numeric" min="0" max="${MAX_VOLUMES}">
+                </div>
+                <div class="field">
+                    <label for="mf-vol-total">Total de volumes</label>
+                    <input id="mf-vol-total" class="input input-sm" type="number" inputmode="numeric" min="0" max="${MAX_VOLUMES}">
+                </div>
+            </div>
+            <p class="field-hint">Deixe o total em 0 se ainda não souber (obra em publicação). Os lidos não passam do total.</p>
+        </div>
+
+        <div class="field">
+            <label for="mf-tags">Tags (separadas por vírgula)</label>
+            <input id="mf-tags" class="input" autocomplete="off" placeholder="Ex: Em publicação, Reler, Favoritos">
+        </div>` : html`
         <div class="subpanel">
             <span class="field-label" style="color:var(--primary-text)">Temporadas, OVAs e filmes</span>
             <div class="input-row">
@@ -96,7 +128,7 @@ export function openMediaForm({ entry = null, onSave, existing = [], onShowExist
                     ${DAYS.map((d) => html`<option value="${d}">${DAY_LABELS[d]}</option>`)}
                 </select>
             </div>
-        </div>
+        </div>`}
 
         <div class="field">
             <label for="mf-review">Minha análise <span class="muted small">(opcional · aparece no feed)</span></label>
@@ -116,11 +148,11 @@ export function openMediaForm({ entry = null, onSave, existing = [], onShowExist
         <div class="form-grid">
             <div class="field">
                 <label for="mf-category">Categoria</label>
-                <select id="mf-category" class="select">${CATEGORIES.map((c) => html`<option value="${c}">${c}</option>`)}</select>
+                <select id="mf-category" class="select">${SECTIONS[sec].categories.map((c) => html`<option value="${c}">${c}</option>`)}</select>
             </div>
             <div class="field">
                 <label for="mf-status">Status</label>
-                <select id="mf-status" class="select">${Object.entries(STATUSES).map(([k, s]) => html`<option value="${k}">${s.label}</option>`)}</select>
+                <select id="mf-status" class="select">${statusesOf(sec).map(([k, st]) => html`<option value="${k}">${st.label}</option>`)}</select>
             </div>
             <div class="field span-2">
                 <label for="mf-rating">Avaliação</label>
@@ -143,6 +175,7 @@ export function openMediaForm({ entry = null, onSave, existing = [], onShowExist
         source: $('#mf-source'), title: $('#mf-title'), tags: $('#mf-tags'), air: $('#mf-air'),
         notes: $('#mf-notes'), review: $('#mf-review'), spoiler: $('#mf-spoiler'), category: $('#mf-category'), status: $('#mf-status'), rating: $('#mf-rating'),
         seasonName: $('#mf-season-name'),
+        chRead: $('#mf-ch'), chTotal: $('#mf-ch-total'), volRead: $('#mf-vol'), volTotal: $('#mf-vol-total'),
     };
     const boxes = { results: $('[data-results]'), seasonResults: $('[data-season-results]'), loaded: $('[data-loaded]'), seasons: $('[data-seasons]') };
 
@@ -150,7 +183,13 @@ export function openMediaForm({ entry = null, onSave, existing = [], onShowExist
     fields.source.value = source;
     fields.title.value = draft.title;
     fields.tags.value = draft.tags.join(', ');
-    fields.air.value = draft.airDay;
+    if (fields.air) fields.air.value = draft.airDay;
+    if (reading) {
+        fields.chRead.value = String(draft.chaptersRead || 0);
+        fields.chTotal.value = String(draft.chaptersTotal || 0);
+        fields.volRead.value = String(draft.volumesRead || 0);
+        fields.volTotal.value = String(draft.volumesTotal || 0);
+    }
     fields.notes.value = draft.notes;
     fields.review.value = draft.review;
     fields.spoiler.checked = draft.reviewSpoiler;
@@ -161,14 +200,16 @@ export function openMediaForm({ entry = null, onSave, existing = [], onShowExist
     fields.status.value = draft.status;
     fields.rating.value = String(draft.rating);
 
-    const modal = openModal({ title: isEdit ? 'Editar / atualizar obra' : 'Adicionar obra', iconName: isEdit ? 'edit' : 'plus', content, initialFocus: '#mf-title' });
+    const modal = openModal({ title: isEdit ? 'Editar / atualizar obra' : (reading ? 'Adicionar mangá ou light novel' : 'Adicionar obra'), iconName: isEdit ? 'edit' : 'plus', content, initialFocus: '#mf-title' });
 
     // --- obra repetida -------------------------------------------------------------
     const dupBox = $('[data-dup]');
     const dupOf = () => findDuplicate(existing, { title: fields.title.value, sourceRef: draft.sourceRef }, entry?.id || '');
     const describe = (e) => {
+        const label = statusLabel(e.status, isReading(e) ? 'read' : 'watch');
+        if (isReading(e)) return `"${e.title}" (${label}${e.status === 'planned' ? '' : `, ${readSummary(e)}`})`;
         const { watched, total } = progressOf(e);
-        return `"${e.title}" (${STATUSES[e.status].label}${e.status === 'planned' ? '' : `, ${watched}/${total} eps`})`;
+        return `"${e.title}" (${label}${e.status === 'planned' ? '' : `, ${watched}/${total} eps`})`;
     };
     function checkDuplicate() {
         const dup = dupOf();
@@ -221,18 +262,26 @@ export function openMediaForm({ entry = null, onSave, existing = [], onShowExist
 
     function applyResult(r) {
         fields.title.value = r.title || fields.title.value;
-        fields.category.value = r.category || fields.category.value;
+        if (SECTIONS[sec].categories.includes(r.category)) fields.category.value = r.category;
         if (r.rating > 0) fields.rating.value = String(r.rating);
         if (r.tags?.length) fields.tags.value = r.tags.join(', ');
-        if (r.airDay) fields.air.value = r.airDay;
+        if (r.airDay && fields.air) fields.air.value = r.airDay;
         if (r.sourceRef) { draft.sourceRef = r.sourceRef; pickedKey = titleKey(r.title); }
         draft.coverImage = safeUrl(r.coverImage);
         draft.description = r.description || '';
         draft.genres = r.genres || [];
-        const seasons = (r.seasons || []).map(normalizeSeason);
-        draft.seasons = isEdit ? mergeSeasons(draft.seasons, seasons) : seasons;
-        renderSeasons();
-        showLoaded(`Obra carregada com ${draft.seasons.length} temporada(s)!`);
+        if (reading) {
+            draft.origin = r.origin || '';
+            fields.chTotal.value = String(r.chaptersTotal || 0);
+            fields.volTotal.value = String(r.volumesTotal || 0);
+            const total = [r.chaptersTotal ? `${r.chaptersTotal} capítulos` : '', r.volumesTotal ? `${r.volumesTotal} volumes` : ''].filter(Boolean);
+            showLoaded(`Obra carregada${total.length ? `: ${total.join(' e ')}` : ' (sem total conhecido, ainda em publicação)'}!`);
+        } else {
+            const seasons = (r.seasons || []).map(normalizeSeason);
+            draft.seasons = isEdit ? mergeSeasons(draft.seasons, seasons) : seasons;
+            renderSeasons();
+            showLoaded(`Obra carregada com ${draft.seasons.length} temporada(s)!`);
+        }
         boxes.results.hidden = true;
         checkDuplicate();
     }
@@ -256,9 +305,13 @@ export function openMediaForm({ entry = null, onSave, existing = [], onShowExist
         boxes.loaded.hidden = true;
         setBusy(btn, true);
         try {
-            found = await searchWorks(source, query, { limit: 5 });
+            found = reading ? await searchReadings(source, query, { limit: 5 }) : await searchWorks(source, query, { limit: 5 });
             if (!found.length) { showResultsMessage(boxes.results, 'Nenhum resultado encontrado. Tente outro título ou outra fonte.'); return; }
-            setHtml(boxes.results, html`${found.map((r, i) => html`
+            setHtml(boxes.results, html`${found.map((r, i) => reading ? html`
+                <button type="button" class="result-item" data-pick="${i}">
+                    <span class="truncate">${r.title} (${r.category}${originLabel(r) ? `, ${originLabel(r)}` : ''})</span>
+                    <span class="count">${r.chaptersTotal ? `${r.chaptersTotal} caps` : r.volumesTotal ? `${r.volumesTotal} vols` : 'Em publicação'}</span>
+                </button>` : html`
                 <button type="button" class="result-item" data-pick="${i}">
                     <span class="truncate">${r.title}${r.category !== 'Anime' ? ` (${r.category})` : ''}</span>
                     <span class="count">${r.category === 'Filme' ? 'Filme' : r.loadDetails ? 'Temporadas' : `${r.seasons.length} Temp.`}</span>
@@ -280,12 +333,19 @@ export function openMediaForm({ entry = null, onSave, existing = [], onShowExist
         if (!query) { toast('Digite um título para atualizar.', { type: 'error' }); return; }
         setBusy(btn, true);
         try {
-            const [r] = await searchWorks(source, query, { limit: 1 });
+            // Mangá: entre os primeiros resultados, prefere a mesma obra (mesmo código); senão, o primeiro.
+            const list = reading ? await searchReadings(source, query, { limit: 5 }) : await searchWorks(source, query, { limit: 1 });
+            const r = (reading && draft.sourceRef && list.find((x) => x.sourceRef === draft.sourceRef)) || list[0];
             if (!r) { toast('Nenhum resultado encontrado para atualizar.', { type: 'error' }); return; }
             draft.coverImage = safeUrl(r.coverImage) || draft.coverImage;
             draft.description = r.description || draft.description;
             if (r.genres?.length) draft.genres = r.genres;
-            if (r.airDay) fields.air.value = r.airDay;
+            if (r.airDay && fields.air) fields.air.value = r.airDay;
+            if (reading) {   // obra em publicação: os totais crescem, então atualizar traz o número novo
+                if (r.chaptersTotal) fields.chTotal.value = String(r.chaptersTotal);
+                if (r.volumesTotal) fields.volTotal.value = String(r.volumesTotal);
+                if (r.origin) draft.origin = r.origin;
+            }
             if (r.sourceRef && !draft.sourceRef) draft.sourceRef = r.sourceRef;
             toast('Dados da obra atualizados!', { type: 'success' });
         } catch (err) {
@@ -388,7 +448,7 @@ export function openMediaForm({ entry = null, onSave, existing = [], onShowExist
     });
 
     // Enter no campo de temporada adiciona manualmente, sem enviar o formulário
-    fields.seasonName.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addManualSeason(); } });
+    fields.seasonName?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addManualSeason(); } });
     // Enter no título busca nas fontes (salvar é só pelo botão, para não gravar sem querer)
     fields.title.addEventListener('keydown', (e) => {
         if (e.key !== 'Enter') return;
@@ -429,12 +489,19 @@ export function openMediaForm({ entry = null, onSave, existing = [], onShowExist
                 status: fields.status.value,
                 rating: toInt(fields.rating.value, 0, 5, 0),
                 tags: fields.tags.value.split(',').map((t) => t.trim()).filter(Boolean),
-                airDay: fields.air.value,
+                airDay: fields.air?.value || '',
                 notes: fields.notes.value,
                 review: fields.review.value,
                 reviewSpoiler: fields.spoiler.checked && fields.review.value.trim() !== '',
             });
-            // Ao marcar a obra como Concluída, todos os episódios de todas as temporadas ficam como vistos.
+            if (reading) {
+                data.seasons = [];
+                data.chaptersTotal = toInt(fields.chTotal.value, 0, MAX_CHAPTERS, 0);
+                data.volumesTotal = toInt(fields.volTotal.value, 0, MAX_VOLUMES, 0);
+                data.chaptersRead = toInt(fields.chRead.value, 0, data.chaptersTotal || MAX_CHAPTERS, 0);
+                data.volumesRead = toInt(fields.volRead.value, 0, data.volumesTotal || MAX_VOLUMES, 0);
+            }
+            // Ao marcar a obra como Concluída, todos os episódios (ou capítulos e volumes, se o total é conhecido) ficam como lidos.
             if (data.status === 'completed' && (!isEdit || entry.status !== 'completed')) markAllWatched(data);
             await onSave(data);
             stopTimer();
@@ -447,6 +514,6 @@ export function openMediaForm({ entry = null, onSave, existing = [], onShowExist
         }
     });
 
-    renderSeasons();
+    if (!reading) renderSeasons();
     return modal;
 }

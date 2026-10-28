@@ -14,7 +14,7 @@ const profileCard = (p) => html`
         <p class="bio">${p.bio || 'Sem descrição.'}</p>
         <footer>
             <span><b>${p.total}</b> ${p.total === 1 ? 'obra' : 'obras'}</span>
-            <span><b>${p.watching}</b> assistindo</span>
+            <span><b>${p.watching}</b> em andamento</span>
             <span><b>${p.completed}</b> concluídas</span>
         </footer>
     </a>`;
@@ -33,7 +33,7 @@ export function mount(root) {
             <div>
                 <span class="eyebrow">${icon('compass', { size: 14 })} Comunidade</span>
                 <h1 style="margin-top:10px">Explorar perfis</h1>
-                <p class="lead">Veja o que outras pessoas estão assistindo.</p>
+                <p class="lead">Veja o que outras pessoas estão assistindo e lendo.</p>
             </div>
             <div class="search-field" style="max-width:340px">
                 ${icon('search', { size: 16 })}

@@ -50,7 +50,7 @@ alter table public.profiles add  constraint profiles_palette_format check (palet
 
 
 -- ---------------------------------------------------------------------
--- 2. Obras (animes, filmes e séries de cada pessoa)
+-- 2. Obras (animes, filmes, séries, mangás e light novels de cada pessoa)
 -- ---------------------------------------------------------------------
 create table if not exists public.entries (
   id          uuid primary key default gen_random_uuid(),
@@ -75,7 +75,7 @@ create table if not exists public.entries (
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now(),
   constraint entries_title_len    check (char_length(title) between 1 and 200),
-  constraint entries_category     check (category in ('Anime', 'Filme', 'Série')),
+  constraint entries_category     check (category in ('Anime', 'Filme', 'Série', 'Mangá', 'Light novel')),
   constraint entries_status       check (status in ('watching', 'planned', 'completed', 'on_hold', 'dropped')),
   constraint entries_rating       check (rating between 0 and 5),
   constraint entries_tags_len     check (cardinality(tags) <= 20),
@@ -126,6 +126,29 @@ alter table public.entries add  constraint entries_activity_kind
 
 create index if not exists entries_activity_idx on public.entries (user_id, activity_at desc, id desc)
   where activity_at is not null;
+
+-- Mangás e light novels (seção "Ler"). Seguro rodar sempre.
+--   * category passa a aceitar 'Mangá' e 'Light novel'
+--   * chapters_read / chapters_total / volumes_read / volumes_total: o progresso de leitura é por contador
+--     (total 0 = não se sabe, por exemplo obra ainda em publicação). Essas obras não usam "seasons" (fica []).
+--   * origin: país de origem em 2 letras (KR = manhwa, CN = manhua...), para o selo no card. Vazio = Japão/desconhecido.
+alter table public.entries drop constraint if exists entries_category;
+alter table public.entries add  constraint entries_category
+  check (category in ('Anime', 'Filme', 'Série', 'Mangá', 'Light novel'));
+
+alter table public.entries add column if not exists chapters_read  integer not null default 0;
+alter table public.entries add column if not exists chapters_total integer not null default 0;
+alter table public.entries add column if not exists volumes_read   integer not null default 0;
+alter table public.entries add column if not exists volumes_total  integer not null default 0;
+alter table public.entries add column if not exists origin         text;
+alter table public.entries drop constraint if exists entries_read_counts;
+alter table public.entries add  constraint entries_read_counts check (
+  chapters_read  between 0 and 99999 and chapters_total between 0 and 99999
+  and volumes_read between 0 and 9999 and volumes_total between 0 and 9999
+  and (chapters_total = 0 or chapters_read <= chapters_total)
+  and (volumes_total  = 0 or volumes_read  <= volumes_total));
+alter table public.entries drop constraint if exists entries_origin;
+alter table public.entries add  constraint entries_origin check (origin is null or origin ~ '^[A-Z]{2}$');
 
 
 -- ---------------------------------------------------------------------
@@ -340,7 +363,7 @@ revoke all on public.entries from anon;
 -- Obras de um perfil. Quem pode ver: qualquer pessoa (perfil público), a própria dona,
 -- ou quem a dona já aceitou como seguidor (perfil privado). As anotações só saem se a dona permitir;
 -- a análise (review) sai junto com a obra.
--- (drop antes: o formato do resultado ganhou as colunas "review" e "review_spoiler")
+-- (drop antes: o formato do resultado ganhou colunas novas: "review", "review_spoiler" e os contadores de leitura)
 drop function if exists public.get_public_entries(text);
 create function public.get_public_entries(p_username text)
 returns table (
@@ -359,6 +382,11 @@ returns table (
   favorite    boolean,
   review      text,
   review_spoiler boolean,
+  chapters_read  integer,
+  chapters_total integer,
+  volumes_read   integer,
+  volumes_total  integer,
+  origin         text,
   created_at  timestamptz,
   updated_at  timestamptz
 )
@@ -371,6 +399,7 @@ as $$
          case when p.show_notes then e.notes else null end,
          e.cover_image, e.description, e.genres, e.seasons, e.favorite,
          e.review, e.review_spoiler,
+         e.chapters_read, e.chapters_total, e.volumes_read, e.volumes_total, e.origin,
          e.created_at, e.updated_at
   from public.entries e
   join public.profiles p on p.id = e.user_id
@@ -692,12 +721,13 @@ $$;
 --   3 = foto de perfil (coluna avatar_v e armazenamento "avatars")
 --   4 = seguir, feed e análises
 --   5 = cores do perfil (coluna palette)
+--   6 = mangás e light novels (categorias novas e contadores de leitura)
 create or replace function public.schema_version()
 returns integer
 language sql
 immutable
 set search_path = ''
-as $$ select 5 $$;
+as $$ select 6 $$;
 
 -- Só quem precisa pode executar cada função.
 revoke all on function public.get_public_entries(text)            from public;

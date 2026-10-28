@@ -7,7 +7,7 @@ import { messageOf } from '../core/errors.js';
 import { icon, spinner } from '../core/icons.js';
 import { timeAgo } from '../core/time.js';
 import { toast } from '../core/toast.js';
-import { CATEGORY_CLASS, STATUSES } from '../domain/entry.js';
+import { CATEGORY_CLASS, STATUSES, sectionOfCategory, statusLabel } from '../domain/entry.js';
 import { backend, isCloud, setRequestCount, state } from '../services/session.js';
 import { avatar, avatarSrc } from '../ui/avatar.js';
 import { applyImageFallback, posterPlaceholder, starsHtml } from '../ui/mediaCard.js';
@@ -21,7 +21,16 @@ const VERBS = {
     status: { planned: 'moveu para "Quero ver"', watching: 'está assistindo', completed: 'concluiu', on_hold: 'colocou em espera', dropped: 'dropou' },
     review: { _: 'escreveu uma análise de' },
 };
-const verbOf = (item) => VERBS[item.kind]?.[item.status] || VERBS[item.kind]?._ || 'atualizou';
+// Mangás e light novels: o que muda é o verbo de "assistir" para "ler".
+const READ_VERBS = {
+    added: { planned: 'quer ler', watching: 'começou a ler', completed: 'concluiu a leitura', on_hold: 'colocou em espera', dropped: 'adicionou como dropado' },
+    status: { planned: 'moveu para "Quero ler"', watching: 'está lendo', completed: 'concluiu a leitura', on_hold: 'colocou em espera', dropped: 'dropou' },
+    review: { _: 'escreveu uma análise de' },
+};
+const verbOf = (item) => {
+    const table = sectionOfCategory(item.category) === 'read' ? READ_VERBS : VERBS;
+    return table[item.kind]?.[item.status] || table[item.kind]?._ || 'atualizou';
+};
 
 function feedItem(item) {
     const { person } = item;
@@ -39,12 +48,12 @@ function feedItem(item) {
         <div class="feed-work">
             <div class="feed-cover">${item.coverImage
                 ? html`<img src="${item.coverImage}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-fallback>`
-                : posterPlaceholder()}</div>
+                : posterPlaceholder(sectionOfCategory(item.category) === 'read')}</div>
             <div class="feed-info">
                 <h3 class="feed-title">${item.title}</h3>
                 <div class="media-badges">
                     <span class="badge badge-${CATEGORY_CLASS[item.category] || 'anime'}">${item.category}</span>
-                    <span class="badge badge-${item.status}">${icon(status.icon, { size: 12 })} ${status.label}</span>
+                    <span class="badge badge-${item.status}">${icon(status.icon, { size: 12 })} ${statusLabel(item.status, sectionOfCategory(item.category))}</span>
                 </div>
                 <div>${starsHtml(item.rating)}</div>
             </div>

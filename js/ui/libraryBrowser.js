@@ -2,7 +2,7 @@
 // "cards" / "lista". Usada na sua biblioteca e nos perfis públicos.
 import { debounce, html, on, setHtml } from '../core/dom.js';
 import { icon } from '../core/icons.js';
-import { CATEGORIES, STATUSES, filterEntries, sortEntries } from '../domain/entry.js';
+import { SECTIONS, STATUSES, filterEntries, sortEntries, statusesOf } from '../domain/entry.js';
 import { applyImageFallback, mediaCardHtml, mediaRowHtml } from './mediaCard.js';
 
 const VIEW_KEY = 'kamylist_view_mode';
@@ -25,25 +25,34 @@ const SORTS = [
  * @param {object} opts
  * @param {Array} opts.entries
  * @param {boolean} [opts.readonly]
- * @param {Record<string,(entry:object, el:Element)=>void>} [opts.actions]  inc, seasons, details, share, edit, delete, add, status
+ * @param {'watch'|'read'} [opts.section]  Seção mostrada (Assistir ou Ler). Troque depois com setSection().
+ * @param {Record<string,(entry:object, el:Element)=>void>} [opts.actions]  inc, seasons, progress, details, share, edit, delete, add, status
  *        ("cover" = clique na capa = "details"; "status" recebe o novo valor em el.value)
  * @param {(status:string)=>void} [opts.onStatusChange]  chamado quando o filtro de status muda (botões ou cards de números)
  */
-export function mountLibraryBrowser(root, { entries = [], readonly = false, actions = {}, onStatusChange = null }) {
+export function mountLibraryBrowser(root, { entries = [], readonly = false, section: initialSection = 'watch', actions = {}, onStatusChange = null }) {
     const filters = { status: 'all', category: 'all', sort: 'recent', query: '' };
+    let section = SECTIONS[initialSection] ? initialSection : 'watch';
     let view = loadView();
     let all = entries;
 
     setHtml(root, html`
-        <div class="toolbar">
+        <div class="toolbar" data-toolbar></div>
+        <div data-results aria-live="polite"></div>`);
+
+    const toolbar = root.querySelector('[data-toolbar]');
+
+    /** Botões de status e categorias dependem da seção; o resto (ordem, modo, busca) continua como estava. */
+    function renderToolbar() {
+        setHtml(toolbar, html`
             <div class="segmented scroll" role="group" aria-label="Filtrar por status">
                 <button type="button" data-status="all" aria-pressed="true">Todos</button>
-                ${Object.entries(STATUSES).map(([k, s]) => html`<button type="button" data-status="${k}" aria-pressed="false">${s.label}</button>`)}
+                ${statusesOf(section).map(([k, st]) => html`<button type="button" data-status="${k}" aria-pressed="false">${st.label}</button>`)}
             </div>
             <div class="toolbar-group">
                 <select class="select" data-filter="category" aria-label="Filtrar por categoria">
                     <option value="all">Categorias</option>
-                    ${CATEGORIES.map((c) => html`<option value="${c}">${c}</option>`)}
+                    ${SECTIONS[section].categories.map((c) => html`<option value="${c}">${c}</option>`)}
                 </select>
                 <select class="select" data-filter="sort" aria-label="Ordenar">
                     ${SORTS.map(([v, l]) => html`<option value="${v}">${l}</option>`)}
@@ -56,9 +65,11 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, acti
                     ${icon('search', { size: 16 })}
                     <input class="input" type="search" data-filter="query" placeholder="Buscar por título ou tag..." aria-label="Buscar obras" autocomplete="off">
                 </div>
-            </div>
-        </div>
-        <div data-results aria-live="polite"></div>`);
+            </div>`);
+        toolbar.querySelector('select[data-filter="sort"]').value = filters.sort;
+        toolbar.querySelector('select[data-filter="category"]').value = filters.category;
+        toolbar.querySelector('input[data-filter="query"]').value = filters.query;
+    }
 
     const results = root.querySelector('[data-results]');
     const byId = (id) => all.find((e) => e.id === id);
@@ -69,15 +80,17 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, acti
     }
 
     function renderResults() {
-        const list = sortEntries(filterEntries(all, filters), filters.sort);
+        const inSection = filterEntries(all, { section });
+        const list = sortEntries(filterEntries(all, { ...filters, section }), filters.sort);
 
         if (!list.length) {
-            const empty = all.length === 0;
+            const empty = inSection.length === 0;
+            const reading = section === 'read';
             setHtml(results, html`
                 <div class="empty-state glass-panel">
                     ${icon('film', { size: 44 })}
                     <h3>${empty ? (readonly ? 'Nada por aqui ainda' : 'Sua biblioteca está vazia') : 'Nenhuma obra encontrada'}</h3>
-                    <p>${empty ? (readonly ? 'Esta pessoa ainda não adicionou obras.' : 'Adicione seu primeiro anime, série ou filme.') : 'Tente mudar os filtros ou a busca.'}</p>
+                    <p>${empty ? (readonly ? 'Esta pessoa ainda não adicionou obras aqui.' : (reading ? 'Adicione seu primeiro mangá ou light novel.' : 'Adicione seu primeiro anime, série ou filme.')) : 'Tente mudar os filtros ou a busca.'}</p>
                     ${empty && !readonly && actions.add ? html`<button type="button" class="button button-primary" data-action="add">${icon('plus', { size: 18 })} Adicionar obra</button>` : ''}
                 </div>`);
             return;
@@ -129,8 +142,20 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, acti
     // "error" não borbulha: captura na fase de captura.
     offs.push(on(results, 'error', 'img[data-fallback]', (_, img) => applyImageFallback(img), true));
 
+    renderToolbar();
     syncControls();
     renderResults();
+
+    /** Troca a seção (Assistir/Ler): status e categoria voltam para "todos"; ordem, modo e busca ficam. */
+    function setSection(next) {
+        if (!SECTIONS[next] || next === section) return;
+        section = next;
+        filters.status = 'all'; filters.category = 'all';
+        renderToolbar();
+        syncControls();
+        renderResults();
+        onStatusChange?.('all');
+    }
 
     /** Limpa os filtros e rola até a obra, destacando-a por um instante (usado em "ver na biblioteca"). */
     function reveal(id) {
@@ -152,6 +177,8 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, acti
         reveal,
         getStatus: () => filters.status,
         setStatus,
+        setSection,
+        getSection: () => section,
         setEntries(list) { all = list; renderResults(); },
         destroy() { search.cancel(); offs.forEach((off) => off()); },
     };

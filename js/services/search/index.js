@@ -7,6 +7,12 @@ export const SOURCES = [
     { id: 'tmdb', label: 'Séries e Filmes (TMDB)', load: () => import('./tmdb.js') },
 ];
 
+/** Fontes que têm mangás e light novels (a seção "Ler"). O TMDB só tem séries e filmes. */
+export const READ_SOURCES = [
+    { id: 'anilist', label: 'AniList (Mangá e Novel)' },
+    { id: 'mal', label: 'MyAnimeList (Mangá e Novel)' },
+];
+
 /** Fonte usada quando a pessoa ainda não escolheu nenhuma. */
 export const DEFAULT_SOURCE = 'anilist';
 
@@ -29,4 +35,10 @@ export async function searchWorks(sourceId, query, options) {
 /** Resultados no formato: { name, eps } */
 export async function searchSeasons(sourceId, query) {
     return (await providerOf(sourceId)).searchSeasons(query);
+}
+
+/** Mangás e light novels. Resultados no formato: { title, category, origin, coverImage, description, genres, rating, tags, chaptersTotal, volumesTotal, sourceRef } */
+export async function searchReadings(sourceId, query, options) {
+    if (!READ_SOURCES.some((s) => s.id === sourceId)) throw new Error('Esta fonte não tem mangás: ' + sourceId);
+    return (await providerOf(sourceId)).searchReadings(query, options);
 }

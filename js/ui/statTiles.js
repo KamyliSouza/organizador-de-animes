@@ -1,27 +1,30 @@
 import { html } from '../core/dom.js';
 import { icon } from '../core/icons.js';
+import { statusLabel } from '../domain/entry.js';
 import { computeStats } from '../domain/stats.js';
 
+// [chave, rótulo na seção "Assistir", rótulo na seção "Ler", ícone, cor]
 const TILES = [
-    ['total', 'Obras', 'film', 'var(--primary-color)'],
-    ['watching', 'Assistindo', 'play', 'var(--st-watching)'],
-    ['planned', 'Quero ver', 'clock', 'var(--st-planned)'],
-    ['completed', 'Concluídas', 'check', 'var(--st-completed)'],
-    ['on_hold', 'Em espera', 'pause', 'var(--st-on_hold)'],
-    ['dropped', 'Dropadas', 'ban', 'var(--st-dropped)'],
+    ['total', 'Obras', 'Obras', 'film', 'var(--primary-color)'],
+    ['watching', 'Assistindo', 'Lendo', 'play', 'var(--st-watching)'],
+    ['planned', 'Quero ver', 'Quero ler', 'clock', 'var(--st-planned)'],
+    ['completed', 'Concluídas', 'Concluídas', 'check', 'var(--st-completed)'],
+    ['on_hold', 'Em espera', 'Em espera', 'pause', 'var(--st-on_hold)'],
+    ['dropped', 'Dropadas', 'Dropadas', 'ban', 'var(--st-dropped)'],
 ];
 
 /**
- * Cards com os números. Cada um é um botão: clicar filtra a lista pelo status correspondente
- * ("Obras" mostra todas). `active` é o status que está filtrado agora ('all' = nenhum).
+ * Cards com os números de uma seção ("watch" = Assistir, "read" = Ler). Cada um é um botão: clicar filtra
+ * a lista pelo status correspondente ("Obras" mostra todas). `active` é o status filtrado agora ('all' = nenhum).
  */
-export function statTilesHtml(entries, { active = 'all' } = {}) {
-    const s = computeStats(entries);
-    return html`<div class="stat-grid">${TILES.map(([key, label, ic, color]) => {
+export function statTilesHtml(entries, { active = 'all', section = 'watch' } = {}) {
+    const s = computeStats(entries, section);
+    return html`<div class="stat-grid">${TILES.map(([key, watchLabel, readLabel, ic, color]) => {
         const status = key === 'total' ? 'all' : key;
+        const label = section === 'read' ? readLabel : watchLabel;
         return html`
-        <button type="button" class="stat-tile glass-panel" data-stat="${status}" aria-pressed="${String(status === active)}" title="${status === 'all' ? 'Mostrar todas as obras' : `Mostrar só: ${label}`}">
-            <span class="stat-icon" style="--tile-color:${color}">${icon(ic, { size: 20 })}</span>
+        <button type="button" class="stat-tile glass-panel" data-stat="${status}" aria-pressed="${String(status === active)}" title="${status === 'all' ? 'Mostrar todas as obras' : `Mostrar só: ${status === 'all' ? label : statusLabel(status, section)}`}">
+            <span class="stat-icon" style="--tile-color:${color}">${icon(key === 'total' && section === 'read' ? 'book' : ic, { size: 20 })}</span>
             <span class="stat-text"><span class="stat-label">${label}</span><span class="stat-value">${s[key]}</span></span>
         </button>`;
     })}</div>`;

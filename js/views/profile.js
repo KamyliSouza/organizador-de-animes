@@ -8,13 +8,14 @@ import { icon } from '../core/icons.js';
 import { viewPalette } from '../core/palette.js';
 import { refresh } from '../core/router.js';
 import { toast } from '../core/toast.js';
-import { MAX_FAVORITES } from '../domain/entry.js';
+import { MAX_FAVORITES, SECTIONS, sectionOf } from '../domain/entry.js';
 import { backend, isCloud, state } from '../services/session.js';
 import { avatar, avatarSrc } from '../ui/avatar.js';
 import { openConnectionsModal } from '../ui/connectionsModal.js';
 import { openDetailsModal, openStatsModal } from '../ui/infoModals.js';
 import { mountLibraryBrowser } from '../ui/libraryBrowser.js';
 import { mediaCardHtml } from '../ui/mediaCard.js';
+import { bindSectionTabs, loadSection, sectionCounts, sectionTabsHtml } from '../ui/sectionTabs.js';
 import { statTilesHtml } from '../ui/statTiles.js';
 
 const link = (username) => `${location.origin}${location.pathname}#/u/${username}`;
@@ -89,8 +90,6 @@ export async function mount(root, ctx) {
     // Vale também para perfil privado ainda trancado: as cores não revelam nada da biblioteca.
     const restorePalette = profile.palette ? viewPalette(profile.palette) : null;
     document.title = `${profile.displayName} (@${profile.username}) · ${config.siteName}`;
-    // Obras fixadas pela pessoa (o site limita a MAX_FAVORITES; aqui também, caso alguém grave mais direto pela API)
-    const favorites = entries.filter((e) => e.favorite).slice(0, MAX_FAVORITES);
 
     setHtml(root, html`
         ${own ? html`<div class="notice-box">${icon(profile.isPublic ? 'globe' : 'lock')}<div>
@@ -112,24 +111,60 @@ export async function mount(root, ctx) {
             </div>
         </header>
         ${canView ? html`
-        <div data-tiles>${statTilesHtml(entries)}</div>
-        ${favorites.length ? html`
-            <section class="fav-section" data-favorites aria-labelledby="fav-title">
-                <h2 id="fav-title">${icon('heart', { size: 20 })} Favoritos</h2>
-                <div class="media-grid">${favorites.map((e) => mediaCardHtml(e, { readonly: true }))}</div>
-            </section>` : ''}
-        <div data-browser class="stack"></div>` : lockedCard(profile)}`);
+        <div data-sections></div>
+        <div id="section-panel" role="tabpanel" class="stack" data-panel>
+            <div data-tiles></div>
+            <div data-favorites-wrap></div>
+            <div data-browser class="stack"></div>
+        </div>` : lockedCard(profile)}`);
 
     const offs = [];
     let browser = null;
 
     if (canView) {
         const tiles = root.querySelector('[data-tiles]');
+        const sectionsEl = root.querySelector('[data-sections]');
+        const panel = root.querySelector('[data-panel]');
+        const favWrap = root.querySelector('[data-favorites-wrap]');
+
+        // Aba inicial: a que a pessoa usou por último; se ela estiver vazia neste perfil e a outra não, abre a outra.
+        const counts = sectionCounts(entries);
+        let section = loadSection();
+        if (counts[section] === 0) section = section === 'watch' ? 'read' : 'watch';
+        if (counts[section] === 0) section = loadSection();
+
+        // Obras fixadas pela pessoa na aba atual (o site limita a MAX_FAVORITES por seção)
+        const paintFavorites = () => {
+            const favorites = entries.filter((e) => e.favorite && sectionOf(e) === section).slice(0, MAX_FAVORITES);
+            setHtml(favWrap, favorites.length ? html`
+                <section class="fav-section" data-favorites aria-labelledby="fav-title">
+                    <h2 id="fav-title">${icon('heart', { size: 20 })} Favoritos</h2>
+                    <div class="media-grid">${favorites.map((e) => mediaCardHtml(e, { readonly: true }))}</div>
+                </section>` : '');
+        };
+        const paintTabs = () => {
+            setHtml(sectionsEl, sectionTabsHtml({ active: section, counts, panelId: 'section-panel' }));
+            panel.setAttribute('aria-labelledby', `tab-${section}`);
+        };
+        const paintTiles = (status = browser?.getStatus() ?? 'all') => setHtml(tiles, statTilesHtml(entries, { active: status, section }));
+
         browser = mountLibraryBrowser(root.querySelector('[data-browser]'), {
-            entries, readonly: true,
+            entries, readonly: true, section,
             actions: { details: (entry) => openDetailsModal(entry) },
-            onStatusChange: (status) => setHtml(tiles, statTilesHtml(entries, { active: status })),
+            onStatusChange: (status) => paintTiles(status),
         });
+        paintTabs();
+        paintTiles();
+        paintFavorites();
+
+        offs.push(bindSectionTabs(sectionsEl, (next) => {
+            if (!SECTIONS[next] || next === section) return;
+            section = next;
+            browser.setSection(section);
+            paintTabs();
+            paintTiles();
+            paintFavorites();
+        }));
         // Os cards com os números filtram a lista pelo status correspondente.
         offs.push(on(tiles, 'click', '[data-stat]', (_, btn) => {
             browser.setStatus(btn.dataset.stat);
@@ -139,6 +174,7 @@ export async function mount(root, ctx) {
             const entry = entries.find((e) => e.id === btn.closest('[data-id]')?.dataset.id);
             if (entry) openDetailsModal(entry);
         }));
+        offs.push(on(root, 'click', '[data-act="stats"]', () => openStatsModal(entries, { section })));
     }
 
     async function run(btn, task, okMessage) {
@@ -156,7 +192,6 @@ export async function mount(root, ctx) {
 
     offs.push(on(root, 'click', '[data-act]', async (_, btn) => {
         switch (btn.dataset.act) {
-            case 'stats': openStatsModal(entries); break;
             case 'copy': {
                 const ok = await copyText(link(profile.username));
                 toast(ok ? 'Link copiado!' : 'Não foi possível copiar o link.', { type: ok ? 'success' : 'error' });

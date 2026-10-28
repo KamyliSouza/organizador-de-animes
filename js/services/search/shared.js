@@ -21,6 +21,15 @@ export function seasonTypeOf(apiType) {
     return 'TV';
 }
 
+/**
+ * Mangá ou light novel? Vale para o "format" do AniList (MANGA, NOVEL, ONE_SHOT) e o "type" do Jikan
+ * (Manga, Novel, Light Novel, One-shot, Manhwa, Manhua...).
+ */
+export const readCategoryOf = (apiType) => (/novel/i.test(String(apiType || '')) ? 'Light novel' : 'Mangá');
+
+/** Código da obra de leitura (prefixo próprio: o MAL repete os números entre animes e mangás). */
+export const readRef = (malId, anilistId) => (malId ? `malmanga:${malId}` : anilistId ? `almanga:${anilistId}` : '');
+
 /** Nota de 0–10 (ou 0–100) da comunidade para estrelas 0–5. */
 export const starsFrom = (value, outOf) => (value ? Math.round((value / outOf) * 5) : 0);
 
