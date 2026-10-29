@@ -6,6 +6,7 @@ import { icon, spinner } from '../core/icons.js';
 import { openModal } from '../core/modal.js';
 import { toast } from '../core/toast.js';
 import { avatar, avatarSrc } from './avatar.js';
+import { roleBadge } from './roleBadge.js';
 
 const TITLES = { followers: 'Seguidores', following: 'Seguindo' };
 const EMPTY = {
@@ -17,7 +18,7 @@ const personRow = (p, canRemove) => html`
     <li class="person-row" data-id="${p.id}">
         <a class="person-link" href="#/u/${p.username}" data-close>
             ${avatar(p.displayName, 40, avatarSrc(p))}
-            <span class="person-names"><b class="truncate">${p.displayName}</b><span class="muted small truncate">@${p.username}</span></span>
+            <span class="person-names"><span class="name-line"><b class="truncate">${p.displayName}</b>${roleBadge(p.role)}</span><span class="muted small truncate">@${p.username}</span></span>
         </a>
         ${canRemove ? html`<button type="button" class="button button-ghost button-sm" data-remove aria-label="Remover ${p.displayName} de quem segue você">Remover</button>` : ''}
     </li>`;

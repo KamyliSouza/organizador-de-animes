@@ -9,12 +9,16 @@ import { viewPalette } from '../core/palette.js';
 import { refresh } from '../core/router.js';
 import { toast } from '../core/toast.js';
 import { MAX_FAVORITES, SECTIONS, sectionOf } from '../domain/entry.js';
-import { backend, isCloud, state } from '../services/session.js';
+import { canAct, isStaff } from '../domain/roles.js';
+import { backend, isCloud, myRole, state } from '../services/session.js';
 import { avatar, avatarSrc } from '../ui/avatar.js';
 import { openConnectionsModal } from '../ui/connectionsModal.js';
 import { openDetailsModal, openStatsModal } from '../ui/infoModals.js';
 import { mountLibraryBrowser } from '../ui/libraryBrowser.js';
 import { mediaCardHtml } from '../ui/mediaCard.js';
+import { openMemberModal } from '../ui/memberModal.js';
+import { openReportModal } from '../ui/reportModal.js';
+import { roleBadge } from '../ui/roleBadge.js';
 import { bindSectionTabs, loadSection, sectionCounts, sectionTabsHtml } from '../ui/sectionTabs.js';
 import { statTilesHtml } from '../ui/statTiles.js';
 
@@ -85,11 +89,24 @@ export async function mount(root, ctx) {
     }
 
     const own = profile.relation === 'self';
+    // Conta suspensa vista por outra pessoa: o banco já esconde nome, bio e foto. Só sobra o aviso.
+    if (profile.suspended && !own) {
+        document.title = `Perfil indisponível · ${config.siteName}`;
+        setHtml(root, messageCard('lock', 'Perfil indisponível', 'Este perfil está temporariamente indisponível.',
+            html`<div class="row" style="justify-content:center">
+                <a class="button button-secondary" href="#/explorar">${icon('compass', { size: 17 })} Explorar perfis</a>
+                ${isStaff(myRole()) ? html`<a class="button button-secondary" href="#/admin">${icon('shield', { size: 17 })} Abrir o painel</a>` : ''}
+            </div>`));
+        return;
+    }
     const canView = profile.canView;
     // Enquanto você estiver neste perfil, a página usa as cores escolhidas pela pessoa (sai ao sair da tela).
     // Vale também para perfil privado ainda trancado: as cores não revelam nada da biblioteca.
     const restorePalette = profile.palette ? viewPalette(profile.palette) : null;
     document.title = `${profile.displayName} (@${profile.username}) · ${config.siteName}`;
+    // Equipe gerencia por aqui (o banco confere o cargo de novo). Denunciar: qualquer pessoa com conta ativa, menos no próprio perfil.
+    const canManage = !own && canAct(myRole(), profile.role);
+    const canReport = !own && Boolean(state.user) && !state.access.suspended;
 
     setHtml(root, html`
         ${own ? html`<div class="notice-box">${icon(profile.isPublic ? 'globe' : 'lock')}<div>
@@ -98,7 +115,7 @@ export async function mount(root, ctx) {
         <header class="profile-head glass-panel">
             ${avatar(profile.displayName || profile.username, 84, avatarSrc(profile))}
             <div class="profile-info">
-                <h1>${profile.displayName}</h1>
+                <h1>${profile.displayName}${roleBadge(profile.role)}</h1>
                 <p class="handle">@${profile.username}${!profile.isPublic ? html` <span class="badge badge-muted" title="Perfil privado">${icon('lock', { size: 11 })} Privado</span>` : ''}</p>
                 ${canView && profile.bio ? html`<p class="bio">${profile.bio}</p>` : ''}
                 ${canView && profile.followersCount != null ? html`<p class="follow-counts">${countButton('followers', profile.followersCount, 'seguidor', 'seguidores')} · ${countButton('following', profile.followingCount ?? 0, 'seguindo', 'seguindo')}</p>` : ''}
@@ -108,6 +125,8 @@ export async function mount(root, ctx) {
                 ${canView ? html`
                 <button type="button" class="button button-secondary" data-act="copy">${icon('link', { size: 17 })} Copiar link</button>
                 <button type="button" class="button button-secondary" data-act="stats">${icon('chart', { size: 17 })} Estatísticas</button>` : ''}
+                ${canManage ? html`<button type="button" class="button button-secondary" data-act="manage">${icon('shield', { size: 17 })} Gerenciar</button>` : ''}
+                ${canReport ? html`<button type="button" class="button button-ghost" data-act="report">${icon('flag', { size: 17 })} Denunciar</button>` : ''}
             </div>
         </header>
         ${canView ? html`
@@ -211,6 +230,12 @@ export async function mount(root, ctx) {
                 if (yes) await run(btn, () => be.follows.unfollow(profile.username), 'Pedido cancelado.');
                 break;
             }
+            case 'report':
+                openReportModal({ person: profile, send: (u, reason, details) => be.moderation.report(u, reason, details) });
+                break;
+            case 'manage':
+                openMemberModal({ member: profile, actorRole: myRole(), moderation: be.moderation, onChanged: () => refresh() });
+                break;
             default: break;
         }
     }));

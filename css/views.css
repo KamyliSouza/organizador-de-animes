@@ -28,8 +28,8 @@
 /* ---------------------------------------------------------
    Login / cadastro
    --------------------------------------------------------- */
-.auth-wrap { display: grid; place-items: start center; padding-top: 8px; }
-.auth-card { width: min(460px, 100%); padding: 28px 26px; display: flex; flex-direction: column; gap: 18px; }
+.auth-wrap { display: grid; grid-template-columns: minmax(0, 1fr); place-items: start center; padding-top: 8px; }   /* minmax(0,…): o cartão nunca fica mais largo que a tela */
+.auth-card { width: min(460px, 100%); min-width: 0; padding: 28px 26px; display: flex; flex-direction: column; gap: 18px; }
 .auth-card h1 { font-size: 1.6rem; letter-spacing: -.02em; }
 .auth-card form { display: flex; flex-direction: column; gap: 14px; }
 .auth-switch { text-align: center; font-size: .92rem; color: var(--subtitle-color); }
@@ -195,6 +195,9 @@
 .person-link:hover .person-names b { color: var(--primary-text); text-decoration: underline; }
 .person-names { display: flex; flex-direction: column; min-width: 0; }
 .person-names > * { max-width: 100%; }
+.name-line { display: flex; align-items: center; min-width: 0; max-width: 100%; }
+.name-line > .truncate { min-width: 0; }
+.name-line > .role-badge { flex: 0 0 auto; }
 .request-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 @media (max-width: 30em) {
@@ -210,4 +213,55 @@
     .feed-cover { width: 44px; }
     .feed-info .media-badges { gap: 4px; }
     .feed-info .badge { padding-inline: 6px; letter-spacing: 0; gap: 3px; }
+}
+
+/* ---------------------------------------------------------
+   Painel da equipe (#/admin)
+   --------------------------------------------------------- */
+.tab-count {
+    display: inline-grid; place-items: center; min-width: 1.4em; padding: 0 6px;
+    border-radius: var(--radius-pill); font-size: .72rem; font-weight: 800; line-height: 1.5;
+    color: var(--danger); background: var(--danger-soft);
+}
+.settings-tab[aria-current="page"] .tab-count { color: var(--button-text); background: rgba(255, 255, 255, .22); }
+
+.admin-bar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.admin-bar .search-field { flex: 1 1 240px; max-width: 420px; }
+.admin-list { list-style: none; margin: 0; padding: 4px 16px; display: flex; flex-direction: column; }
+.admin-row { display: flex; align-items: center; justify-content: space-between; gap: 10px 14px; flex-wrap: wrap; padding: 12px 0; min-width: 0; }
+.admin-row + .admin-row { border-top: 1px solid var(--card-border); }
+.admin-who { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 220px; }
+.admin-who .person-names { min-width: 0; }
+.admin-who .person-names b { overflow-wrap: anywhere; }
+.admin-flags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; min-width: 0; max-width: 100%; }
+.admin-flags .badge, .report-head .badge { white-space: normal; max-width: 100%; text-align: left; }   /* o motivo da denúncia é longo: quebra em telas estreitas */
+.admin-more { display: flex; justify-content: center; padding: 12px 0 4px; }
+
+.report-list { display: flex; flex-direction: column; gap: 14px; }
+.report-card { padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.report-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.report-meta { font-size: .84rem; color: var(--subtitle-color); overflow-wrap: anywhere; }
+.report-details { margin: 0; padding: 10px 12px; border-radius: var(--radius-small); background: var(--notice-bg); border: 1px solid var(--card-border); white-space: pre-line; overflow-wrap: anywhere; font-size: .92rem; }
+.report-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.log-list { list-style: none; margin: 0; padding: 4px 16px; display: flex; flex-direction: column; }
+.log-row { display: flex; gap: 6px 14px; flex-wrap: wrap; padding: 10px 0; font-size: .92rem; overflow-wrap: anywhere; min-width: 0; }
+.log-row + .log-row { border-top: 1px solid var(--card-border); }
+.log-time { color: var(--muted-color); font-size: .82rem; white-space: nowrap; flex: 0 0 auto; }
+.log-text { flex: 1 1 220px; min-width: 0; }
+.log-extra { display: block; color: var(--subtitle-color); font-size: .84rem; }
+
+.manage-section { display: flex; flex-direction: column; gap: 10px; padding-top: 14px; border-top: 1px solid var(--card-border); }
+.manage-section:first-of-type { border-top: 0; padding-top: 0; }
+.manage-section h3 { font-size: 1rem; margin: 0; }
+.manage-section .check-row { display: flex; align-items: flex-start; gap: 8px; font-size: .92rem; }
+.manage-section .check-row input { margin-top: 3px; flex: 0 0 auto; }
+.admin-settings { display: flex; flex-direction: column; gap: 18px; }
+.admin-settings .textarea { min-height: 96px; resize: vertical; }
+.counter { font-size: .8rem; color: var(--muted-color); text-align: right; }
+
+@media (max-width: 30em) {
+    .admin-list, .log-list { padding-inline: 12px; }
+    .admin-row .button, .report-actions .button { flex: 1 1 auto; }
+    .log-time { flex-basis: 100%; }
 }

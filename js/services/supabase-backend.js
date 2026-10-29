@@ -5,6 +5,7 @@ import { config } from '../config.js';
 import { AppError } from '../core/errors.js';
 import { safeUrl } from '../core/dom.js';
 import { normalizeEntry } from '../domain/entry.js';
+import { normalizeRole } from '../domain/roles.js';
 
 const PAGE = 1000;   // limite de linhas por requisição do Supabase
 const CHUNK = 100;   // obras por lote ao importar
@@ -25,6 +26,8 @@ function friendly(error, fallback) {
     if (code === 'same_password' || has('different from the old password')) return 'A nova senha precisa ser diferente da atual.';
     if (code === 'weak_password' || has('Password should')) return 'A senha é muito fraca. Use pelo menos 8 caracteres.';
     if (code === 'signup_disabled' || has('Signups not allowed')) return 'Novos cadastros estão desativados.';
+    // o banco recusa o cadastro quando a Dona fecha os cadastros (o Supabase devolve esta mensagem genérica)
+    if (has('Database error saving new user') || has('Os cadastros estão fechados')) return 'Não foi possível criar a conta agora: os cadastros podem estar fechados no momento. Tente de novo mais tarde.';
     if (code === 'email_address_invalid') return 'Esse e-mail não é aceito. Confira o endereço.';
     if (code === '23505') return 'Este nome de usuário já está em uso.';
     // mensagens das funções do banco que já vêm prontas em português
@@ -32,6 +35,8 @@ function friendly(error, fallback) {
     if (has('Bucket not found')) return 'O armazenamento de fotos ainda não existe no Supabase. Rode o sql/schema.sql de novo (SQL Editor).';
     if (has('maximum allowed size') || error?.statusCode === '413' || error?.status === 413) return 'A foto ficou grande demais (o limite é 64 KB). Tente outra imagem.';
     if (has('mime type') && has('not supported')) return 'Formato de imagem não aceito pelo servidor. Tente outra imagem.';
+    // mensagens prontas em português das funções de cargos, denúncias e nomes proibidos (não as de restrição do banco)
+    if (['P0001', '42501', '23514'].includes(code) && msg && !has('Limite') && !/violates|constraint|row-level|permission denied|policy|schema cache/i.test(msg)) return msg;
     if (has('entries_category')) return 'O banco ainda não aceita mangás e light novels. Rode o sql/schema.sql de novo no Supabase (SQL Editor).';
     if (has('entries_status')) return 'O banco ainda não aceita este status ("Dropado" ou "Em espera"). Rode o sql/schema.sql de novo no Supabase (SQL Editor).';
     if (code === 'PGRST204' || has('schema cache')) return 'O banco de dados está desatualizado. Rode o sql/schema.sql de novo no Supabase (SQL Editor) e recarregue a página.';
@@ -104,6 +109,7 @@ const personOf = (r) => ({
     username: r.username,
     displayName: r.display_name || r.username,
     avatarV: Number(r.avatar_v) || 0,
+    role: normalizeRole(r.role),
 });
 
 const redirectUrl = () => location.origin + location.pathname;
@@ -304,6 +310,8 @@ export async function createSupabaseBackend() {
                     canView: Boolean(r.can_view),
                     followersCount: r.followers_count == null ? null : Number(r.followers_count),
                     followingCount: r.following_count == null ? null : Number(r.following_count),
+                    role: normalizeRole(r.role),
+                    suspended: r.suspended === true,
                 };
             },
 
@@ -315,6 +323,7 @@ export async function createSupabaseBackend() {
                     username: r.username,
                     displayName: r.display_name || r.username,
                     bio: r.bio || '',
+                    role: normalizeRole(r.role),
                     total: Number(r.total) || 0,
                     watching: Number(r.watching) || 0,
                     completed: Number(r.completed) || 0,
@@ -354,7 +363,7 @@ export async function createSupabaseBackend() {
                 const rows = await ok(sb.rpc('get_feed', args), 'Não foi possível carregar o feed.');
                 return (rows || []).map((r) => ({
                     entryId: r.entry_id,
-                    person: personOf({ id: r.user_id, username: r.username, display_name: r.display_name, avatar_v: r.avatar_v }),
+                    person: personOf({ id: r.user_id, username: r.username, display_name: r.display_name, avatar_v: r.avatar_v, role: r.role }),
                     title: r.title,
                     category: r.category,
                     status: r.status,
@@ -365,6 +374,104 @@ export async function createSupabaseBackend() {
                     kind: r.activity_kind,
                     at: r.activity_at,
                 }));
+            },
+        },
+
+        /** Meu acesso (cargo em vigor e suspensão) e as configurações públicas do site. Bancos antigos (sem a v7) devolvem o padrão. */
+        access: {
+            async mine() {
+                try {
+                    const { data, error } = await sb.rpc('my_access');
+                    if (error) return { role: 'member', suspended: false, reason: '' };
+                    const r = Array.isArray(data) ? data[0] : data;
+                    return { role: normalizeRole(r?.role), suspended: r?.suspended === true, reason: r?.reason || '' };
+                } catch { return { role: 'member', suspended: false, reason: '' }; }
+            },
+            async siteSettings() {
+                try {
+                    const { data, error } = await sb.rpc('get_public_settings');
+                    if (error) return { signupsOpen: true, announcement: '' };
+                    const r = Array.isArray(data) ? data[0] : data;
+                    return { signupsOpen: r?.signups_open !== false, announcement: String(r?.announcement || '') };
+                } catch { return { signupsOpen: true, announcement: '' }; }
+            },
+        },
+
+        /** Denúncias e painel da equipe. Cada função do banco confere o cargo de novo: esconder botão é só conforto. */
+        moderation: {
+            async report(username, reason, details = '') {
+                await ok(sb.rpc('report_profile', { p_username: username, p_reason: reason, p_details: details }), 'Não foi possível enviar a denúncia.');
+            },
+            async members({ query = '', limit = 30, offset = 0 } = {}) {
+                const rows = await ok(sb.rpc('admin_list_members', { p_query: query, p_limit: limit, p_offset: offset }), 'Não foi possível carregar os membros.');
+                return (rows || []).map((r) => ({
+                    id: r.id,
+                    username: r.username,
+                    displayName: r.display_name || r.username,
+                    bio: r.bio || '',
+                    avatarV: Number(r.avatar_v) || 0,
+                    role: normalizeRole(r.role),
+                    suspended: r.suspended === true,
+                    suspensionReason: r.suspension_reason || '',
+                    isPublic: r.is_public === true,
+                    totalEntries: Number(r.total_entries) || 0,
+                    openReports: Number(r.open_reports) || 0,
+                    createdAt: r.created_at,
+                    canAct: r.can_act === true,
+                }));
+            },
+            async resetProfile(userId, fields) {
+                await ok(sb.rpc('admin_reset_profile', { p_user: userId, p_fields: fields }), 'Não foi possível restaurar o perfil.');
+            },
+            async rename(userId, displayName) {
+                await ok(sb.rpc('admin_rename_user', { p_user: userId, p_display_name: displayName }), 'Não foi possível renomear.');
+            },
+            async setSuspended(userId, suspended, reason = '') {
+                await ok(sb.rpc('admin_set_suspended', { p_user: userId, p_suspended: Boolean(suspended), p_reason: reason }), 'Não foi possível mudar a suspensão.');
+            },
+            async setRole(userId, role) {
+                await ok(sb.rpc('admin_set_role', { p_user: userId, p_role: role }), 'Não foi possível mudar o cargo.');
+            },
+            /** status: 'open' | 'resolved' | 'dismissed' | 'all' */
+            async reports({ status = 'open', limit = 50 } = {}) {
+                const rows = await ok(sb.rpc('admin_list_reports', { p_status: status, p_limit: limit }), 'Não foi possível carregar as denúncias.');
+                return (rows || []).map((r) => ({
+                    id: Number(r.id),
+                    createdAt: r.created_at,
+                    status: r.status,
+                    reason: r.reason,
+                    details: r.details || '',
+                    reporter: r.reporter_username || '',
+                    target: {
+                        id: r.target_id,
+                        username: r.target_username,
+                        displayName: r.target_display_name || r.target_username,
+                        avatarV: Number(r.target_avatar_v) || 0,
+                        role: normalizeRole(r.target_role),
+                        suspended: r.target_suspended === true,
+                    },
+                    handledBy: r.handled_by_username || '',
+                    handledAt: r.handled_at,
+                }));
+            },
+            async resolveReport(id, status) {
+                await ok(sb.rpc('admin_resolve_report', { p_report: id, p_status: status }), 'Não foi possível atualizar a denúncia.');
+            },
+            async log({ limit = 50, before = null } = {}) {
+                const args = { p_limit: limit };
+                if (before != null) args.p_before = before;
+                const rows = await ok(sb.rpc('admin_list_log', args), 'Não foi possível carregar o registro.');
+                return (rows || []).map((r) => ({
+                    id: Number(r.id), at: r.created_at, actor: r.actor_name, action: r.action, target: r.target_name || '', details: r.details || {},
+                }));
+            },
+            async settings() {
+                const rows = await ok(sb.rpc('admin_get_settings'), 'Não foi possível carregar as configurações.');
+                const r = Array.isArray(rows) ? rows[0] : rows;
+                return { signupsOpen: r?.signups_open !== false, announcement: String(r?.announcement || ''), blockedNames: Array.isArray(r?.blocked_names) ? r.blocked_names : [] };
+            },
+            async setSetting(key, value) {
+                await ok(sb.rpc('admin_set_setting', { p_key: key, p_value: value }), 'Não foi possível salvar a configuração.');
             },
         },
 

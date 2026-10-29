@@ -3,7 +3,11 @@
 import { hasSupabase } from '../config.js';
 import { clearOwnPalette, setOwnPalette } from '../core/palette.js';
 
-export const state = { backend: null, user: null, profile: null, requests: 0, ready: false };
+const NO_ACCESS = { role: 'member', suspended: false, reason: '' };
+const OPEN_SITE = { signupsOpen: true, announcement: '' };
+
+// access = cargo em vigor e suspensão de quem está logado · site = configurações públicas (aviso e cadastros)
+export const state = { backend: null, user: null, profile: null, requests: 0, ready: false, access: NO_ACCESS, site: OPEN_SITE };
 
 const listeners = new Set();
 // reason: 'local' (mudança feita por esta aba) ou 'external' (outra aba, expiração de sessão...)
@@ -19,6 +23,8 @@ function syncPalette() {
 export const backend = () => state.backend;
 export const isCloud = () => state.backend?.mode === 'cloud';
 export const isLoggedIn = () => Boolean(state.user);
+/** Cargo em vigor de quem está logado ('member' quando não há login, no modo local ou com a conta suspensa). */
+export const myRole = () => (state.user ? state.access.role : 'member');
 export function onSessionChange(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 
 export function setProfile(profile) {
@@ -28,6 +34,32 @@ export function setProfile(profile) {
 
 async function safeProfile() {
     try { return await state.backend.profiles.getMine(); } catch (e) { console.error(e); return null; }
+}
+
+/** Cargo e suspensão de quem está logado. Só existe com o Supabase; sem a v7 do banco todo mundo é membro. */
+async function safeAccess() {
+    if (state.backend?.mode !== 'cloud' || !state.backend.access) return NO_ACCESS;
+    try { return await state.backend.access.mine(); } catch { return NO_ACCESS; }
+}
+async function safeSite() {
+    if (state.backend?.mode !== 'cloud' || !state.backend.access) return OPEN_SITE;
+    try { return await state.backend.access.siteSettings(); } catch { return OPEN_SITE; }
+}
+
+/** Relê só o cargo e as configurações (usado pelo painel depois de mudar algo). */
+export async function refreshAccess() {
+    const [access, site] = await Promise.all([state.user ? safeAccess() : NO_ACCESS, safeSite()]);
+    state.access = access;
+    state.site = site;
+    emit();
+}
+
+/** Perfil + cargo de uma vez (em paralelo). */
+async function loadAccount() {
+    if (!state.user) { state.profile = null; state.access = NO_ACCESS; return; }
+    const [profile, access] = await Promise.all([safeProfile(), safeAccess()]);
+    state.profile = profile;
+    state.access = access;
 }
 
 /** Quantos pedidos de "seguir" esperam a minha resposta (mostrado no menu). Falhas só zeram o número. */
@@ -53,7 +85,7 @@ export async function refreshRequests() {
 /** Relê quem está logado agora. Chame logo depois de entrar/sair para a tela já refletir o novo estado. */
 export async function refreshSession() {
     state.user = await state.backend.auth.getUser();
-    state.profile = state.user ? await safeProfile() : null;
+    await loadAccount();
     emit();
     refreshRequests();
 }
@@ -73,15 +105,17 @@ export async function initSession({ onRecovery } = {}) {
         const changed = (user?.id || null) !== (state.user?.id || null);
         if (changed) {            // SIGNED_IN também dispara ao voltar para a aba: sem mudança de usuário, ignora
             state.user = user;
-            state.profile = user ? await safeProfile() : null;
+            await loadAccount();
             emit('external');
             refreshRequests();
         }
         if (event === 'PASSWORD_RECOVERY') onRecovery?.();
     });
 
+    const sitePromise = safeSite();        // em paralelo com o login: aviso do site e cadastros abertos
     state.user = await state.backend.auth.getUser();
-    state.profile = state.user ? await safeProfile() : null;
+    await loadAccount();
+    state.site = await sitePromise;
     state.ready = true;
     syncPalette();
     refreshRequests();      // sem esperar: o número aparece no menu assim que chegar

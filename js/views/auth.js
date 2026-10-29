@@ -4,7 +4,7 @@ import { AppError, messageOf } from '../core/errors.js';
 import { icon, spinner } from '../core/icons.js';
 import { navigate } from '../core/router.js';
 import { toast } from '../core/toast.js';
-import { backend, refreshSession } from '../services/session.js';
+import { backend, refreshSession, state } from '../services/session.js';
 
 const USERNAME_RX = /^[a-z0-9_]{3,20}$/;
 const EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -89,6 +89,12 @@ export function mount(root, ctx) {
         submit.disabled = busy;
         setHtml(submit, busy ? html`${spinner(17)} Aguarde...` : copy.submit);
     };
+
+    // Cadastros fechados pela Dona: avisa antes de a pessoa preencher tudo (o banco também recusa o cadastro).
+    if (mode === 'signup' && state.site.signupsOpen === false) {
+        form.hidden = true;
+        setHtml(feedback, html`<div class="notice-box" role="status" data-signups-closed>${icon('lock')}<div><strong>Os cadastros estão fechados no momento.</strong> Quem já tem conta continua entrando normalmente: <a href="#/entrar">ir para o login</a>.</div></div>`);
+    }
 
     // --- checagem do nome de usuário enquanto digita (cadastro) -----------------------
     let usernameOk = null;

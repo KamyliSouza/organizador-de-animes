@@ -4,12 +4,13 @@ import { messageOf } from '../core/errors.js';
 import { icon, spinner } from '../core/icons.js';
 import { backend, isCloud, state } from '../services/session.js';
 import { avatar, avatarSrc } from '../ui/avatar.js';
+import { roleBadge } from '../ui/roleBadge.js';
 
 const profileCard = (p) => html`
     <a class="profile-card glass-panel" href="#/u/${p.username}" aria-label="Ver perfil de ${p.displayName}">
         <header>
             ${avatar(p.displayName || p.username, 46, avatarSrc(p))}
-            <div style="min-width:0"><h3>${p.displayName}</h3><p class="handle">@${p.username}</p></div>
+            <div style="min-width:0"><h3>${p.displayName}${roleBadge(p.role)}</h3><p class="handle">@${p.username}</p></div>
         </header>
         <p class="bio">${p.bio || 'Sem descrição.'}</p>
         <footer>

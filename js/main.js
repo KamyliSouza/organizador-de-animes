@@ -4,7 +4,8 @@ import { html, setHtml } from './core/dom.js';
 import { icon } from './core/icons.js';
 import { navigate, onRouteChange, refresh, route, scrollToTop, setNotFound, start } from './core/router.js';
 import { currentTheme } from './core/theme.js';
-import { initSession, isCloud, onSessionChange, refreshRequests, state } from './services/session.js';
+import { rankOf } from './domain/roles.js';
+import { initSession, isCloud, myRole, onSessionChange, refreshRequests, state } from './services/session.js';
 import { mountChrome } from './ui/chrome.js';
 
 const $ = (id) => document.getElementById(id);
@@ -12,6 +13,12 @@ const $ = (id) => document.getElementById(id);
 // --- guardas de rota: devolvem para onde redirecionar (ou nada) -------------------------
 const onlyVisitors = () => (!isCloud() || state.user ? '/' : undefined);       // login/cadastro
 const onlyMembers = () => (isCloud() && !state.user ? '/entrar' : undefined);   // configurações
+// Painel da equipe: só quem tem cargo (a tela e o banco conferem de novo). Configurações do site: administração ou Dona.
+const staffRank = (min) => () => {
+    if (!isCloud()) return '/';
+    if (!state.user) return '/entrar';
+    return rankOf(myRole()) >= min ? undefined : '/';
+};
 
 function defineRoutes() {
     route('/', () => import('./views/home.js'), { name: 'home' });
@@ -26,6 +33,10 @@ function defineRoutes() {
     route('/feed/pedidos', () => import('./views/feed.js'), { name: 'feed-requests', title: 'Pedidos para seguir', guard: onlyMembers });
     route('/configuracoes', () => import('./views/settings.js'), { name: 'settings', title: 'Personalização', guard: onlyMembers });
     route('/configuracoes/conta', () => import('./views/settingsAccount.js'), { name: 'settings-account', title: 'Configurações', guard: onlyMembers });
+    route('/admin', () => import('./views/admin.js'), { name: 'admin', title: 'Painel da equipe', guard: staffRank(1) });
+    route('/admin/denuncias', () => import('./views/admin.js'), { name: 'admin-reports', title: 'Denúncias', guard: staffRank(1) });
+    route('/admin/registro', () => import('./views/admin.js'), { name: 'admin-log', title: 'Registro de ações', guard: staffRank(1) });
+    route('/admin/configuracoes', () => import('./views/admin.js'), { name: 'admin-settings', title: 'Configurações do site', guard: staffRank(2) });
     setNotFound(() => import('./views/notFound.js'));
 }
 
@@ -53,7 +64,7 @@ async function boot() {
         return;
     }
 
-    mountChrome({ nav: $('site-nav'), tabBar: $('tab-bar'), footer: $('site-footer') });
+    mountChrome({ nav: $('site-nav'), tabBar: $('tab-bar'), footer: $('site-footer'), notice: $('site-notice') });
     defineRoutes();
 
     // Sessão mudou por fora (outra aba saiu da conta, token expirou...): remonta a tela atual.

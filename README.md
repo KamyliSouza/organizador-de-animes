@@ -75,6 +75,7 @@ Sem esse passo, estas coisas não funcionam (o site mostra um aviso amarelo na b
 - **seguir pessoas**, os **pedidos** para perfis privados, o **feed** e as **análises** (o SQL cria a tabela de seguidores, as colunas da análise e as funções do feed);
 - as **cores do perfil** (o SQL cria a coluna `palette`);
 - **mangás e light novels** (o SQL libera as categorias *Mangá* e *Light novel* e cria as colunas de capítulos, volumes e origem — a versão do banco passa a ser a **6**);
+- **cargos, denúncias e o painel da equipe** (o SQL cria as tabelas de cargos, suspensões, denúncias, registro e configurações do site — a versão do banco passa a ser a **7**; veja "Cargos e painel da equipe", inclusive o SQL que define a Dona);
 - o botão **Excluir minha conta**.
 
 ---
@@ -189,6 +190,65 @@ A biblioteca (e o perfil de quem você visita) tem duas abas: **Assistir** (anim
 - **Feed e compartilhar:** o feed usa "começou a ler" e "concluiu a leitura"; o cartão de compartilhar mostra o progresso de leitura.
 - **Backup:** o `.json` exportado leva os novos campos, e backups antigos (de antes dos mangás) continuam entrando normalmente.
 
+## Cargos e painel da equipe
+
+O site tem quatro cargos. O cargo aparece como um selo ao lado do nome (perfil, Explorar, feed, pedidos e listas de seguidores); **membros não têm selo**.
+
+| Cargo | Selo | O que pode |
+|---|---|---|
+| **Dona** | Dona | Tudo. É a única que abre e fecha os cadastros e a única que cria ou remove administradores. Só existe uma. |
+| **Administração** | Admin | Tudo o que a moderação faz, mais o **aviso do site** e a **lista de nomes proibidos**. Define quem é moderação ou membro. Não mexe na Dona nem em outra administração. |
+| **Moderação** | Mod | Buscar membros, restaurar nome, bio, foto e @, **renomear**, **suspender** e reativar contas, tratar denúncias e ver o registro. Não mexe em cargos nem nas configurações do site. |
+| **Membro** | — | Nível padrão. Pode **denunciar** perfis. |
+
+**Regra de ouro:** quem age só atinge quem tem um cargo **menor** que o seu, e só concede cargos menores que o seu. Isso é conferido no banco de dados (não só nos botões da tela), e os cargos ficam numa tabela fechada: nenhum usuário consegue editar o próprio cargo, nem pelo site nem pela API.
+
+### Definir a Dona (uma vez)
+
+Não existe botão para isso, de propósito. No Supabase, abra **SQL Editor → New query**, troque o e-mail e rode:
+
+```sql
+insert into public.user_roles (user_id, role)
+select id, 'owner' from auth.users where email = 'SEU_EMAIL@exemplo.com'
+on conflict (user_id) do update set role = 'owner';
+```
+
+Recarregue o site: aparece **Painel** no menu (no celular, em **Perfil e configurações → Painel da equipe**).
+
+**Passar o cargo de Dona para outra pessoa** (só pode haver uma): rode os dois comandos juntos. A conta nova precisa existir antes. A Dona não consegue excluir a própria conta pelo site; passe o cargo antes.
+
+```sql
+delete from public.user_roles where role = 'owner';
+insert into public.user_roles (user_id, role)
+select id, 'owner' from auth.users where email = 'NOVA_DONA@exemplo.com';
+```
+
+> **Proteja a conta da Dona:** ela pode tudo. Use uma senha forte e só dela e ative a verificação em duas etapas no **e-mail** dessa conta (e nas contas do Supabase e do GitHub). Quem controla o e-mail consegue redefinir a senha do site.
+
+### O painel (`#/admin`)
+
+Só aparece para quem tem cargo (quem não tem é mandado de volta ao início; mesmo que alguém force a página, o banco recusa tudo). Tem quatro abas:
+
+- **Membros:** busca por nome ou @usuário e o botão **Gerenciar** (restaurar dados, renomear, suspender e cargo). A moderação não vê e-mails nem bibliotecas privadas.
+- **Denúncias:** a fila de denúncias em aberto, com o motivo, o detalhe e quem denunciou. Dá para **resolver**, **descartar** ou **reabrir**, e gerenciar a pessoa ali mesmo. A equipe só vê denúncias contra quem tem cargo menor que o seu (ninguém vê denúncias contra a Dona).
+- **Registro:** toda ação da equipe (quem fez, quando, em quem e o antes e depois). O registro só cresce: nem a Dona edita pelo site. Os nomes ficam gravados como texto, então continuam legíveis mesmo se a conta for excluída.
+- **Site** (administração e Dona): **cadastros** (só a Dona), **aviso do site** (até 280 caracteres, aparece no topo para todo mundo) e **nomes proibidos**.
+
+### Denunciar
+
+Em qualquer perfil que não seja o seu aparece **Denunciar**: a pessoa escolhe o motivo (nome, bio, foto, spam ou outro) e, se quiser, escreve um detalhe de até 300 caracteres. Só a equipe vê, e a pessoa denunciada não sabe quem denunciou. Cada pessoa tem **uma denúncia aberta por perfil** (repetir não duplica) e no máximo **10 em aberto** ao mesmo tempo.
+
+### Restaurar, renomear e suspender
+
+- **Restaurar:** o nome de exibição volta para "Usuário" + 4 caracteres; a bio fica vazia; o @ vira `user_` + um código (o link antigo do perfil deixa de funcionar); a foto some. A pessoa pode editar de novo depois. Ao restaurar a foto, o site a esconde na hora e tenta apagar o arquivo; se o Supabase recusar, apague em **Storage → avatars** (o perfil já aparece sem foto).
+- **Renomear:** troca só o nome de exibição (1 a 40 caracteres), mesmo que contenha uma palavra da lista de nomes proibidos.
+- **Suspender:** o perfil some para as outras pessoas (Explorar, link do perfil, seguidores, feed). Quem é suspensa continua vendo a própria biblioteca e vê um aviso no topo com o motivo, mas não consegue seguir nem denunciar, e perde os poderes de equipe enquanto durar. **Reativar** devolve tudo.
+
+### Nomes proibidos e cadastros fechados
+
+- **Nomes proibidos:** a lista vale para nomes de usuário e nomes de exibição **que contêm** a palavra (sem diferenciar maiúsculas nem acentos). Cuidado com palavras curtas: elas valem também dentro de outras palavras. Vale para contas novas e para quem editar o nome; quem já tinha um nome assim só é barrado ao tentar mudá-lo, e a equipe pode renomear.
+- **Cadastros fechados:** o banco recusa qualquer conta nova, **inclusive** a criada manualmente em *Authentication → Users → Add user* do Supabase. Quem já tem conta continua entrando normalmente. A página "Criar conta" avisa antes de a pessoa preencher tudo. Para criar contas à mão, reabra os cadastros no painel.
+
 ## Status das obras
 
 **Assistindo**, **Quero ver**, **Concluído**, **Em espera** e **Dropado**. *Em espera* é para o anime que você pausou e pretende retomar; *Dropado* é para o que você abandonou. As duas aparecem com a capa em tons de cinza e têm contador próprio no topo.
@@ -254,10 +314,10 @@ js/
   main.js               inicia tudo e define as rotas
   config.js             o único arquivo que você precisa editar
   core/                 DOM seguro, roteador, modal, toasts, tema, ícones
-  domain/               regras puras: obras, temporadas, estatísticas, backup
+  domain/               regras puras: obras, temporadas, estatísticas, backup, cargos
   services/             backends (local e Supabase), sessão, busca (Jikan, AniList, TMDB)
   ui/                   componentes: cards, filtros, modais, cartão de compartilhar, avatar, abas da conta, abas Assistir/Ler, progresso de leitura
-  views/                telas: início, biblioteca, login, perfil, explorar, feed (atividade e pedidos), personalização, configurações
+  views/                telas: início, biblioteca, login, perfil, explorar, feed (atividade e pedidos), personalização, configurações, painel da equipe (admin.js)
 tools/palettes.mjs      gera css/palettes.css e confere o contraste das cores (node tools/palettes.mjs --check)
 sql/schema.sql          tabelas, regras de segurança e funções do Supabase (pode rodar de novo a qualquer momento)
 ```
@@ -271,8 +331,9 @@ Os dois backends (`local-backend.js` e `supabase-backend.js`) têm a mesma inter
 - **CSP:** o `index.html` só permite scripts do próprio site e do jsDelivr (onde fica a biblioteca do Supabase) e só conversa com as APIs usadas.
 - **Seguir e feed:** a tabela de seguidores não pode ser lida nem escrita direto (só por funções do banco que conferem quem está com a sessão iniciada). Um perfil privado só entrega as obras a quem a pessoa dona do perfil aceitou, e o feed só devolve atividade de quem você segue com vínculo aceito. As anotações privadas nunca saem no feed.
 - **Fotos:** bucket `avatars` com limite de 64 KB e só WebP/JPEG; cada pessoa só envia/troca/apaga o arquivo que tem o próprio ID como nome. O site só monta o endereço da foto com ID (UUID) e versão numérica válidos.
+- **Cargos e moderação:** os cargos ficam em uma tabela fechada (ninguém lê nem escreve direto). Toda ação da equipe passa por funções do banco que conferem o cargo de quem chama, só agem em quem tem cargo menor e deixam rastro no registro. Conta suspensa perde os poderes de equipe. As denúncias e o registro também são tabelas fechadas.
 - **Limites:** até **2000 obras por conta**, e campos com tamanho máximo, validados no banco.
-- **Cadastro aberto:** qualquer pessoa com o link pode criar conta. Se quiser restringir a um grupo fechado, desligue **Authentication → Sign In / Providers → Allow new users to sign up** depois que todos tiverem criado a conta, ou crie os usuários manualmente em **Authentication → Users**.
+- **Cadastro aberto:** qualquer pessoa com o link pode criar conta. A Dona pode fechar os cadastros no painel (aba **Site**). Se preferir restringir pelo próprio Supabase, desligue **Authentication → Sign In / Providers → Allow new users to sign up** depois que todos tiverem criado a conta, ou crie os usuários manualmente em **Authentication → Users**.
 
 ## Problemas comuns
 
@@ -283,6 +344,9 @@ Os dois backends (`local-backend.js` e `supabase-backend.js`) têm a mesma inter
 | Aviso amarelo "O banco de dados precisa ser atualizado", "O banco ainda não aceita este status" ou "Não foi possível excluir a conta" | O `sql/schema.sql` novo ainda não foi executado (veja "Atualizando um site que já está no ar") |
 | Botão "Seguir" ou o Feed dão erro, ou a análise não salva | O `sql/schema.sql` novo ainda não foi executado (a versão 5 inclui seguidores, feed, análises e cores do perfil; a 6, mangás e light novels) |
 | "O banco ainda não aceita mangás e light novels" ao salvar | O `sql/schema.sql` da versão 6 ainda não foi executado |
+| O painel não abre ou "Denunciar" dá erro | O `sql/schema.sql` da versão 7 ainda não foi executado, ou a sua conta ainda não tem cargo (veja "Definir a Dona") |
+| "Não foi possível criar a conta agora: os cadastros podem estar fechados" | A Dona fechou os cadastros (painel → Site). Vale também para *Add user* no Supabase |
+| "A Dona do site não pode excluir a conta" | Passe o cargo de Dona para outra pessoa antes (veja "Passar o cargo de Dona") |
 | "O armazenamento de fotos ainda não existe" ou "A foto ficou grande demais" | O `sql/schema.sql` novo não foi executado (cria o bucket `avatars` com o limite de 64 KB) |
 | MAL mostra "Muitas buscas seguidas" ou "Serviço indisponível" | O Jikan limitou ou está lento: espere alguns segundos ou use o AniList |
 | E-mail de confirmação não chega | Veja o spam; o plano gratuito limita e-mails por hora. Para grupos pequenos, desligue **Confirm email** |

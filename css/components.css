@@ -151,7 +151,8 @@
     border-radius: var(--radius-small);
     font-size: .92rem;
 }
-.notice-box > .icon { margin-top: 2px; color: var(--primary-text); }
+.notice-box > .icon { margin-top: 2px; color: var(--primary-text); flex: 0 0 auto; }
+.notice-box > div { min-width: 0; overflow-wrap: anywhere; }
 .notice-box strong { color: var(--text-color); }
 .notice-box.is-error { background: var(--danger-soft); border-color: var(--danger); }
 .notice-box.is-error > .icon { color: var(--danger); }
@@ -654,3 +655,28 @@
 /* Botão que é um <label> com <input type="file"> escondido: mostra o foco do teclado e o estado desativado */
 label.button:has(input:focus-visible) { outline: 3px solid var(--primary-color); outline-offset: 2px; }
 label.button.is-disabled { opacity: .55; cursor: not-allowed !important; pointer-events: none; }
+
+/* ---------------------------------------------------------
+   Cargos (selo ao lado do nome) e faixa de avisos do site
+   --------------------------------------------------------- */
+.role-badge {
+    --badge-color: var(--primary-text);
+    display: inline-flex; align-items: center; vertical-align: middle;
+    margin-inline-start: 6px; padding: 1px 8px;
+    border-radius: var(--radius-pill);
+    font-size: .68rem; font-weight: 800; letter-spacing: .03em; line-height: 1.5;
+    white-space: nowrap;
+    color: color-mix(in srgb, var(--badge-color) 82%, var(--text-color));   /* um pouco mais perto da cor do texto: contraste AA em todas as paletas */
+    background: color-mix(in srgb, var(--badge-color) 11%, transparent);
+    border: 1px solid color-mix(in srgb, var(--badge-color) 34%, transparent);
+}
+.role-badge.role-owner { color: var(--button-text); background: var(--button-bg); border-color: transparent; }   /* par de cores do botão: contraste garantido em cada paleta */
+.role-badge.role-admin { --badge-color: var(--st-watching); }
+.role-badge.role-mod   { --badge-color: var(--st-completed); }
+h1 .role-badge, h2 .role-badge, h3 .role-badge { font-size: .7rem; }
+
+.site-notice:empty { display: none; }
+.site-notice { width: min(var(--content-width), calc(100% - 32px)); margin: calc(var(--nav-height) + 14px) auto 0; }
+.site-notice-inner { display: flex; flex-direction: column; gap: 10px; }
+.site-notice:not(:empty) + .site-shell { margin-top: 16px; }
+.site-announcement { overflow-wrap: anywhere; white-space: pre-line; }

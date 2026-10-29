@@ -12,6 +12,7 @@ import { backend, isCloud, setRequestCount, state } from '../services/session.js
 import { avatar, avatarSrc } from '../ui/avatar.js';
 import { applyImageFallback, posterPlaceholder, starsHtml } from '../ui/mediaCard.js';
 import { bindReviews, reviewHtml } from '../ui/reviewBlock.js';
+import { roleBadge } from '../ui/roleBadge.js';
 
 const PAGE = 30;
 
@@ -41,7 +42,7 @@ function feedItem(item) {
         <header class="feed-head">
             <a href="${profileHref}" class="feed-who" aria-label="Perfil de ${person.displayName}">${avatar(person.displayName, 42, avatarSrc(person))}</a>
             <div class="feed-meta">
-                <p><a href="${profileHref}" class="feed-name">${person.displayName}</a> <span class="feed-verb">${verbOf(item)}</span></p>
+                <p><a href="${profileHref}" class="feed-name">${person.displayName}</a>${roleBadge(person.role)} <span class="feed-verb">${verbOf(item)}</span></p>
                 <p class="muted small"><time datetime="${item.at}">${timeAgo(item.at)}</time> · @${person.username}</p>
             </div>
         </header>
@@ -66,7 +67,7 @@ const requestRow = (r) => html`
     <li class="person-row request-row" data-id="${r.id}">
         <a class="person-link" href="#/u/${r.username}">
             ${avatar(r.displayName, 44, avatarSrc(r))}
-            <span class="person-names"><b class="truncate">${r.displayName}</b><span class="muted small truncate">@${r.username} · ${timeAgo(r.requestedAt)}</span></span>
+            <span class="person-names"><span class="name-line"><b class="truncate">${r.displayName}</b>${roleBadge(r.role)}</span><span class="muted small truncate">@${r.username} · ${timeAgo(r.requestedAt)}</span></span>
         </a>
         <span class="request-actions">
             <button type="button" class="button button-primary button-sm" data-respond="accept" aria-label="Aceitar o pedido de ${r.displayName}">Aceitar</button>

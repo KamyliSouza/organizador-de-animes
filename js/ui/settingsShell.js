@@ -4,6 +4,8 @@ import { html, on } from '../core/dom.js';
 import { confirmDialog } from '../core/dialogs.js';
 import { icon } from '../core/icons.js';
 import { navigate } from '../core/router.js';
+import { isStaff } from '../domain/roles.js';
+import { myRole } from '../services/session.js';
 
 export const TABS = [
     { id: 'personalizacao', path: '/configuracoes', label: 'Personalização', icon: 'sparkles' },
@@ -18,7 +20,9 @@ export function settingsHeader({ profile, active }) {
                 <span class="eyebrow">${icon('user', { size: 14 })} Conta</span>
                 <h1 style="margin-top:10px">Perfil e configurações</h1>
             </div>
-            ${profile ? html`<div class="page-head-actions"><a class="button button-secondary" href="#/u/${profile.username}">${icon('globe', { size: 17 })} Ver meu perfil</a></div>` : ''}
+            ${profile ? html`<div class="page-head-actions">
+                ${isStaff(myRole()) ? html`<a class="button button-secondary" href="#/admin">${icon('shield', { size: 17 })} Painel da equipe</a>` : ''}
+                <a class="button button-secondary" href="#/u/${profile.username}">${icon('globe', { size: 17 })} Ver meu perfil</a></div>` : ''}
         </header>
         <nav class="settings-tabs" aria-label="Seções da conta">
             ${TABS.map((t) => html`<a class="settings-tab" href="#${t.path}" ${t.id === active ? html`aria-current="page"` : ''}>${icon(t.icon, { size: 17 })}${t.label}</a>`)}

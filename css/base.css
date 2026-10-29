@@ -223,6 +223,14 @@ html:not(.js) .skip-link { display: none; }
 }
 @media (max-width: 60em) and (min-width: 45.0625em) {
     .nav-name { max-width: 72px; }
+    /* Equipe: o atalho do painel vira só o ícone (nome na dica e no aria-label) para o menu caber nesta faixa */
+    .nav-link-admin .nav-text { display: none; }
+    .nav-link-admin { padding-inline: 10px; }
+    .site-nav-inner:has(.nav-link-admin) .nav-name { max-width: 52px; }
+}
+@media (max-width: 48em) and (min-width: 45.0625em) {
+    .site-nav-inner:has(.nav-link-admin) .nav-name { max-width: 28px; }
+    .site-nav-inner:has(.nav-link-admin) .nav-links { gap: 2px; }
 }
 
 /* ---------------------------------------------------------
