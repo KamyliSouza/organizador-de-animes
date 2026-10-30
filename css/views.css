@@ -101,6 +101,18 @@
 .photo-editor { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
 .photo-preview .avatar { box-shadow: 0 0 0 4px var(--card-border); }
 .photo-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; }
+
+/* Personalização: foto e campos no mesmo painel, e as cores logo abaixo ocupando a largura toda (sem buracos no desktop) */
+.profile-panel-body { display: grid; grid-template-columns: minmax(0, 17rem) minmax(0, 1fr); gap: 24px 32px; align-items: start; }
+.photo-block { display: flex; flex-direction: column; align-items: center; gap: 12px; min-width: 0; text-align: center; padding-right: 32px; border-right: 1px solid var(--card-border); }
+.photo-block h3 { display: flex; align-items: center; gap: 8px; font-size: 1rem; }
+.photo-block h3 .icon { color: var(--primary-text); }
+.photo-block .photo-editor { flex-direction: column; gap: 14px; }
+.photo-block .photo-actions { align-items: center; }
+.photo-block .field-hint { text-align: center; }
+.panel .profile-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; align-items: start; }
+.profile-form .span-2, .profile-form > .button { grid-column: 1 / -1; }
+.profile-form > .button { justify-self: start; }
 @media (max-width: 30em) {
     /* As abas nunca quebram uma palavra ao meio (zoom alto do navegador, celular): se não cabem na linha, a aba desce para a de baixo. */
     .settings-tabs { width: 100%; flex-wrap: wrap; border-radius: 22px; }
@@ -110,7 +122,10 @@
     .settings-tab .icon { display: none; }       /* telas bem estreitas: só o texto */
 }
 .panel-wide { grid-column: 1 / -1; }
-.palette-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(168px, 100%), 1fr)); gap: 12px; }
+/* 8 combinações: 1 coluna no celular, 2 em telas médias e 4 no desktop (sempre linhas cheias, sem espaço vazio no fim) */
+.palette-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+@media (min-width: 30em) { .palette-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 56.25em) { .palette-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .palette-item { position: relative; min-width: 0; }
 .palette-option {
     display: flex; flex-direction: column; gap: 6px; height: 100%; padding: 10px; cursor: pointer;
@@ -152,6 +167,16 @@
     .hero-preview { display: none; }
     .feature-grid, .profile-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .settings-grid { grid-template-columns: minmax(0, 1fr); }
+    .profile-panel-body { grid-template-columns: minmax(0, 1fr); }
+    .photo-block { padding-right: 0; border-right: 0; padding-bottom: 20px; border-bottom: 1px solid var(--card-border); }
+}
+@media (max-width: 38.75em) {
+    .panel .profile-form { grid-template-columns: minmax(0, 1fr); }
+    .profile-form > .button { max-width: 100%; }
+}
+@media (max-width: 30em) {
+    /* telas estreitas / texto grande: o botão ocupa a largura e o texto quebra em vez de estourar o quadro */
+    .profile-form > .button { justify-self: stretch; white-space: normal; text-align: center; padding-inline: 10px; }
 }
 @media (max-width: 38.75em) {
     .feature-grid, .profile-grid { grid-template-columns: minmax(0, 1fr); }

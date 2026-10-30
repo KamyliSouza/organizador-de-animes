@@ -19,6 +19,7 @@ const PAUSED = new Set(['on_hold', 'dropped']);
 export const MAX_FAVORITES = 8;
 /** Tamanho máximo da análise (o texto que a pessoa escreve sobre a obra e que aparece no feed). */
 export const MAX_REVIEW = 2000;
+export const MAX_NOTES = 5000;
 
 // A biblioteca tem duas seções: "Assistir" (anime, filme, série) e "Ler" (mangá, light novel).
 export const WATCH_CATEGORIES = ['Anime', 'Filme', 'Série'];
@@ -113,7 +114,7 @@ export function normalizeEntry(e) {
         rating: toInt(e?.rating, 0, 5, 0),
         tags: cleanList(e?.tags, 20, 30),
         airDay: DAYS.includes(e?.airDay) ? e.airDay : '',
-        notes: cleanText(e?.notes, 5000),
+        notes: cleanText(e?.notes, MAX_NOTES),
         coverImage: safeUrl(e?.coverImage),
         description: cleanText(e?.description, 10000),
         genres: cleanList(e?.genres, 20, 40),

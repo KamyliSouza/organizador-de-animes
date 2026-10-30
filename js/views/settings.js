@@ -6,9 +6,10 @@ import { messageOf } from '../core/errors.js';
 import { icon, spinner } from '../core/icons.js';
 import { ownPalette, setOwnPalette } from '../core/palette.js';
 import { toast } from '../core/toast.js';
-import { prepareAvatar } from '../services/avatarImage.js';
+import { checkAvatarFile, prepareAvatar } from '../services/avatarImage.js';
 import { backend, isCloud, setProfile, state } from '../services/session.js';
 import { avatar, avatarSrc } from '../ui/avatar.js';
+import { openAvatarCropper } from '../ui/avatarCropModal.js';
 import { bindDataPanel, dataPanelHtml } from '../ui/dataPanel.js';
 import { bindPalettePicker, palettePickerHtml, selectPalette } from '../ui/palettePicker.js';
 import { guardTabs, settingsHeader } from '../ui/settingsShell.js';
@@ -18,37 +19,31 @@ const USERNAME_RX = /^[a-z0-9_]{3,20}$/;
 const missingProfile = () => html`<div class="glass-panel empty-state">${icon('alert', { size: 40 })}<h3>Perfil não encontrado</h3>
     <p>Não conseguimos carregar o seu perfil. Verifique se o arquivo <code>sql/schema.sql</code> foi executado no Supabase.</p></div>`;
 
-function photoPanel(p) {
+/** Foto de perfil: o bloco da esquerda do painel "Seu perfil". */
+function photoBlock(p) {
     const has = Boolean(avatarSrc(p));
     return html`
-    <section class="panel glass-panel" aria-labelledby="st-photo">
-        <h2 id="st-photo">${icon('camera')} Foto de perfil</h2>
+    <div class="photo-block" role="group" aria-labelledby="st-photo">
+        <h3 id="st-photo">${icon('camera', { size: 17 })} Foto de perfil</h3>
         <div class="photo-editor">
-            <div class="photo-preview" data-avatar-preview>${avatar(p.displayName || p.username, 96, avatarSrc(p))}</div>
+            <div class="photo-preview" data-avatar-preview>${avatar(p.displayName || p.username, 112, avatarSrc(p))}</div>
             <div class="photo-actions">
                 <label class="button button-secondary" data-avatar-pick>${icon('camera', { size: 17 })} <span data-pick-text>${has ? 'Trocar foto' : 'Escolher foto'}</span>
                     <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="sr-only" data-avatar-input aria-label="Escolher uma foto de perfil"></label>
                 <button type="button" class="button button-ghost" data-act="avatar-remove" ${has ? '' : 'hidden'}>${icon('trash', { size: 17 })} Remover foto</button>
             </div>
         </div>
-        <p class="field-hint">A foto é pública. O navegador recorta o centro em formato quadrado e reduz o tamanho antes de enviar. Só existe uma foto por conta: ao trocar ou remover, a anterior é apagada.</p>
+        <p class="field-hint">A foto é pública. Ao escolher, você enquadra a imagem dentro de um círculo (arrastando e ampliando) antes de enviar. Só existe uma foto por conta: ao trocar ou remover, a anterior é apagada.</p>
         <p class="field-hint" data-avatar-status aria-live="polite"></p>
-    </section>`;
+    </div>`;
 }
 
-function identityPanel(p) {
+function identityForm(p) {
     return html`
-    <section class="panel glass-panel" aria-labelledby="st-profile">
-        <h2 id="st-profile">${icon('user')} Seu perfil</h2>
-        <form data-profile-form novalidate>
+        <form class="profile-form" data-profile-form novalidate>
             <div class="field">
                 <label for="st-display">Nome de exibição</label>
                 <input id="st-display" class="input" maxlength="40" autocomplete="nickname" value="${p.displayName}">
-            </div>
-            <div class="field">
-                <label for="st-bio">Sobre você</label>
-                <textarea id="st-bio" class="textarea" maxlength="200" rows="3" placeholder="Conte um pouco sobre você e seus animes favoritos...">${p.bio}</textarea>
-                <p class="field-hint" data-bio-count aria-live="off">${p.bio.length}/200</p>
             </div>
             <div class="field">
                 <label for="st-username">Nome de usuário</label>
@@ -56,8 +51,24 @@ function identityPanel(p) {
                 <p class="username-status" data-username-status aria-live="polite"></p>
                 <p class="field-hint">Ao mudar, o link antigo do seu perfil deixa de funcionar.</p>
             </div>
+            <div class="field span-2">
+                <label for="st-bio">Sobre você</label>
+                <textarea id="st-bio" class="textarea" maxlength="200" rows="3" placeholder="Conte um pouco sobre você e seus animes favoritos...">${p.bio}</textarea>
+                <p class="field-hint" data-bio-count aria-live="off">${p.bio.length}/200</p>
+            </div>
             <button type="submit" class="button button-primary" data-save>Salvar personalização</button>
-        </form>
+        </form>`;
+}
+
+/** Um painel só: a foto de um lado e os campos do outro (no celular, um embaixo do outro). */
+function profilePanel(p) {
+    return html`
+    <section class="panel panel-wide glass-panel profile-panel" aria-labelledby="st-profile">
+        <h2 id="st-profile">${icon('user')} Seu perfil</h2>
+        <div class="profile-panel-body">
+            ${photoBlock(p)}
+            ${identityForm(p)}
+        </div>
     </section>`;
 }
 
@@ -127,8 +138,7 @@ export function mount(root) {
     setHtml(root, html`
         ${settingsHeader({ profile, active: 'personalizacao' })}
         <div class="settings-grid">
-            ${photoPanel(profile)}
-            ${identityPanel(profile)}
+            ${profilePanel(profile)}
             ${palettePanel(profile.palette, true)}
         </div>`);
 
@@ -151,7 +161,7 @@ export function mount(root) {
     let blobUrl = '';
 
     const nameNow = () => displayInput.value.trim() || state.profile.displayName || state.profile.username;
-    function paintAvatar(src) { setHtml(previewBox, avatar(nameNow(), 96, src)); }
+    function paintAvatar(src) { setHtml(previewBox, avatar(nameNow(), 112, src)); }
     function setBusy(on_, text = '') {
         busy = on_;
         fileInput.disabled = on_;
@@ -171,9 +181,13 @@ export function mount(root) {
         const file = input.files?.[0];
         input.value = '';
         if (!file || busy) return;
-        setBusy(true, 'Preparando a foto...');
+        setBusy(true, 'Abrindo a foto...');
         try {
-            const { blob } = await prepareAvatar(file);
+            checkAvatarFile(file);                       // tipo e tamanho, antes de abrir o recorte
+            const crop = await openAvatarCropper(file);  // a pessoa enquadra a foto no círculo
+            if (!crop) { setBusy(false, ''); return; }   // cancelou: nada muda
+            setBusy(true, 'Preparando a foto...');
+            const { blob } = await prepareAvatar(file, crop);
             setBusy(true, 'Enviando...');
             const updated = await be.profiles.setAvatar(blob);
             if (blobUrl) URL.revokeObjectURL(blobUrl);

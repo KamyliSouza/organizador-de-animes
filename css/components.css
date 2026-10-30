@@ -710,3 +710,34 @@ h1 .role-badge, h2 .role-badge, h3 .role-badge { font-size: .7rem; }
 .patch-entry ul { margin: 0; padding: 2px 14px 14px 34px; display: grid; gap: 6px; font-size: .9rem; color: var(--subtitle-color); }
 .patch-entry li { overflow-wrap: anywhere; }
 .patch-entry li::marker { color: var(--primary-text); }
+
+/* Formulário da obra: botões que abrem as janelas de análise e anotações */
+.text-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.text-card {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+    min-width: 0; padding: 10px 12px; text-align: left; font: inherit; color: var(--text-color);
+    background: var(--input-bg); border: 2px solid var(--card-border); border-radius: 14px; cursor: pointer;
+    transition: border-color .18s ease, background-color .18s ease;
+}
+.text-card:hover { border-color: var(--card-border-strong); background: var(--notice-bg); }
+.text-card:focus-visible { outline: 3px solid var(--primary-color); outline-offset: 2px; }
+.text-card-head { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; font-weight: 800; font-size: .9rem; min-width: 0; }
+.text-card-head .icon { color: var(--primary-text); flex: 0 0 auto; }
+.text-card-state { max-width: 100%; font-size: .8rem; color: var(--subtitle-color); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.text-editor { min-height: min(46vh, 20rem); resize: vertical; }
+@media (max-width: 30em) { .text-cards { grid-template-columns: minmax(0, 1fr); } }
+
+/* Janela "Ajustar foto": recorte circular da foto de perfil */
+.crop-viewport {
+    position: relative; width: min(100%, 320px); aspect-ratio: 1; margin: 0 auto;
+    overflow: hidden; border-radius: 16px; background: #1a1220;
+    touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none;
+}
+.crop-viewport:active { cursor: grabbing; }
+.crop-viewport:focus-visible { outline: 3px solid var(--primary-color); outline-offset: 3px; }
+.crop-img { position: absolute; left: 0; top: 0; max-width: none; transform-origin: 0 0; pointer-events: none; }
+/* o círculo é a área que aparece no perfil; o resto escurece */
+.crop-mask { position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .92); box-shadow: 0 0 0 100vmax rgba(10, 5, 14, .62); pointer-events: none; }
+.crop-zoom { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.crop-zoom label { font-weight: 800; font-size: .88rem; }
+.crop-zoom input[type="range"] { flex: 1 1 auto; min-width: 0; accent-color: var(--primary-color); min-height: 28px; }

@@ -3,9 +3,10 @@ import { el, html, on, safeUrl, setHtml, toInt } from '../core/dom.js';
 import { icon, spinner } from '../core/icons.js';
 import { choiceDialog } from '../core/dialogs.js';
 import { openModal } from '../core/modal.js';
+import { openTextEditor } from './textEditorModal.js';
 import { messageOf } from '../core/errors.js';
 import { toast } from '../core/toast.js';
-import { DAYS, DAY_LABELS, MAX_CHAPTERS, MAX_EPISODES, MAX_REVIEW, MAX_VOLUMES, SEASON_TYPES, SECTIONS, cloneEntry, emptyEntryFor, findDuplicate, isReading, markAllWatched, normalizeSeason, originLabel, progressOf, readSummary, statusLabel, statusesOf, titleKey } from '../domain/entry.js';
+import { DAYS, DAY_LABELS, MAX_CHAPTERS, MAX_EPISODES, MAX_NOTES, MAX_REVIEW, MAX_VOLUMES, SEASON_TYPES, SECTIONS, cloneEntry, emptyEntryFor, findDuplicate, isReading, markAllWatched, normalizeSeason, originLabel, progressOf, readSummary, statusLabel, statusesOf, titleKey } from '../domain/entry.js';
 import { DEFAULT_SOURCE, READ_SOURCES, SOURCES, searchReadings, searchSeasons, searchWorks, sourceAvailable } from '../services/search/index.js';
 
 const SOURCE_KEY = 'kamylist_last_source';
@@ -131,18 +132,18 @@ export function openMediaForm({ entry = null, section = 'watch', onSave, existin
         </div>`}
 
         <div class="field">
-            <label for="mf-review">Minha análise <span class="muted small">(opcional · aparece no feed)</span></label>
-            <textarea id="mf-review" class="textarea" rows="3" maxlength="${MAX_REVIEW}" placeholder="O que você achou? Quem pode ver sua biblioteca pode ler."></textarea>
-            <div class="row-between">
-                <label class="check-row"><input type="checkbox" id="mf-spoiler"> Contém spoilers</label>
-                <span class="field-hint" data-review-count aria-live="off">0/${MAX_REVIEW}</span>
+            <span class="field-label" id="mf-texts-label">Análise e anotações</span>
+            <div class="text-cards" role="group" aria-labelledby="mf-texts-label">
+                <button type="button" class="text-card" data-act="edit-review" aria-haspopup="dialog">
+                    <span class="text-card-head">${icon('quote', { size: 16 })} Minha análise <span class="muted small">(aparece no feed)</span></span>
+                    <span class="text-card-state" data-review-state></span>
+                </button>
+                <button type="button" class="text-card" data-act="edit-notes" aria-haspopup="dialog">
+                    <span class="text-card-head">${icon('book', { size: 16 })} Anotações / Diário <span class="muted small">(privado)</span></span>
+                    <span class="text-card-state" data-notes-state></span>
+                </button>
             </div>
-            <p class="field-hint">A análise aparece para quem vê sua biblioteca. As anotações abaixo só você vê (a menos que ative "Mostrar minhas anotações").</p>
-        </div>
-
-        <div class="field">
-            <label for="mf-notes">Anotações / Diário <span class="muted small">(privado)</span></label>
-            <textarea id="mf-notes" class="textarea" rows="2" maxlength="5000" placeholder="Anote lembretes, teorias ou impressões..."></textarea>
+            <p class="field-hint">A análise aparece para quem vê sua biblioteca. As anotações só você vê (a menos que ative "Mostrar minhas anotações").</p>
         </div>
 
         <div class="form-grid">
@@ -173,7 +174,7 @@ export function openMediaForm({ entry = null, section = 'watch', onSave, existin
     const $ = (sel) => content.querySelector(sel);
     const fields = {
         source: $('#mf-source'), title: $('#mf-title'), tags: $('#mf-tags'), air: $('#mf-air'),
-        notes: $('#mf-notes'), review: $('#mf-review'), spoiler: $('#mf-spoiler'), category: $('#mf-category'), status: $('#mf-status'), rating: $('#mf-rating'),
+        category: $('#mf-category'), status: $('#mf-status'), rating: $('#mf-rating'),
         seasonName: $('#mf-season-name'),
         chRead: $('#mf-ch'), chTotal: $('#mf-ch-total'), volRead: $('#mf-vol'), volTotal: $('#mf-vol-total'),
     };
@@ -190,12 +191,19 @@ export function openMediaForm({ entry = null, section = 'watch', onSave, existin
         fields.volRead.value = String(draft.volumesRead || 0);
         fields.volTotal.value = String(draft.volumesTotal || 0);
     }
-    fields.notes.value = draft.notes;
-    fields.review.value = draft.review;
-    fields.spoiler.checked = draft.reviewSpoiler;
-    const countReview = () => { $('[data-review-count]').textContent = `${fields.review.value.length}/${MAX_REVIEW}`; };
-    fields.review.addEventListener('input', countReview);
-    countReview();
+    // Análise e anotações ficam em janelas próprias (textEditorModal); aqui só o rascunho e o resumo nos botões.
+    const texts = { review: draft.review || '', spoiler: Boolean(draft.reviewSpoiler), notes: draft.notes || '' };
+    const stateOf = (text, extra = '') => {
+        const t = text.trim();
+        if (!t) return 'Vazia · toque para escrever';
+        const excerpt = t.replace(/\s+/g, ' ');
+        return `${excerpt.length > 60 ? excerpt.slice(0, 60).trimEnd() + '…' : excerpt} · ${text.length} caractere${text.length === 1 ? '' : 's'}${extra}`;
+    };
+    const paintTexts = () => {
+        $('[data-review-state]').textContent = stateOf(texts.review, texts.spoiler && texts.review.trim() ? ' · com spoilers' : '');
+        $('[data-notes-state]').textContent = stateOf(texts.notes).replace('Vazia', 'Vazias');
+    };
+    paintTexts();
     fields.category.value = draft.category;
     fields.status.value = draft.status;
     fields.rating.value = String(draft.rating);
@@ -403,6 +411,22 @@ export function openMediaForm({ entry = null, section = 'watch', onSave, existin
                 if (dup) { modal.close(); onShowExisting?.(dup); }
                 break;
             }
+            case 'edit-review':
+                openTextEditor({
+                    title: 'Minha análise', iconName: 'quote', label: 'Texto da análise', value: texts.review, maxLength: MAX_REVIEW, spoiler: texts.spoiler,
+                    intro: 'O que você achou? Quem pode ver sua biblioteca pode ler, e a análise aparece no feed de quem segue você.',
+                    placeholder: 'Escreva sua análise...',
+                    onChange: (v) => { texts.review = v.value; texts.spoiler = v.spoiler; paintTexts(); },
+                });
+                break;
+            case 'edit-notes':
+                openTextEditor({
+                    title: 'Anotações / Diário', iconName: 'book', label: 'Texto das anotações', value: texts.notes, maxLength: MAX_NOTES,
+                    intro: 'Só você vê estas anotações (a menos que ative "Mostrar minhas anotações" nas configurações).',
+                    placeholder: 'Anote lembretes, teorias ou impressões...',
+                    onChange: (v) => { texts.notes = v.value; paintTexts(); },
+                });
+                break;
             case 'add-season': addManualSeason(); break;
             case 'remove-season': {
                 const idx = Number(btn.closest('[data-idx]').dataset.idx);
@@ -490,9 +514,9 @@ export function openMediaForm({ entry = null, section = 'watch', onSave, existin
                 rating: toInt(fields.rating.value, 0, 5, 0),
                 tags: fields.tags.value.split(',').map((t) => t.trim()).filter(Boolean),
                 airDay: fields.air?.value || '',
-                notes: fields.notes.value,
-                review: fields.review.value,
-                reviewSpoiler: fields.spoiler.checked && fields.review.value.trim() !== '',
+                notes: texts.notes,
+                review: texts.review,
+                reviewSpoiler: texts.spoiler && texts.review.trim() !== '',
             });
             if (reading) {
                 data.seasons = [];

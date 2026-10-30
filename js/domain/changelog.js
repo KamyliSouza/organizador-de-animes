@@ -1,9 +1,18 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.7';
+export const SITE_VERSION = '1.8';
 
 export const CHANGELOG = [
+    {
+        version: '1.8',
+        title: 'Formulário, Personalização e foto de perfil',
+        items: [
+            'Ao adicionar ou editar uma obra, a análise e as anotações agora têm janelas próprias: o formulário fica mais curto e você escreve com mais espaço. O texto vale na hora, então fechar a janela não perde nada.',
+            'Foto de perfil com recorte circular: ao escolher a imagem, você arrasta, amplia e enquadra dentro de um círculo (também funciona com os dedos e com o teclado) antes de enviar.',
+            'Personalização reorganizada: a foto e os dados do perfil ficam no mesmo painel, e as cores ocupam a largura toda logo abaixo, sem espaço vazio no computador.',
+        ],
+    },
     {
         version: '1.7',
         title: 'Correções e acabamento',

@@ -1,5 +1,6 @@
-// Prepara a foto de perfil NO NAVEGADOR antes de enviar: recorta um quadrado no centro,
-// reduz para 128x128 e comprime (WebP; JPEG nos navegadores que não geram WebP).
+// Prepara a foto de perfil NO NAVEGADOR antes de enviar: recorta o quadrado escolhido pela pessoa na janela de recorte
+// (ou o centro da foto, se nenhum recorte for informado), reduz para 128x128 e comprime (WebP; JPEG nos navegadores que não geram WebP).
+// A imagem guardada é quadrada: o site a mostra dentro de um círculo (a janela de recorte já mostra a máscara redonda).
 // O resultado costuma ter 3 a 10 KB. O plano gratuito do Supabase não tem redimensionamento
 // de imagens, por isso essa etapa é feita aqui.
 import { AppError } from '../core/errors.js';
@@ -40,12 +41,22 @@ function makeCanvas(size) {
     return c;
 }
 
-/** Recorte quadrado central, reduzindo em etapas (metade por vez) para ficar nítido. */
-function squareThumb(source, background) {
+const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+
+/**
+ * Recorte quadrado, reduzindo em etapas (metade por vez) para ficar nítido.
+ * `crop` = { x, y, size } em pixels da foto original; sem ele, usa o quadrado central.
+ */
+function squareThumb(source, background, crop = null) {
     const { w, h } = sizeOf(source);
     if (!w || !h) throw new AppError('Não foi possível ler essa imagem. Tente outro arquivo.');
-    const side = Math.min(w, h);
+    let side = Math.min(w, h);
     let sx = (w - side) / 2, sy = (h - side) / 2;
+    if (crop && [crop.x, crop.y, crop.size].every(Number.isFinite) && crop.size > 0) {
+        side = clamp(crop.size, 1, side);                 // nunca maior que o lado menor da foto
+        sx = clamp(crop.x, 0, w - side);
+        sy = clamp(crop.y, 0, h - side);
+    }
 
     let size = side;
     let current = source;
@@ -68,25 +79,30 @@ function squareThumb(source, background) {
 
 const toBlob = (canvas, type, quality) => new Promise((resolve) => canvas.toBlob(resolve, type, quality));
 
-/**
- * file (File) -> { blob, type, width, height }. Lança AppError com mensagem pronta.
- * `type` é "image/webp" ou "image/jpeg".
- */
-export async function prepareAvatar(file) {
+/** Confere tipo e tamanho do arquivo escolhido. Lança AppError com mensagem pronta. */
+export function checkAvatarFile(file) {
     if (!file || !INPUT_TYPE.test(file.type || '')) throw new AppError(BAD_FILE);
     if (file.size > MAX_INPUT_BYTES) throw new AppError(BAD_FILE);
+}
+
+/**
+ * file (File) -> { blob, type, width, height }. Lança AppError com mensagem pronta.
+ * `type` é "image/webp" ou "image/jpeg". `crop` ({ x, y, size } na foto original) vem da janela de recorte.
+ */
+export async function prepareAvatar(file, crop = null) {
+    checkAvatarFile(file);
 
     const { source, release } = await decode(file);
     try {
         // 1) WebP (com transparência)
-        const webpCanvas = squareThumb(source, null);
+        const webpCanvas = squareThumb(source, null, crop);
         for (const q of QUALITIES) {
             const blob = await toBlob(webpCanvas, 'image/webp', q);
             if (!blob || blob.type !== 'image/webp') break;                 // este navegador não gera WebP: vai para JPEG
             if (blob.size <= AVATAR_MAX_BYTES) return { blob, type: blob.type, width: AVATAR_SIZE, height: AVATAR_SIZE };
         }
         // 2) JPEG (fundo branco no lugar da transparência)
-        const jpegCanvas = squareThumb(source, '#ffffff');
+        const jpegCanvas = squareThumb(source, '#ffffff', crop);
         for (const q of QUALITIES) {
             const blob = await toBlob(jpegCanvas, 'image/jpeg', q);
             if (blob && blob.type === 'image/jpeg' && blob.size <= AVATAR_MAX_BYTES) return { blob, type: blob.type, width: AVATAR_SIZE, height: AVATAR_SIZE };

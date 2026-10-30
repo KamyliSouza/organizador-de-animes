@@ -1,0 +1,730 @@
+diff -ruN a/README.md b/README.md
+--- a/README.md	2026-10-29 18:38:36.000000000 -0300
++++ b/README.md	2026-10-30 04:34:31.000000000 -0300
+@@ -96,13 +96,14 @@
+ 
+ Em **Perfil** (menu do topo) a conta tem duas abas, cada uma com o próprio botão de salvar (o que foi digitado numa aba não é salvo pela outra, e o site avisa antes de descartar alterações ao trocar de aba):
+ 
+-- **Personalização** (`#/configuracoes`): foto de perfil, nome de exibição, "sobre você", nome de usuário e **cores** (veja "Cores do perfil").
++- **Personalização** (`#/configuracoes`): o quadro **Seu perfil** (foto de perfil à esquerda; nome de exibição, nome de usuário e "sobre você" à direita) e, logo abaixo, o quadro **Cores** (veja "Cores do perfil"). No celular e em telas estreitas tudo vira uma coluna só.
+ - **Configurações** (`#/configuracoes/conta`): privacidade (perfil público, mostrar anotações), e-mail e senha, sair da conta, backup e a zona de perigo (excluir a conta).
+ 
+ ## Foto de perfil
+ 
+ - Em **Personalização → Foto de perfil → Escolher/Trocar foto**. Aceita JPG, PNG, WebP e GIF de até 12 MB.
+-- O **navegador** recorta um quadrado no centro e reduz para **128×128** em WebP (JPEG nos navegadores sem suporte a WebP), geralmente com **3 a 10 KB**. Só essa versão pequena é enviada. O servidor ainda recusa qualquer arquivo acima de **64 KB** ou que não seja WebP/JPEG.
++- Ao escolher o arquivo abre a janela **Ajustar foto**: a pessoa enquadra a imagem dentro de um **círculo** (arrastar com o mouse ou o dedo, pinça com dois dedos, roda do mouse, controle de **Zoom** de 100% a 400%, e pelo teclado: setas movem a foto, `+` e `-` dão zoom, `0` e o botão **Centralizar** voltam ao início). A parte dentro do círculo é a que aparece no perfil. **Cancelar**, **Esc** ou o X não enviam nada. Só depois de **Usar esta foto** o arquivo é preparado e enviado.
++- O **navegador** corta o quadrado escolhido (sem mexer, é o quadrado central) e reduz para **128×128** em WebP (JPEG nos navegadores sem suporte a WebP), geralmente com **3 a 10 KB**. Só essa versão pequena é enviada. O servidor ainda recusa qualquer arquivo acima de **64 KB** ou que não seja WebP/JPEG.
+ - Fica uma **única foto por conta**: o arquivo se chama como o ID da conta, então trocar **sobrescreve** a anterior (nada de imagens antigas acumulando). **Remover foto** e **Excluir a conta** apagam o arquivo de verdade do Storage.
+ - A foto é **pública** (qualquer pessoa que veja o perfil, o Explorar ou o menu do site pode vê-la); só a própria pessoa consegue enviar, trocar ou apagar a sua.
+ - O número da versão vai no endereço da imagem (`?v=...`), por isso uma foto trocada aparece na hora, sem ficar presa no cache.
+@@ -159,7 +160,7 @@
+ 
+ ## Análises
+ 
+-Ao adicionar ou editar uma obra existe o campo **Minha análise** (até **2000 caracteres**) com a opção **Contém spoilers**.
++Ao adicionar ou editar uma obra existem dois botões, **Minha análise** e **Anotações / Diário**. Cada um abre uma **janela própria** para escrever com espaço (o formulário não fica com campos enormes). O botão mostra um resumo do que já foi escrito (ou "Vazia"). O texto vale mesmo que a janela seja fechada pelo X, pelo fundo ou com Esc; **Concluir** só fecha, e **Limpar texto** esvazia o campo. A análise aceita até **2000 caracteres** e tem a opção **Contém spoilers**; as anotações aceitam até **5000**.
+ 
+ - A **análise** é para ser lida: aparece no detalhe da obra e no feed para quem pode ver a sua biblioteca (todo mundo, se o perfil for público; só quem teve o pedido aceito, se for privado).
+ - As **anotações** são outra coisa: continuam sendo o seu diário, só você vê (a não ser que ative **Mostrar minhas anotações**).
+@@ -311,7 +312,7 @@
+ ## Logo e novidades do site
+ 
+ - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
+-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.7`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
++- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.8`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+ 
+ ## Como o código está organizado
+ 
+diff -ruN a/css/components.css b/css/components.css
+--- a/css/components.css	2026-10-29 19:27:09.000000000 -0300
++++ b/css/components.css	2026-10-30 04:34:17.000000000 -0300
+@@ -710,3 +710,34 @@
+ .patch-entry ul { margin: 0; padding: 2px 14px 14px 34px; display: grid; gap: 6px; font-size: .9rem; color: var(--subtitle-color); }
+ .patch-entry li { overflow-wrap: anywhere; }
+ .patch-entry li::marker { color: var(--primary-text); }
++
++/* Formulário da obra: botões que abrem as janelas de análise e anotações */
++.text-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
++.text-card {
++    display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
++    min-width: 0; padding: 10px 12px; text-align: left; font: inherit; color: var(--text-color);
++    background: var(--input-bg); border: 2px solid var(--card-border); border-radius: 14px; cursor: pointer;
++    transition: border-color .18s ease, background-color .18s ease;
++}
++.text-card:hover { border-color: var(--card-border-strong); background: var(--notice-bg); }
++.text-card:focus-visible { outline: 3px solid var(--primary-color); outline-offset: 2px; }
++.text-card-head { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; font-weight: 800; font-size: .9rem; min-width: 0; }
++.text-card-head .icon { color: var(--primary-text); flex: 0 0 auto; }
++.text-card-state { max-width: 100%; font-size: .8rem; color: var(--subtitle-color); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
++.text-editor { min-height: min(46vh, 20rem); resize: vertical; }
++@media (max-width: 30em) { .text-cards { grid-template-columns: minmax(0, 1fr); } }
++
++/* Janela "Ajustar foto": recorte circular da foto de perfil */
++.crop-viewport {
++    position: relative; width: min(100%, 320px); aspect-ratio: 1; margin: 0 auto;
++    overflow: hidden; border-radius: 16px; background: #1a1220;
++    touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none;
++}
++.crop-viewport:active { cursor: grabbing; }
++.crop-viewport:focus-visible { outline: 3px solid var(--primary-color); outline-offset: 3px; }
++.crop-img { position: absolute; left: 0; top: 0; max-width: none; transform-origin: 0 0; pointer-events: none; }
++/* o círculo é a área que aparece no perfil; o resto escurece */
++.crop-mask { position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .92); box-shadow: 0 0 0 100vmax rgba(10, 5, 14, .62); pointer-events: none; }
++.crop-zoom { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
++.crop-zoom label { font-weight: 800; font-size: .88rem; }
++.crop-zoom input[type="range"] { flex: 1 1 auto; min-width: 0; accent-color: var(--primary-color); min-height: 28px; }
+diff -ruN a/css/views.css b/css/views.css
+--- a/css/views.css	2026-10-29 13:32:16.000000000 -0300
++++ b/css/views.css	2026-10-30 05:21:17.000000000 -0300
+@@ -101,6 +101,18 @@
+ .photo-editor { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+ .photo-preview .avatar { box-shadow: 0 0 0 4px var(--card-border); }
+ .photo-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; }
++
++/* Personalização: foto e campos no mesmo painel, e as cores logo abaixo ocupando a largura toda (sem buracos no desktop) */
++.profile-panel-body { display: grid; grid-template-columns: minmax(0, 17rem) minmax(0, 1fr); gap: 24px 32px; align-items: start; }
++.photo-block { display: flex; flex-direction: column; align-items: center; gap: 12px; min-width: 0; text-align: center; padding-right: 32px; border-right: 1px solid var(--card-border); }
++.photo-block h3 { display: flex; align-items: center; gap: 8px; font-size: 1rem; }
++.photo-block h3 .icon { color: var(--primary-text); }
++.photo-block .photo-editor { flex-direction: column; gap: 14px; }
++.photo-block .photo-actions { align-items: center; }
++.photo-block .field-hint { text-align: center; }
++.panel .profile-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; align-items: start; }
++.profile-form .span-2, .profile-form > .button { grid-column: 1 / -1; }
++.profile-form > .button { justify-self: start; }
+ @media (max-width: 30em) {
+     /* As abas nunca quebram uma palavra ao meio (zoom alto do navegador, celular): se não cabem na linha, a aba desce para a de baixo. */
+     .settings-tabs { width: 100%; flex-wrap: wrap; border-radius: 22px; }
+@@ -110,7 +122,10 @@
+     .settings-tab .icon { display: none; }       /* telas bem estreitas: só o texto */
+ }
+ .panel-wide { grid-column: 1 / -1; }
+-.palette-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(168px, 100%), 1fr)); gap: 12px; }
++/* 8 combinações: 1 coluna no celular, 2 em telas médias e 4 no desktop (sempre linhas cheias, sem espaço vazio no fim) */
++.palette-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
++@media (min-width: 30em) { .palette-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
++@media (min-width: 56.25em) { .palette-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+ .palette-item { position: relative; min-width: 0; }
+ .palette-option {
+     display: flex; flex-direction: column; gap: 6px; height: 100%; padding: 10px; cursor: pointer;
+@@ -152,6 +167,16 @@
+     .hero-preview { display: none; }
+     .feature-grid, .profile-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+     .settings-grid { grid-template-columns: minmax(0, 1fr); }
++    .profile-panel-body { grid-template-columns: minmax(0, 1fr); }
++    .photo-block { padding-right: 0; border-right: 0; padding-bottom: 20px; border-bottom: 1px solid var(--card-border); }
++}
++@media (max-width: 38.75em) {
++    .panel .profile-form { grid-template-columns: minmax(0, 1fr); }
++    .profile-form > .button { max-width: 100%; }
++}
++@media (max-width: 30em) {
++    /* telas estreitas / texto grande: o botão ocupa a largura e o texto quebra em vez de estourar o quadro */
++    .profile-form > .button { justify-self: stretch; white-space: normal; text-align: center; padding-inline: 10px; }
+ }
+ @media (max-width: 38.75em) {
+     .feature-grid, .profile-grid { grid-template-columns: minmax(0, 1fr); }
+diff -ruN a/js/domain/avatarCrop.js b/js/domain/avatarCrop.js
+--- a/js/domain/avatarCrop.js	1969-12-31 21:00:00.000000000 -0300
++++ b/js/domain/avatarCrop.js	2026-10-29 23:45:45.000000000 -0300
+@@ -0,0 +1,51 @@
++// Conta do recorte circular da foto de perfil (sem DOM, para poder testar).
++//
++// O recorte é um quadrado da foto original. O estado é { zoom, cx, cy }:
++//   zoom   1 = o quadrado inteiro do lado menor da foto; 4 = quatro vezes mais perto
++//   cx, cy centro do quadrado, em pixels da foto original
++// O lado do quadrado é  min(largura, altura) / zoom,  não importa o tamanho da janela na tela.
++export const MIN_ZOOM = 1;
++export const MAX_ZOOM = 4;
++
++const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
++
++/** Lado do quadrado recortado, em pixels da foto original. */
++export const cropSide = (zoom, iw, ih) => Math.min(iw, ih) / clamp(zoom, MIN_ZOOM, MAX_ZOOM);
++
++/** Estado inicial: foto toda enquadrada (zoom 1), centralizada. */
++export const initialView = (iw, ih) => ({ zoom: 1, cx: iw / 2, cy: ih / 2 });
++
++/** Mantém o zoom no intervalo e o quadrado sempre dentro da foto (nunca aparece "vazio" no círculo). */
++export function clampView(view, iw, ih) {
++    const num = (v, fallback) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);   // 0 é um valor válido
++    const zoom = clamp(num(view.zoom, 1), MIN_ZOOM, MAX_ZOOM);
++    const half = cropSide(zoom, iw, ih) / 2;
++    return { zoom, cx: clamp(num(view.cx, iw / 2), half, iw - half), cy: clamp(num(view.cy, ih / 2), half, ih - half) };
++}
++
++/** O recorte { x, y, size } (canto superior esquerdo + lado) para entregar ao prepareAvatar. */
++export function cropOf(view, iw, ih) {
++    const v = clampView(view, iw, ih);
++    const size = cropSide(v.zoom, iw, ih);
++    return { x: v.cx - size / 2, y: v.cy - size / 2, size };
++}
++
++/**
++ * Muda o zoom mantendo parado o ponto da foto que está sob (px, py), medidos dentro da janela de lado `box`.
++ * Sem ponto, o zoom é no centro do recorte.
++ */
++export function zoomAt(view, nextZoom, iw, ih, box, px = box / 2, py = box / 2) {
++    const v = clampView(view, iw, ih);
++    const z = clamp(nextZoom, MIN_ZOOM, MAX_ZOOM);
++    const s0 = box / Math.min(iw, ih);                 // pixels da tela por pixel da foto, com zoom 1
++    const ix = v.cx + (px - box / 2) / (s0 * v.zoom);  // ponto da foto sob o dedo/mouse
++    const iy = v.cy + (py - box / 2) / (s0 * v.zoom);
++    return clampView({ zoom: z, cx: ix - (px - box / 2) / (s0 * z), cy: iy - (py - box / 2) / (s0 * z) }, iw, ih);
++}
++
++/** Arrasta a foto: (dx, dy) em pixels da tela, dentro da janela de lado `box`. */
++export function panBy(view, dx, dy, iw, ih, box) {
++    const v = clampView(view, iw, ih);
++    const s = (box / Math.min(iw, ih)) * v.zoom;
++    return clampView({ ...v, cx: v.cx - dx / s, cy: v.cy - dy / s }, iw, ih);
++}
+diff -ruN a/js/domain/changelog.js b/js/domain/changelog.js
+--- a/js/domain/changelog.js	2026-10-29 18:35:56.000000000 -0300
++++ b/js/domain/changelog.js	2026-10-29 23:44:20.000000000 -0300
+@@ -1,10 +1,19 @@
+ // Histórico de novidades do site (aparece no botão de versão do rodapé).
+ // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
+ // Escreva para a comunidade: frases curtas, sem termos técnicos.
+-export const SITE_VERSION = '1.7';
++export const SITE_VERSION = '1.8';
+ 
+ export const CHANGELOG = [
+     {
++        version: '1.8',
++        title: 'Formulário, Personalização e foto de perfil',
++        items: [
++            'Ao adicionar ou editar uma obra, a análise e as anotações agora têm janelas próprias: o formulário fica mais curto e você escreve com mais espaço. O texto vale na hora, então fechar a janela não perde nada.',
++            'Foto de perfil com recorte circular: ao escolher a imagem, você arrasta, amplia e enquadra dentro de um círculo (também funciona com os dedos e com o teclado) antes de enviar.',
++            'Personalização reorganizada: a foto e os dados do perfil ficam no mesmo painel, e as cores ocupam a largura toda logo abaixo, sem espaço vazio no computador.',
++        ],
++    },
++    {
+         version: '1.7',
+         title: 'Correções e acabamento',
+         items: [
+diff -ruN a/js/domain/entry.js b/js/domain/entry.js
+--- a/js/domain/entry.js	2026-10-27 15:43:42.000000000 -0300
++++ b/js/domain/entry.js	2026-10-29 23:42:03.000000000 -0300
+@@ -19,6 +19,7 @@
+ export const MAX_FAVORITES = 8;
+ /** Tamanho máximo da análise (o texto que a pessoa escreve sobre a obra e que aparece no feed). */
+ export const MAX_REVIEW = 2000;
++export const MAX_NOTES = 5000;
+ 
+ // A biblioteca tem duas seções: "Assistir" (anime, filme, série) e "Ler" (mangá, light novel).
+ export const WATCH_CATEGORIES = ['Anime', 'Filme', 'Série'];
+@@ -113,7 +114,7 @@
+         rating: toInt(e?.rating, 0, 5, 0),
+         tags: cleanList(e?.tags, 20, 30),
+         airDay: DAYS.includes(e?.airDay) ? e.airDay : '',
+-        notes: cleanText(e?.notes, 5000),
++        notes: cleanText(e?.notes, MAX_NOTES),
+         coverImage: safeUrl(e?.coverImage),
+         description: cleanText(e?.description, 10000),
+         genres: cleanList(e?.genres, 20, 40),
+diff -ruN a/js/services/avatarImage.js b/js/services/avatarImage.js
+--- a/js/services/avatarImage.js	2026-10-25 22:15:18.000000000 -0300
++++ b/js/services/avatarImage.js	2026-10-29 23:43:04.000000000 -0300
+@@ -1,5 +1,6 @@
+-// Prepara a foto de perfil NO NAVEGADOR antes de enviar: recorta um quadrado no centro,
+-// reduz para 128x128 e comprime (WebP; JPEG nos navegadores que não geram WebP).
++// Prepara a foto de perfil NO NAVEGADOR antes de enviar: recorta o quadrado escolhido pela pessoa na janela de recorte
++// (ou o centro da foto, se nenhum recorte for informado), reduz para 128x128 e comprime (WebP; JPEG nos navegadores que não geram WebP).
++// A imagem guardada é quadrada: o site a mostra dentro de um círculo (a janela de recorte já mostra a máscara redonda).
+ // O resultado costuma ter 3 a 10 KB. O plano gratuito do Supabase não tem redimensionamento
+ // de imagens, por isso essa etapa é feita aqui.
+ import { AppError } from '../core/errors.js';
+@@ -40,12 +41,22 @@
+     return c;
+ }
+ 
+-/** Recorte quadrado central, reduzindo em etapas (metade por vez) para ficar nítido. */
+-function squareThumb(source, background) {
++const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
++
++/**
++ * Recorte quadrado, reduzindo em etapas (metade por vez) para ficar nítido.
++ * `crop` = { x, y, size } em pixels da foto original; sem ele, usa o quadrado central.
++ */
++function squareThumb(source, background, crop = null) {
+     const { w, h } = sizeOf(source);
+     if (!w || !h) throw new AppError('Não foi possível ler essa imagem. Tente outro arquivo.');
+-    const side = Math.min(w, h);
++    let side = Math.min(w, h);
+     let sx = (w - side) / 2, sy = (h - side) / 2;
++    if (crop && [crop.x, crop.y, crop.size].every(Number.isFinite) && crop.size > 0) {
++        side = clamp(crop.size, 1, side);                 // nunca maior que o lado menor da foto
++        sx = clamp(crop.x, 0, w - side);
++        sy = clamp(crop.y, 0, h - side);
++    }
+ 
+     let size = side;
+     let current = source;
+@@ -68,25 +79,30 @@
+ 
+ const toBlob = (canvas, type, quality) => new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+ 
++/** Confere tipo e tamanho do arquivo escolhido. Lança AppError com mensagem pronta. */
++export function checkAvatarFile(file) {
++    if (!file || !INPUT_TYPE.test(file.type || '')) throw new AppError(BAD_FILE);
++    if (file.size > MAX_INPUT_BYTES) throw new AppError(BAD_FILE);
++}
++
+ /**
+  * file (File) -> { blob, type, width, height }. Lança AppError com mensagem pronta.
+- * `type` é "image/webp" ou "image/jpeg".
++ * `type` é "image/webp" ou "image/jpeg". `crop` ({ x, y, size } na foto original) vem da janela de recorte.
+  */
+-export async function prepareAvatar(file) {
+-    if (!file || !INPUT_TYPE.test(file.type || '')) throw new AppError(BAD_FILE);
+-    if (file.size > MAX_INPUT_BYTES) throw new AppError(BAD_FILE);
++export async function prepareAvatar(file, crop = null) {
++    checkAvatarFile(file);
+ 
+     const { source, release } = await decode(file);
+     try {
+         // 1) WebP (com transparência)
+-        const webpCanvas = squareThumb(source, null);
++        const webpCanvas = squareThumb(source, null, crop);
+         for (const q of QUALITIES) {
+             const blob = await toBlob(webpCanvas, 'image/webp', q);
+             if (!blob || blob.type !== 'image/webp') break;                 // este navegador não gera WebP: vai para JPEG
+             if (blob.size <= AVATAR_MAX_BYTES) return { blob, type: blob.type, width: AVATAR_SIZE, height: AVATAR_SIZE };
+         }
+         // 2) JPEG (fundo branco no lugar da transparência)
+-        const jpegCanvas = squareThumb(source, '#ffffff');
++        const jpegCanvas = squareThumb(source, '#ffffff', crop);
+         for (const q of QUALITIES) {
+             const blob = await toBlob(jpegCanvas, 'image/jpeg', q);
+             if (blob && blob.type === 'image/jpeg' && blob.size <= AVATAR_MAX_BYTES) return { blob, type: blob.type, width: AVATAR_SIZE, height: AVATAR_SIZE };
+diff -ruN a/js/ui/avatarCropModal.js b/js/ui/avatarCropModal.js
+--- a/js/ui/avatarCropModal.js	1969-12-31 21:00:00.000000000 -0300
++++ b/js/ui/avatarCropModal.js	2026-10-30 04:34:17.000000000 -0300
+@@ -0,0 +1,130 @@
++// Janela "Ajustar foto": a pessoa enquadra a foto dentro de um círculo (arrastar, zoom, teclado) antes de enviar.
++// Resolve com o recorte { x, y, size } (em pixels da foto original) ou null se cancelar.
++import { el, html } from '../core/dom.js';
++import { openModal } from '../core/modal.js';
++import { MAX_ZOOM, MIN_ZOOM, clampView, cropOf, initialView, panBy, zoomAt } from '../domain/avatarCrop.js';
++
++export function openAvatarCropper(file) {
++    return new Promise((resolve) => {
++        const url = URL.createObjectURL(file);
++        let answer = null;
++        let view = null;           // { zoom, cx, cy }
++        let iw = 0, ih = 0;
++
++        const content = el(html`
++            <div class="stack crop-wrap">
++                <p class="muted small">Arraste a foto para enquadrar e use o zoom. A parte que fica dentro do círculo é a que aparece no seu perfil.</p>
++                <div class="crop-viewport" data-viewport tabindex="0" role="group"
++                     aria-label="Área de recorte da foto. Use as setas do teclado para mover a foto, e mais ou menos para o zoom.">
++                    <img class="crop-img" alt="" draggable="false" data-img>
++                    <span class="crop-mask" aria-hidden="true"></span>
++                </div>
++                <div class="crop-zoom">
++                    <label for="crop-zoom">Zoom</label>
++                    <input type="range" id="crop-zoom" min="${MIN_ZOOM * 100}" max="${MAX_ZOOM * 100}" step="1" value="100" data-zoom>
++                    <button type="button" class="button button-ghost button-sm" data-crop-reset>Centralizar</button>
++                </div>
++                <p class="field-hint" data-crop-error hidden role="alert"></p>
++                <div class="modal-footer">
++                    <button type="button" class="button button-ghost" data-modal-close>Cancelar</button>
++                    <button type="button" class="button button-primary" data-crop-ok disabled>Usar esta foto</button>
++                </div>
++            </div>`);
++
++        const viewport = content.querySelector('[data-viewport]');
++        const img = content.querySelector('[data-img]');
++        const zoomInput = content.querySelector('[data-zoom]');
++        const okBtn = content.querySelector('[data-crop-ok]');
++        // largura de layout (não muda durante a animação de abertura da janela, ao contrário de getBoundingClientRect)
++        const box = () => viewport.clientWidth || 280;
++
++        function render() {
++            if (!view) return;
++            view = clampView(view, iw, ih);
++            const b = box();
++            const s = (b / Math.min(iw, ih)) * view.zoom;       // tela por pixel da foto
++            img.style.transform = `translate(${b / 2 - view.cx * s}px, ${b / 2 - view.cy * s}px) scale(${s})`;
++            zoomInput.value = String(Math.round(view.zoom * 100));
++        }
++        const set = (next) => { view = clampView(next, iw, ih); render(); };
++
++        img.addEventListener('load', () => {
++            iw = img.naturalWidth; ih = img.naturalHeight;
++            if (!iw || !ih) { fail(); return; }
++            img.style.width = `${iw}px`; img.style.height = `${ih}px`;
++            view = initialView(iw, ih);
++            okBtn.disabled = false;
++            render();
++        });
++        img.addEventListener('error', fail);
++        function fail() {
++            const msg = content.querySelector('[data-crop-error]');
++            msg.textContent = 'Não foi possível ler essa imagem. Tente outro arquivo.';
++            msg.hidden = false;
++        }
++        img.src = url;
++
++        // --- arrastar (mouse, toque, caneta) e pinça com dois dedos -------------------------
++        const pointers = new Map();
++        let pinch = 0;
++        viewport.addEventListener('pointerdown', (e) => {
++            if (!view) return;
++            viewport.setPointerCapture?.(e.pointerId);
++            pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
++            if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch = Math.hypot(a.x - b.x, a.y - b.y); }
++        });
++        viewport.addEventListener('pointermove', (e) => {
++            const last = pointers.get(e.pointerId);
++            if (!last || !view) return;
++            if (pointers.size === 1) {
++                view = panBy(view, e.clientX - last.x, e.clientY - last.y, iw, ih, box());
++            } else if (pointers.size === 2) {
++                pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
++                const [a, b] = [...pointers.values()];
++                const dist = Math.hypot(a.x - b.x, a.y - b.y);
++                if (pinch > 0 && dist > 0) {
++                    const r = viewport.getBoundingClientRect();
++                    view = zoomAt(view, view.zoom * (dist / pinch), iw, ih, box(), (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top);
++                }
++                pinch = dist;
++            }
++            pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
++            render();
++        });
++        const release = (e) => { pointers.delete(e.pointerId); pinch = 0; };
++        viewport.addEventListener('pointerup', release);
++        viewport.addEventListener('pointercancel', release);
++        viewport.addEventListener('lostpointercapture', release);
++
++        // roda do mouse / pinça do touchpad: zoom no ponto sob o cursor
++        viewport.addEventListener('wheel', (e) => {
++            if (!view) return;
++            e.preventDefault();
++            const r = viewport.getBoundingClientRect();
++            const factor = Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015));
++            set(zoomAt(view, view.zoom * factor, iw, ih, box(), e.clientX - r.left, e.clientY - r.top));
++        }, { passive: false });
++
++        // teclado: as setas movem a foto, + e - dão zoom, 0 centraliza
++        viewport.addEventListener('keydown', (e) => {
++            if (!view) return;
++            const step = (e.shiftKey ? 0.2 : 0.05) * box();
++            const move = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];   // a foto anda para o lado da seta
++            if (move) { e.preventDefault(); set(panBy(view, move[0], move[1], iw, ih, box())); return; }
++            if (e.key === '+' || e.key === '=') { e.preventDefault(); set(zoomAt(view, view.zoom * 1.1, iw, ih, box())); }
++            else if (e.key === '-' || e.key === '_') { e.preventDefault(); set(zoomAt(view, view.zoom / 1.1, iw, ih, box())); }
++            else if (e.key === '0') { e.preventDefault(); set(initialView(iw, ih)); }
++        });
++
++        zoomInput.addEventListener('input', () => { if (view) set(zoomAt(view, Number(zoomInput.value) / 100, iw, ih, box())); });
++        content.querySelector('[data-crop-reset]').addEventListener('click', () => { if (view) set(initialView(iw, ih)); });
++        okBtn.addEventListener('click', () => { if (!view) return; answer = cropOf(view, iw, ih); modal.close(); });
++
++        const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(render) : null;
++        const modal = openModal({
++            title: 'Ajustar foto', iconName: 'camera', size: 'sm', content, closeOnBackdrop: false, initialFocus: '[data-viewport]',
++            onClose: () => { ro?.disconnect(); URL.revokeObjectURL(url); resolve(answer); },
++        });
++        ro?.observe(viewport);
++    });
++}
+diff -ruN a/js/ui/mediaFormModal.js b/js/ui/mediaFormModal.js
+--- a/js/ui/mediaFormModal.js	2026-10-29 18:34:30.000000000 -0300
++++ b/js/ui/mediaFormModal.js	2026-10-29 23:41:51.000000000 -0300
+@@ -3,9 +3,10 @@
+ import { icon, spinner } from '../core/icons.js';
+ import { choiceDialog } from '../core/dialogs.js';
+ import { openModal } from '../core/modal.js';
++import { openTextEditor } from './textEditorModal.js';
+ import { messageOf } from '../core/errors.js';
+ import { toast } from '../core/toast.js';
+-import { DAYS, DAY_LABELS, MAX_CHAPTERS, MAX_EPISODES, MAX_REVIEW, MAX_VOLUMES, SEASON_TYPES, SECTIONS, cloneEntry, emptyEntryFor, findDuplicate, isReading, markAllWatched, normalizeSeason, originLabel, progressOf, readSummary, statusLabel, statusesOf, titleKey } from '../domain/entry.js';
++import { DAYS, DAY_LABELS, MAX_CHAPTERS, MAX_EPISODES, MAX_NOTES, MAX_REVIEW, MAX_VOLUMES, SEASON_TYPES, SECTIONS, cloneEntry, emptyEntryFor, findDuplicate, isReading, markAllWatched, normalizeSeason, originLabel, progressOf, readSummary, statusLabel, statusesOf, titleKey } from '../domain/entry.js';
+ import { DEFAULT_SOURCE, READ_SOURCES, SOURCES, searchReadings, searchSeasons, searchWorks, sourceAvailable } from '../services/search/index.js';
+ 
+ const SOURCE_KEY = 'kamylist_last_source';
+@@ -131,18 +132,18 @@
+         </div>`}
+ 
+         <div class="field">
+-            <label for="mf-review">Minha análise <span class="muted small">(opcional · aparece no feed)</span></label>
+-            <textarea id="mf-review" class="textarea" rows="3" maxlength="${MAX_REVIEW}" placeholder="O que você achou? Quem pode ver sua biblioteca pode ler."></textarea>
+-            <div class="row-between">
+-                <label class="check-row"><input type="checkbox" id="mf-spoiler"> Contém spoilers</label>
+-                <span class="field-hint" data-review-count aria-live="off">0/${MAX_REVIEW}</span>
++            <span class="field-label" id="mf-texts-label">Análise e anotações</span>
++            <div class="text-cards" role="group" aria-labelledby="mf-texts-label">
++                <button type="button" class="text-card" data-act="edit-review" aria-haspopup="dialog">
++                    <span class="text-card-head">${icon('quote', { size: 16 })} Minha análise <span class="muted small">(aparece no feed)</span></span>
++                    <span class="text-card-state" data-review-state></span>
++                </button>
++                <button type="button" class="text-card" data-act="edit-notes" aria-haspopup="dialog">
++                    <span class="text-card-head">${icon('book', { size: 16 })} Anotações / Diário <span class="muted small">(privado)</span></span>
++                    <span class="text-card-state" data-notes-state></span>
++                </button>
+             </div>
+-            <p class="field-hint">A análise aparece para quem vê sua biblioteca. As anotações abaixo só você vê (a menos que ative "Mostrar minhas anotações").</p>
+-        </div>
+-
+-        <div class="field">
+-            <label for="mf-notes">Anotações / Diário <span class="muted small">(privado)</span></label>
+-            <textarea id="mf-notes" class="textarea" rows="2" maxlength="5000" placeholder="Anote lembretes, teorias ou impressões..."></textarea>
++            <p class="field-hint">A análise aparece para quem vê sua biblioteca. As anotações só você vê (a menos que ative "Mostrar minhas anotações").</p>
+         </div>
+ 
+         <div class="form-grid">
+@@ -173,7 +174,7 @@
+     const $ = (sel) => content.querySelector(sel);
+     const fields = {
+         source: $('#mf-source'), title: $('#mf-title'), tags: $('#mf-tags'), air: $('#mf-air'),
+-        notes: $('#mf-notes'), review: $('#mf-review'), spoiler: $('#mf-spoiler'), category: $('#mf-category'), status: $('#mf-status'), rating: $('#mf-rating'),
++        category: $('#mf-category'), status: $('#mf-status'), rating: $('#mf-rating'),
+         seasonName: $('#mf-season-name'),
+         chRead: $('#mf-ch'), chTotal: $('#mf-ch-total'), volRead: $('#mf-vol'), volTotal: $('#mf-vol-total'),
+     };
+@@ -190,12 +191,19 @@
+         fields.volRead.value = String(draft.volumesRead || 0);
+         fields.volTotal.value = String(draft.volumesTotal || 0);
+     }
+-    fields.notes.value = draft.notes;
+-    fields.review.value = draft.review;
+-    fields.spoiler.checked = draft.reviewSpoiler;
+-    const countReview = () => { $('[data-review-count]').textContent = `${fields.review.value.length}/${MAX_REVIEW}`; };
+-    fields.review.addEventListener('input', countReview);
+-    countReview();
++    // Análise e anotações ficam em janelas próprias (textEditorModal); aqui só o rascunho e o resumo nos botões.
++    const texts = { review: draft.review || '', spoiler: Boolean(draft.reviewSpoiler), notes: draft.notes || '' };
++    const stateOf = (text, extra = '') => {
++        const t = text.trim();
++        if (!t) return 'Vazia · toque para escrever';
++        const excerpt = t.replace(/\s+/g, ' ');
++        return `${excerpt.length > 60 ? excerpt.slice(0, 60).trimEnd() + '…' : excerpt} · ${text.length} caractere${text.length === 1 ? '' : 's'}${extra}`;
++    };
++    const paintTexts = () => {
++        $('[data-review-state]').textContent = stateOf(texts.review, texts.spoiler && texts.review.trim() ? ' · com spoilers' : '');
++        $('[data-notes-state]').textContent = stateOf(texts.notes).replace('Vazia', 'Vazias');
++    };
++    paintTexts();
+     fields.category.value = draft.category;
+     fields.status.value = draft.status;
+     fields.rating.value = String(draft.rating);
+@@ -403,6 +411,22 @@
+                 if (dup) { modal.close(); onShowExisting?.(dup); }
+                 break;
+             }
++            case 'edit-review':
++                openTextEditor({
++                    title: 'Minha análise', iconName: 'quote', label: 'Texto da análise', value: texts.review, maxLength: MAX_REVIEW, spoiler: texts.spoiler,
++                    intro: 'O que você achou? Quem pode ver sua biblioteca pode ler, e a análise aparece no feed de quem segue você.',
++                    placeholder: 'Escreva sua análise...',
++                    onChange: (v) => { texts.review = v.value; texts.spoiler = v.spoiler; paintTexts(); },
++                });
++                break;
++            case 'edit-notes':
++                openTextEditor({
++                    title: 'Anotações / Diário', iconName: 'book', label: 'Texto das anotações', value: texts.notes, maxLength: MAX_NOTES,
++                    intro: 'Só você vê estas anotações (a menos que ative "Mostrar minhas anotações" nas configurações).',
++                    placeholder: 'Anote lembretes, teorias ou impressões...',
++                    onChange: (v) => { texts.notes = v.value; paintTexts(); },
++                });
++                break;
+             case 'add-season': addManualSeason(); break;
+             case 'remove-season': {
+                 const idx = Number(btn.closest('[data-idx]').dataset.idx);
+@@ -490,9 +514,9 @@
+                 rating: toInt(fields.rating.value, 0, 5, 0),
+                 tags: fields.tags.value.split(',').map((t) => t.trim()).filter(Boolean),
+                 airDay: fields.air?.value || '',
+-                notes: fields.notes.value,
+-                review: fields.review.value,
+-                reviewSpoiler: fields.spoiler.checked && fields.review.value.trim() !== '',
++                notes: texts.notes,
++                review: texts.review,
++                reviewSpoiler: texts.spoiler && texts.review.trim() !== '',
+             });
+             if (reading) {
+                 data.seasons = [];
+diff -ruN a/js/ui/textEditorModal.js b/js/ui/textEditorModal.js
+--- a/js/ui/textEditorModal.js	1969-12-31 21:00:00.000000000 -0300
++++ b/js/ui/textEditorModal.js	2026-10-29 23:41:51.000000000 -0300
+@@ -0,0 +1,52 @@
++// Janela exclusiva para escrever um texto comprido (a análise ou as anotações de uma obra).
++// O que a pessoa digita vale na hora para o rascunho do formulário (`onChange`): fechar a janela de qualquer jeito
++// (Concluir, X, Esc ou clique no fundo) nunca perde o texto. A obra só é gravada ao salvar o formulário.
++import { el, html } from '../core/dom.js';
++import { icon } from '../core/icons.js';
++import { openModal } from '../core/modal.js';
++
++/**
++ * @param {object} opts
++ * @param {string} opts.title
++ * @param {string} [opts.iconName]
++ * @param {string} [opts.intro]         Texto de ajuda acima do campo.
++ * @param {string} [opts.label]         Nome acessível do campo.
++ * @param {string} [opts.placeholder]
++ * @param {string} opts.value
++ * @param {number} opts.maxLength
++ * @param {boolean|null} [opts.spoiler] null = sem opção de spoiler; boolean = valor atual da caixa "Contém spoilers".
++ * @param {({value:string, spoiler:boolean})=>void} opts.onChange
++ * @param {() => void} [opts.onClose]
++ */
++export function openTextEditor({ title, iconName = 'edit', intro = '', label = title, placeholder = '', value, maxLength, spoiler = null, onChange, onClose }) {
++    const content = el(html`
++        <div class="stack">
++            ${intro ? html`<p class="muted small">${intro}</p>` : ''}
++            <div class="field">
++                <label for="tx-text" class="sr-only">${label}</label>
++                <textarea id="tx-text" class="textarea text-editor" maxlength="${maxLength}" placeholder="${placeholder}"></textarea>
++                <div class="row-between">
++                    ${spoiler === null ? html`<span></span>` : html`<label class="check-row"><input type="checkbox" id="tx-spoiler"> Contém spoilers</label>`}
++                    <span class="field-hint" data-tx-count aria-live="off">0/${maxLength}</span>
++                </div>
++            </div>
++            <div class="modal-footer">
++                <button type="button" class="button button-ghost" data-tx-clear>${icon('trash', { size: 15 })} Limpar texto</button>
++                <button type="button" class="button button-primary" data-modal-close>Concluir</button>
++            </div>
++        </div>`);
++
++    const text = content.querySelector('#tx-text');
++    const box = content.querySelector('#tx-spoiler');
++    const count = content.querySelector('[data-tx-count]');
++    text.value = value || '';
++    if (box) box.checked = Boolean(spoiler);
++    const paint = () => { count.textContent = `${text.value.length}/${maxLength}`; };
++    const push = () => { paint(); onChange({ value: text.value, spoiler: Boolean(box?.checked) }); };
++    text.addEventListener('input', push);
++    box?.addEventListener('change', push);
++    content.querySelector('[data-tx-clear]').addEventListener('click', () => { text.value = ''; if (box) box.checked = false; push(); text.focus(); });
++    paint();
++
++    return openModal({ title, iconName, content, onClose, initialFocus: '#tx-text' });
++}
+diff -ruN a/js/views/settings.js b/js/views/settings.js
+--- a/js/views/settings.js	2026-10-27 05:17:47.000000000 -0300
++++ b/js/views/settings.js	2026-10-29 23:44:09.000000000 -0300
+@@ -6,9 +6,10 @@
+ import { icon, spinner } from '../core/icons.js';
+ import { ownPalette, setOwnPalette } from '../core/palette.js';
+ import { toast } from '../core/toast.js';
+-import { prepareAvatar } from '../services/avatarImage.js';
++import { checkAvatarFile, prepareAvatar } from '../services/avatarImage.js';
+ import { backend, isCloud, setProfile, state } from '../services/session.js';
+ import { avatar, avatarSrc } from '../ui/avatar.js';
++import { openAvatarCropper } from '../ui/avatarCropModal.js';
+ import { bindDataPanel, dataPanelHtml } from '../ui/dataPanel.js';
+ import { bindPalettePicker, palettePickerHtml, selectPalette } from '../ui/palettePicker.js';
+ import { guardTabs, settingsHeader } from '../ui/settingsShell.js';
+@@ -18,46 +19,56 @@
+ const missingProfile = () => html`<div class="glass-panel empty-state">${icon('alert', { size: 40 })}<h3>Perfil não encontrado</h3>
+     <p>Não conseguimos carregar o seu perfil. Verifique se o arquivo <code>sql/schema.sql</code> foi executado no Supabase.</p></div>`;
+ 
+-function photoPanel(p) {
++/** Foto de perfil: o bloco da esquerda do painel "Seu perfil". */
++function photoBlock(p) {
+     const has = Boolean(avatarSrc(p));
+     return html`
+-    <section class="panel glass-panel" aria-labelledby="st-photo">
+-        <h2 id="st-photo">${icon('camera')} Foto de perfil</h2>
++    <div class="photo-block" role="group" aria-labelledby="st-photo">
++        <h3 id="st-photo">${icon('camera', { size: 17 })} Foto de perfil</h3>
+         <div class="photo-editor">
+-            <div class="photo-preview" data-avatar-preview>${avatar(p.displayName || p.username, 96, avatarSrc(p))}</div>
++            <div class="photo-preview" data-avatar-preview>${avatar(p.displayName || p.username, 112, avatarSrc(p))}</div>
+             <div class="photo-actions">
+                 <label class="button button-secondary" data-avatar-pick>${icon('camera', { size: 17 })} <span data-pick-text>${has ? 'Trocar foto' : 'Escolher foto'}</span>
+                     <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="sr-only" data-avatar-input aria-label="Escolher uma foto de perfil"></label>
+                 <button type="button" class="button button-ghost" data-act="avatar-remove" ${has ? '' : 'hidden'}>${icon('trash', { size: 17 })} Remover foto</button>
+             </div>
+         </div>
+-        <p class="field-hint">A foto é pública. O navegador recorta o centro em formato quadrado e reduz o tamanho antes de enviar. Só existe uma foto por conta: ao trocar ou remover, a anterior é apagada.</p>
++        <p class="field-hint">A foto é pública. Ao escolher, você enquadra a imagem dentro de um círculo (arrastando e ampliando) antes de enviar. Só existe uma foto por conta: ao trocar ou remover, a anterior é apagada.</p>
+         <p class="field-hint" data-avatar-status aria-live="polite"></p>
+-    </section>`;
++    </div>`;
+ }
+ 
+-function identityPanel(p) {
++function identityForm(p) {
+     return html`
+-    <section class="panel glass-panel" aria-labelledby="st-profile">
+-        <h2 id="st-profile">${icon('user')} Seu perfil</h2>
+-        <form data-profile-form novalidate>
++        <form class="profile-form" data-profile-form novalidate>
+             <div class="field">
+                 <label for="st-display">Nome de exibição</label>
+                 <input id="st-display" class="input" maxlength="40" autocomplete="nickname" value="${p.displayName}">
+             </div>
+             <div class="field">
+-                <label for="st-bio">Sobre você</label>
+-                <textarea id="st-bio" class="textarea" maxlength="200" rows="3" placeholder="Conte um pouco sobre você e seus animes favoritos...">${p.bio}</textarea>
+-                <p class="field-hint" data-bio-count aria-live="off">${p.bio.length}/200</p>
+-            </div>
+-            <div class="field">
+                 <label for="st-username">Nome de usuário</label>
+                 <input id="st-username" class="input" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" value="${p.username}">
+                 <p class="username-status" data-username-status aria-live="polite"></p>
+                 <p class="field-hint">Ao mudar, o link antigo do seu perfil deixa de funcionar.</p>
+             </div>
++            <div class="field span-2">
++                <label for="st-bio">Sobre você</label>
++                <textarea id="st-bio" class="textarea" maxlength="200" rows="3" placeholder="Conte um pouco sobre você e seus animes favoritos...">${p.bio}</textarea>
++                <p class="field-hint" data-bio-count aria-live="off">${p.bio.length}/200</p>
++            </div>
+             <button type="submit" class="button button-primary" data-save>Salvar personalização</button>
+-        </form>
++        </form>`;
++}
++
++/** Um painel só: a foto de um lado e os campos do outro (no celular, um embaixo do outro). */
++function profilePanel(p) {
++    return html`
++    <section class="panel panel-wide glass-panel profile-panel" aria-labelledby="st-profile">
++        <h2 id="st-profile">${icon('user')} Seu perfil</h2>
++        <div class="profile-panel-body">
++            ${photoBlock(p)}
++            ${identityForm(p)}
++        </div>
+     </section>`;
+ }
+ 
+@@ -127,8 +138,7 @@
+     setHtml(root, html`
+         ${settingsHeader({ profile, active: 'personalizacao' })}
+         <div class="settings-grid">
+-            ${photoPanel(profile)}
+-            ${identityPanel(profile)}
++            ${profilePanel(profile)}
+             ${palettePanel(profile.palette, true)}
+         </div>`);
+ 
+@@ -151,7 +161,7 @@
+     let blobUrl = '';
+ 
+     const nameNow = () => displayInput.value.trim() || state.profile.displayName || state.profile.username;
+-    function paintAvatar(src) { setHtml(previewBox, avatar(nameNow(), 96, src)); }
++    function paintAvatar(src) { setHtml(previewBox, avatar(nameNow(), 112, src)); }
+     function setBusy(on_, text = '') {
+         busy = on_;
+         fileInput.disabled = on_;
+@@ -171,9 +181,13 @@
+         const file = input.files?.[0];
+         input.value = '';
+         if (!file || busy) return;
+-        setBusy(true, 'Preparando a foto...');
++        setBusy(true, 'Abrindo a foto...');
+         try {
+-            const { blob } = await prepareAvatar(file);
++            checkAvatarFile(file);                       // tipo e tamanho, antes de abrir o recorte
++            const crop = await openAvatarCropper(file);  // a pessoa enquadra a foto no círculo
++            if (!crop) { setBusy(false, ''); return; }   // cancelou: nada muda
++            setBusy(true, 'Preparando a foto...');
++            const { blob } = await prepareAvatar(file, crop);
+             setBusy(true, 'Enviando...');
+             const updated = await be.profiles.setAvatar(blob);
+             if (blobUrl) URL.revokeObjectURL(blobUrl);

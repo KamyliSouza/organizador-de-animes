@@ -96,13 +96,14 @@ python3 -m http.server 8000
 
 Em **Perfil** (menu do topo) a conta tem duas abas, cada uma com o próprio botão de salvar (o que foi digitado numa aba não é salvo pela outra, e o site avisa antes de descartar alterações ao trocar de aba):
 
-- **Personalização** (`#/configuracoes`): foto de perfil, nome de exibição, "sobre você", nome de usuário e **cores** (veja "Cores do perfil").
+- **Personalização** (`#/configuracoes`): o quadro **Seu perfil** (foto de perfil à esquerda; nome de exibição, nome de usuário e "sobre você" à direita) e, logo abaixo, o quadro **Cores** (veja "Cores do perfil"). No celular e em telas estreitas tudo vira uma coluna só.
 - **Configurações** (`#/configuracoes/conta`): privacidade (perfil público, mostrar anotações), e-mail e senha, sair da conta, backup e a zona de perigo (excluir a conta).
 
 ## Foto de perfil
 
 - Em **Personalização → Foto de perfil → Escolher/Trocar foto**. Aceita JPG, PNG, WebP e GIF de até 12 MB.
-- O **navegador** recorta um quadrado no centro e reduz para **128×128** em WebP (JPEG nos navegadores sem suporte a WebP), geralmente com **3 a 10 KB**. Só essa versão pequena é enviada. O servidor ainda recusa qualquer arquivo acima de **64 KB** ou que não seja WebP/JPEG.
+- Ao escolher o arquivo abre a janela **Ajustar foto**: a pessoa enquadra a imagem dentro de um **círculo** (arrastar com o mouse ou o dedo, pinça com dois dedos, roda do mouse, controle de **Zoom** de 100% a 400%, e pelo teclado: setas movem a foto, `+` e `-` dão zoom, `0` e o botão **Centralizar** voltam ao início). A parte dentro do círculo é a que aparece no perfil. **Cancelar**, **Esc** ou o X não enviam nada. Só depois de **Usar esta foto** o arquivo é preparado e enviado.
+- O **navegador** corta o quadrado escolhido (sem mexer, é o quadrado central) e reduz para **128×128** em WebP (JPEG nos navegadores sem suporte a WebP), geralmente com **3 a 10 KB**. Só essa versão pequena é enviada. O servidor ainda recusa qualquer arquivo acima de **64 KB** ou que não seja WebP/JPEG.
 - Fica uma **única foto por conta**: o arquivo se chama como o ID da conta, então trocar **sobrescreve** a anterior (nada de imagens antigas acumulando). **Remover foto** e **Excluir a conta** apagam o arquivo de verdade do Storage.
 - A foto é **pública** (qualquer pessoa que veja o perfil, o Explorar ou o menu do site pode vê-la); só a própria pessoa consegue enviar, trocar ou apagar a sua.
 - O número da versão vai no endereço da imagem (`?v=...`), por isso uma foto trocada aparece na hora, sem ficar presa no cache.
@@ -159,7 +160,7 @@ O feed **não atualiza sozinho**: ele carrega quando você abre a tela e no bot�
 
 ## Análises
 
-Ao adicionar ou editar uma obra existe o campo **Minha análise** (até **2000 caracteres**) com a opção **Contém spoilers**.
+Ao adicionar ou editar uma obra existem dois botões, **Minha análise** e **Anotações / Diário**. Cada um abre uma **janela própria** para escrever com espaço (o formulário não fica com campos enormes). O botão mostra um resumo do que já foi escrito (ou "Vazia"). O texto vale mesmo que a janela seja fechada pelo X, pelo fundo ou com Esc; **Concluir** só fecha, e **Limpar texto** esvazia o campo. A análise aceita até **2000 caracteres** e tem a opção **Contém spoilers**; as anotações aceitam até **5000**.
 
 - A **análise** é para ser lida: aparece no detalhe da obra e no feed para quem pode ver a sua biblioteca (todo mundo, se o perfil for público; só quem teve o pedido aceito, se for privado).
 - As **anotações** são outra coisa: continuam sendo o seu diário, só você vê (a não ser que ative **Mostrar minhas anotações**).
@@ -311,7 +312,7 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.7`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.8`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
 
 ## Como o código está organizado
 
