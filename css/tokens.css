@@ -38,8 +38,8 @@
 
     /* Estados (texto legível sobre o fundo claro) */
     --st-watching: #1d4ed8;
-    --st-planned: #b45309;
-    --st-completed: #047857;
+    --st-planned: #a44c08;
+    --st-completed: #047454;
     --st-on_hold: #4f46e5;
     --st-dropped: #52525b;
     --cat-anime: var(--primary-text);

@@ -59,6 +59,7 @@ function syncScrollLock() {
  * @param {Element} opts.content  Elemento que vira o corpo do modal.
  * @param {() => void} [opts.onClose]  Chamado uma vez ao fechar (por qualquer motivo).
  * @param {string} [opts.initialFocus]  Seletor (dentro do corpo) do campo que recebe o foco ao abrir. Padrão: o primeiro campo.
+ *   Use 'dialog' para focar a própria janela (nenhum campo): o teclado do celular não abre sozinho.
  */
 export function openModal({ title, iconName = '', size = 'md', content, onClose, closeOnBackdrop = true, initialFocus = '' }) {
     const previouslyFocused = document.activeElement;
@@ -127,7 +128,8 @@ export function openModal({ title, iconName = '', size = 'md', content, onClose,
     pushEntry(api);
     syncScrollLock();
 
-    const firstField = (initialFocus && body.querySelector(initialFocus))
+    const firstField = initialFocus === 'dialog' ? dialog
+        : (initialFocus && body.querySelector(initialFocus))
         || body.querySelector('input:not([type="hidden"]), select, textarea, button') || dialog;
     setTimeout(() => {
         firstField.focus({ preventScroll: true });

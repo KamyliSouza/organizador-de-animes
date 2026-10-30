@@ -68,3 +68,16 @@ export function icon(name, { size = 18, className = '' } = {}) {
 }
 
 export const spinner = (size = 18) => icon('loader', { size, className: 'icon-spin' });
+
+/**
+ * Logo do site: o kanji 菫 (sumire, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL OFL)
+ * e salvo como forma, então não depende de nenhuma fonte instalada. Usa a cor do texto (currentColor).
+ * O mesmo desenho está em favicon.svg.
+ */
+const KANJI_PATH = 'M268 392V444H439V392ZM557 444H725V392H557ZM908 645H96V556H439V518H157V318H439V281H114V195H439V155H151V74H439V32H45V-58H955V32H557V74H854V155H557V195H889V281H557V318H844V518H557V556H908ZM950 796H725V850H606V796H392V850H274V796H53V702H274V660H392V702H606V660H725V702H950Z';
+export function brandKanji(size = 26) {
+    return raw(
+        `<svg class="brand-kanji" width="${size}" height="${size}" viewBox="9 10 46 46" fill="currentColor" aria-hidden="true" focusable="false">` +
+        `<path transform="translate(8 52) scale(.048 -.048)" d="${KANJI_PATH}"/></svg>`
+    );
+}

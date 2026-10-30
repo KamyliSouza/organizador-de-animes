@@ -1,14 +1,16 @@
 // "Casca" do site: navbar, barra inferior (celular) e rodapé.
 import { config } from '../config.js';
 import { html, on, setHtml } from '../core/dom.js';
-import { icon } from '../core/icons.js';
+import { brandKanji, icon } from '../core/icons.js';
 import { currentPath, navigate, onRouteChange } from '../core/router.js';
 import { currentTheme, onThemeChange, toggleTheme } from '../core/theme.js';
 import { toast } from '../core/toast.js';
 import { messageOf } from '../core/errors.js';
+import { SITE_VERSION } from '../domain/changelog.js';
 import { isStaff } from '../domain/roles.js';
 import { state, isCloud, myRole, onSessionChange, refreshSession } from '../services/session.js';
 import { avatar, avatarSrc } from './avatar.js';
+import { openPatchNotesModal } from './patchNotesModal.js';
 
 const isActive = (path, ...prefixes) => prefixes.some((p) => (p === '/' ? path === '/' : path === p || path.startsWith(p + '/')));
 
@@ -46,7 +48,7 @@ function renderNav(nav) {
     setHtml(nav, html`
         <div class="site-nav-inner">
             <a class="brand" href="#/" aria-label="${config.siteName} — início">
-                <span class="brand-mark">${icon('playCircle', { size: 22 })}</span>
+                <span class="brand-mark">${brandKanji(28)}</span>
                 <span class="brand-text">${config.siteName}</span>
             </a>
             <nav class="nav-links" aria-label="Principal">
@@ -79,7 +81,8 @@ function renderTabBar(bar) {
 
 function renderFooter(footer) {
     setHtml(footer, html`
-        <p>© ${new Date().getFullYear()} ${config.siteName}. Feito para organizar e compartilhar animes.</p>
+        <p>© ${new Date().getFullYear()} ${config.siteName}. Feito para organizar e compartilhar animes.
+        <button type="button" class="version-button" data-patch-notes aria-haspopup="dialog" title="Ver as novidades do site">v${SITE_VERSION}<span class="sr-only"> — ver as novidades do site</span></button></p>
         <p>Dados das obras: MyAnimeList (via Jikan), AniList${config.tmdbApiKey ? ' e TMDB' : ''}.
         ${config.repoUrl ? html` · <a href="${config.repoUrl}" target="_blank" rel="noopener noreferrer">Ver código-fonte</a>` : ''}</p>
         ${config.tmdbApiKey ? html`<p class="small">Este produto usa a API do TMDB, mas não é endossado nem certificado pelo TMDB.</p>` : ''}`);
@@ -105,6 +108,7 @@ export function mountChrome({ nav, tabBar, footer, notice }) {
     const paint = () => { renderNav(nav); renderTabBar(tabBar); renderNotice(notice); };
     paint();
     renderFooter(footer);
+    on(footer, 'click', '[data-patch-notes]', () => openPatchNotesModal());
 
     onRouteChange(paint);
     onSessionChange(paint);

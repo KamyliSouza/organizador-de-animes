@@ -173,6 +173,7 @@ Em **Perfil → Personalização → Cores** cada pessoa escolhe uma entre 8 com
 - **Para quem escolheu:** a combinação vale para o site inteiro (nos temas claro e escuro) sempre que a pessoa estiver com a sessão iniciada, em qualquer aparelho.
 - **Para quem visita:** ao abrir o perfil de outra pessoa (com ou sem login, público ou privado ainda trancado), a página usa as cores dela. Ao sair do perfil, volta para as cores de quem está visitando.
 - Todas as combinações passam no contraste de leitura **WCAG AA** (texto 4,5:1; botões e bordas 3:1) nos dois temas. Para conferir depois de mudar algo: `node tools/palettes.mjs --check`.
+- **Etiquetas que mudam com o tema:** as cores de *Assistindo*, *Quero ver*, *Concluído*, *Em espera*, *Dropado*, *Filme* e *Série* também fazem parte da combinação. Cada papel usa por padrão a cor de sempre, mas, quando essa cor ficaria parecida com a cor do próprio tema (por exemplo "Concluído" verde no Floresta, ou "Série" azul no Oceano), o tema troca por outra família de cor (campo `roles` em `tools/palettes.mjs`). O comando de conferência também barra qualquer etiqueta com matiz a menos de 25° da cor do tema e confere o contraste do texto sobre o fundo da própria etiqueta.
 - **Criar ou ajustar uma combinação:** edite a lista em `tools/palettes.mjs` e rode `node tools/palettes.mjs` (sem `--check`): ele confere o contraste e gera o `css/palettes.css`. Adicione o nome também em `js/domain/palettes.js`. Não é preciso mudar o SQL.
 - No modo local (sem Supabase) a escolha fica guardada só neste navegador.
 
@@ -256,7 +257,9 @@ Em qualquer perfil que não seja o seu aparece **Denunciar**: a pessoa escolhe o
 - **Trocar o status:** todo card (e cada linha, no modo lista) tem um seletor de status. Ao escolher *Concluído*, todos os episódios são marcados como vistos.
 - **+1 Ep:** o botão só aparece em obras *Assistindo*. Para começar uma obra de *Quero ver*, mude o status para *Assistindo* ou marque episódios em **Temporadas**. Marcar um episódio em **Temporadas** numa obra em espera ou dropada a coloca de volta em *Assistindo*.
 - **Números no topo:** cada número (Obras, Assistindo, Quero ver…) é um botão que filtra a lista pelo status correspondente. O mesmo vale no perfil de outras pessoas.
-- **Capa:** clicar na capa abre os detalhes da obra, nos cards e no modo lista (também no perfil de outras pessoas).
+- **Capa:** clicar na capa abre os detalhes da obra, nos cards, no modo lista, no perfil de outras pessoas e **no feed** (o feed busca a sinopse na lista pública da pessoa, uma vez por pessoa enquanto a tela está aberta).
+- **Cards e modo lista:** o **+1** fica logo ao lado do seletor de status, o progresso e os botões ficam sempre colados na parte de baixo do card (a folga de altura entre cards da mesma linha fica acima do progresso, nunca no meio dos controles), e no modo lista o ícone de **Detalhes** fica junto dos outros ícones de ação. O seletor de status tem largura máxima de **12rem**, então não estica em telas de DPI alto.
+- **Teclado do celular:** ao **adicionar** uma obra o campo do título recebe o foco (o teclado abre); ao **editar** não (o foco vai para a própria janela).
 
 Ao salvar uma obra como **Concluído**, todos os episódios de todas as temporadas são marcados como vistos (só quando o status *muda* para Concluído: editar uma obra que já estava concluída não mexe nos episódios).
 
@@ -305,6 +308,11 @@ Para buscar séries e filmes:
 
 ---
 
+## Logo e novidades do site
+
+- **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.7`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+
 ## Como o código está organizado
 
 ```
@@ -313,8 +321,8 @@ css/                    tokens (cores), palettes.css (combinações de cores, ge
 js/
   main.js               inicia tudo e define as rotas
   config.js             o único arquivo que você precisa editar
-  core/                 DOM seguro, roteador, modal, toasts, tema, ícones
-  domain/               regras puras: obras, temporadas, estatísticas, backup, cargos
+  core/                 DOM seguro, roteador, modal, toasts, tema, ícones (inclui a logo 菫)
+  domain/               regras puras: obras, temporadas, estatísticas, backup, cargos, histórico de novidades (changelog.js)
   services/             backends (local e Supabase), sessão, busca (Jikan, AniList, TMDB)
   ui/                   componentes: cards, filtros, modais, cartão de compartilhar, avatar, abas da conta, abas Assistir/Ler, progresso de leitura
   views/                telas: início, biblioteca, login, perfil, explorar, feed (atividade e pedidos), personalização, configurações, painel da equipe (admin.js)

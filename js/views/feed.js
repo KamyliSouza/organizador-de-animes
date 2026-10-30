@@ -10,6 +10,7 @@ import { toast } from '../core/toast.js';
 import { CATEGORY_CLASS, STATUSES, sectionOfCategory, statusLabel } from '../domain/entry.js';
 import { backend, isCloud, setRequestCount, state } from '../services/session.js';
 import { avatar, avatarSrc } from '../ui/avatar.js';
+import { openDetailsModal } from '../ui/infoModals.js';
 import { applyImageFallback, posterPlaceholder, starsHtml } from '../ui/mediaCard.js';
 import { bindReviews, reviewHtml } from '../ui/reviewBlock.js';
 import { roleBadge } from '../ui/roleBadge.js';
@@ -47,9 +48,9 @@ function feedItem(item) {
             </div>
         </header>
         <div class="feed-work">
-            <div class="feed-cover">${item.coverImage
+            <button type="button" class="feed-cover poster-button" data-cover data-username="${person.username}" aria-label="Abrir detalhes de ${item.title}">${item.coverImage
                 ? html`<img src="${item.coverImage}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-fallback>`
-                : posterPlaceholder(sectionOfCategory(item.category) === 'read')}</div>
+                : posterPlaceholder(sectionOfCategory(item.category) === 'read')}</button>
             <div class="feed-info">
                 <h3 class="feed-title">${item.title}</h3>
                 <div class="media-badges">
@@ -150,7 +151,38 @@ export function mount(root, ctx) {
             }
         }
 
-        offs.push(on(root, 'click', '[data-act="reload"]', () => load()));
+        // Clicar na capa abre os detalhes da obra (sinopse, gêneros, análise). O feed só traz o resumo da atividade;
+        // o resto vem da lista pública da pessoa, buscada uma vez por pessoa enquanto esta tela estiver aberta.
+        const libraries = new Map();
+        const libraryOf = (username) => {
+            if (!libraries.has(username)) {
+                const pending = be.library.listPublic(username);
+                libraries.set(username, pending);
+                pending.catch(() => libraries.delete(username));   // falhou: a próxima tentativa busca de novo
+            }
+            return libraries.get(username);
+        };
+
+        offs.push(on(root, 'click', '[data-cover]', async (_, btn) => {
+            if (btn.getAttribute('aria-busy') === 'true') return;
+            const entryId = btn.closest('[data-entry]')?.dataset.entry;
+            const item = items.find((n) => String(n.entryId) === entryId);
+            if (!item) return;
+            btn.setAttribute('aria-busy', 'true');
+            try {
+                const entry = (await libraryOf(btn.dataset.username)).find((e) => String(e.id) === entryId);
+                if (!alive) return;
+                if (entry) openDetailsModal(entry);
+                else toast('Esta obra não está mais disponível no perfil.', { type: 'info' });
+            } catch (err) {
+                console.error(err);
+                if (alive) toast(messageOf(err, 'Não foi possível abrir os detalhes da obra.'), { type: 'error' });
+            } finally {
+                btn.removeAttribute('aria-busy');
+            }
+        }));
+
+        offs.push(on(root, 'click', '[data-act="reload"]', () => { libraries.clear(); load(); }));
         offs.push(on(root, 'click', '[data-act="more"]', () => { if (!loading) load({ append: true }); }));
         load();
         return () => offs.forEach((off) => off());

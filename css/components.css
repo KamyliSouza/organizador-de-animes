@@ -359,9 +359,15 @@
 .media-progress b { color: var(--text-color); }
 .media-progress .pct { color: var(--primary-text); font-weight: 800; }
 .media-progress.is-idle { color: var(--muted-color); }
-.media-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: auto; padding-top: 4px; }
+/* Rodapé do card (progresso + ações): fica sempre colado embaixo. Se o card for mais alto que o conteúdo
+   (cards da mesma linha têm a mesma altura), a folga aparece entre as etiquetas e o progresso, não no meio dos controles. */
+.media-foot { display: flex; flex-direction: column; gap: 6px; margin-top: auto; }
+.media-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding-top: 4px; }
 .media-actions .push { margin-left: auto; display: flex; flex-wrap: wrap; gap: 2px; }
-.status-pick { flex: 1 1 100%; min-width: 0; }
+.status-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; flex: 1 1 100%; min-width: 0; }   /* telas minúsculas: o +1 desce para a linha de baixo */
+/* Largura máxima do seletor: em telas de DPI alto (a página fica "larga" em px CSS) ele não estica mais até a borda do card */
+.status-pick { flex: 1 1 6.5rem; min-width: 0; max-width: 12rem; }
+.status-row .button { flex: 0 0 auto; }
 .status-select { width: 100%; font-weight: 700; }
 .media-actions .status-pick .select { min-height: 34px; }
 
@@ -402,12 +408,15 @@
 .media-row .thumb.poster-button { padding: 0; }
 .media-row .progress-slim { height: 5px; margin-top: 5px; }
 .media-row .status-pick { flex: 0 0 auto; width: 138px; }
+/* Colunas fixas: o seletor, o "+1" e os ícones ficam alinhados de uma linha para outra, mesmo quando falta um botão */
+.media-row .inc-slot { display: flex; justify-content: flex-end; min-width: 4.8rem; }
+.media-row .icon-group { display: flex; align-items: center; justify-content: flex-end; gap: 2px; margin-left: 6px; min-width: 202px; }   /* 6 ícones de 32px + 5 vãos */
 .media-row .status-pick .select { min-height: 34px; }
 .media-row .thumb img { width: 100%; height: 100%; object-fit: cover; }
 .media-row .info { flex: 1 1 auto; min-width: 0; }
 .media-row .info h3 { font-size: .92rem; }
 .media-row .info p { font-size: .76rem; color: var(--subtitle-color); overflow-wrap: anywhere; }
-.media-row .actions { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; }
+.media-row .actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
 
 /* Estados vazios e carregamento */
 .empty-state { display: grid; justify-items: center; gap: 8px; padding: 48px 16px; text-align: center; color: var(--subtitle-color); }
@@ -583,8 +592,11 @@
 @media (max-width: 40em) {
     .media-row { flex-wrap: wrap; }
     .media-row .info { flex: 1 1 120px; }
-    .media-row .actions { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-end; }
-    .media-row .status-pick { flex: 1 1 130px; width: auto; }
+    .media-row .actions { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; }
+    .media-row .status-pick { flex: 1 1 130px; width: auto; max-width: 12rem; }
+    .media-row .inc-slot { min-width: 0; }
+    .media-row .inc-slot:empty { display: none; }
+    .media-row .icon-group { margin-left: auto; min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
 }
 
 /* Abas Assistir / Ler (biblioteca, perfil e estatísticas) */
@@ -647,8 +659,9 @@
 }
 @media (max-width: 18.75em) {
     .stat-grid { grid-template-columns: minmax(0, 1fr); }
-    .media-actions .button-sm { padding: 6px 8px; font-size: .78rem; }
+    .media-actions .button-sm { padding: 6px 4px; font-size: .74rem; letter-spacing: 0; }
     .media-actions .button-sm .icon { display: none; }
+    .media-actions .status-select { padding-left: 8px; padding-right: 24px; background-position: right 7px center; background-size: 11px 11px; }
     .media-badges .badge { padding-inline: 7px; }
 }
 
@@ -680,3 +693,20 @@ h1 .role-badge, h2 .role-badge, h3 .role-badge { font-size: .7rem; }
 .site-notice-inner { display: flex; flex-direction: column; gap: 10px; }
 .site-notice:not(:empty) + .site-shell { margin-top: 16px; }
 .site-announcement { overflow-wrap: anywhere; white-space: pre-line; }
+
+/* Janela de novidades (botão de versão do rodapé) */
+.patch-notes { gap: 10px; }
+.patch-entry { border: 1px solid var(--card-border); border-radius: 14px; background: var(--input-bg); overflow: hidden; }
+.patch-entry summary {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px;
+    padding: 10px 14px; cursor: pointer; list-style: none; font-weight: 800;
+}
+.patch-entry summary::-webkit-details-marker { display: none; }
+.patch-entry summary::after { content: '+'; margin-left: auto; font-size: 1.1rem; color: var(--subtitle-color); }
+.patch-entry[open] summary::after { content: '\2212'; }
+.patch-entry summary:focus-visible { outline: 3px solid var(--primary-color); outline-offset: -3px; }
+.patch-version { color: var(--primary-text); }
+.patch-title { min-width: 0; overflow-wrap: anywhere; }
+.patch-entry ul { margin: 0; padding: 2px 14px 14px 34px; display: grid; gap: 6px; font-size: .9rem; color: var(--subtitle-color); }
+.patch-entry li { overflow-wrap: anywhere; }
+.patch-entry li::marker { color: var(--primary-text); }

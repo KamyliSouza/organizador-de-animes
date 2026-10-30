@@ -287,6 +287,17 @@ html:not(.js) .skip-link { display: none; }
     -webkit-backdrop-filter: blur(var(--blur-card));
 }
 .site-footer p + p { margin-top: 6px; }
+/* Botão discreto da versão: abre as novidades do site */
+.version-button {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 26px; margin-left: 6px; padding: 0 10px;
+    font: inherit; font-size: .78rem; font-weight: 800; letter-spacing: .02em;
+    color: var(--subtitle-color); background: transparent; cursor: pointer;
+    border: 1px solid var(--card-border); border-radius: var(--radius-pill);
+    transition: color .18s ease, border-color .18s ease, background-color .18s ease;
+}
+.version-button:hover { color: var(--primary-text); border-color: var(--card-border-strong); background: var(--notice-bg); }
+.version-button:focus-visible { outline: 3px solid var(--primary-color); outline-offset: 2px; }
 
 @media (max-width: 45em) {      /* 720px; em para virar o menu de baixo também quando o texto do navegador é aumentado */
     .nav-links, .nav-account { display: none; }

@@ -6,6 +6,6 @@
     </linearGradient>
   </defs>
   <rect width="64" height="64" rx="16" fill="url(#g)"/>
-  <circle cx="32" cy="32" r="19" fill="none" stroke="#fff" stroke-width="4"/>
-  <path d="M27 23.5v17l14-8.5z" fill="#fff"/>
+  <!-- 菫 (sumire): contorno da fonte Noto Sans CJK JP Bold (SIL OFL), como forma -->
+  <path transform="translate(8 52) scale(.048 -.048)" fill="#fff" d="M268 392V444H439V392ZM557 444H725V392H557ZM908 645H96V556H439V518H157V318H439V281H114V195H439V155H151V74H439V32H45V-58H955V32H557V74H854V155H557V195H889V281H557V318H844V518H557V556H908ZM950 796H725V850H606V796H392V850H274V796H53V702H274V660H392V702H606V660H725V702H950Z"/>
 </svg>

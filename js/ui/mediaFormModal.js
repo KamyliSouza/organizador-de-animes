@@ -200,7 +200,7 @@ export function openMediaForm({ entry = null, section = 'watch', onSave, existin
     fields.status.value = draft.status;
     fields.rating.value = String(draft.rating);
 
-    const modal = openModal({ title: isEdit ? 'Editar / atualizar obra' : (reading ? 'Adicionar mangá ou light novel' : 'Adicionar obra'), iconName: isEdit ? 'edit' : 'plus', content, initialFocus: '#mf-title' });
+    const modal = openModal({ title: isEdit ? 'Editar / atualizar obra' : (reading ? 'Adicionar mangá ou light novel' : 'Adicionar obra'), iconName: isEdit ? 'edit' : 'plus', content, initialFocus: isEdit ? 'dialog' : '#mf-title' });   // editar não abre o teclado do celular; adicionar abre
 
     // --- obra repetida -------------------------------------------------------------
     const dupBox = $('[data-dup]');

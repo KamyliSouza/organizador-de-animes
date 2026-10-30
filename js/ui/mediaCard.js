@@ -65,16 +65,20 @@ function progressBlock(entry) {
         </div>`;
 }
 
-/** Botões de progresso do dono: Temporadas + "+1 Ep" (Assistir) ou Progresso + "+1 Cap" (Ler). */
-function progressButtons(entry) {
-    if (isReading(entry)) {
-        return html`
-            ${entry.status !== 'planned' ? html`<button type="button" class="button button-secondary button-sm" data-action="progress">${icon('layers', { size: 15 })} Progresso</button>` : ''}
-            ${entry.status === 'watching' ? html`<button type="button" class="button button-primary button-sm" data-action="inc" title="Marcar mais 1 capítulo como lido" aria-label="Marcar mais 1 capítulo de ${entry.title}">+1 Cap</button>` : ''}`;
-    }
-    return html`
-        ${entry.status !== 'planned' ? html`<button type="button" class="button button-secondary button-sm" data-action="seasons">${icon('layers', { size: 15 })} Temporadas (${entry.seasons.length})</button>` : ''}
-        ${entry.status === 'watching' ? html`<button type="button" class="button button-primary button-sm" data-action="inc" title="Marcar mais 1 episódio como visto" aria-label="Marcar mais 1 episódio de ${entry.title}">+1 Ep</button>` : ''}`;
+/** "+1 Ep" / "+1 Cap": só aparece enquanto a obra está em andamento. Fica sempre ao lado do seletor de status. */
+function incButton(entry) {
+    if (entry.status !== 'watching') return '';
+    return isReading(entry)
+        ? html`<button type="button" class="button button-primary button-sm" data-action="inc" title="Marcar mais 1 capítulo como lido" aria-label="Marcar mais 1 capítulo de ${entry.title}">+1 Cap</button>`
+        : html`<button type="button" class="button button-primary button-sm" data-action="inc" title="Marcar mais 1 episódio como visto" aria-label="Marcar mais 1 episódio de ${entry.title}">+1 Ep</button>`;
+}
+
+/** Botão que abre as temporadas (Assistir) ou o progresso (Ler). Obra que ainda não começou não tem. */
+function progressButton(entry) {
+    if (entry.status === 'planned') return '';
+    return isReading(entry)
+        ? html`<button type="button" class="button button-secondary button-sm" data-action="progress">${icon('layers', { size: 15 })} Progresso</button>`
+        : html`<button type="button" class="button button-secondary button-sm" data-action="seasons">${icon('layers', { size: 15 })} Temporadas (${entry.seasons.length})</button>`;
 }
 
 function favoriteButton(entry) {
@@ -96,18 +100,23 @@ export function mediaCardHtml(entry, { readonly = false } = {}) {
                 ${starsHtml(entry.rating)}
                 ${hasDetails ? html`<button type="button" class="link-button" data-action="details">${icon('book', { size: 14 })} Detalhes</button>` : ''}
             </div>
-            ${progressBlock(entry)}
-            ${readonly ? '' : html`
-                <div class="media-actions">
-                    <div class="status-pick">${statusSelect(entry)}</div>
-                    ${progressButtons(entry)}
-                    <span class="push">
-                        ${favoriteButton(entry)}
-                        <button type="button" class="icon-button sm" data-action="share" aria-label="Compartilhar ${entry.title}" title="Compartilhar">${icon('share', { size: 16 })}</button>
-                        <button type="button" class="icon-button sm" data-action="edit" aria-label="Editar ${entry.title}" title="Editar">${icon('edit', { size: 16 })}</button>
-                        <button type="button" class="icon-button sm danger" data-action="delete" aria-label="Excluir ${entry.title}" title="Excluir">${icon('trash', { size: 16 })}</button>
-                    </span>
-                </div>`}
+            <div class="media-foot">
+                ${progressBlock(entry)}
+                ${readonly ? '' : html`
+                    <div class="media-actions">
+                        <div class="status-row">
+                            <div class="status-pick">${statusSelect(entry)}</div>
+                            ${incButton(entry)}
+                        </div>
+                        ${progressButton(entry)}
+                        <span class="push">
+                            ${favoriteButton(entry)}
+                            <button type="button" class="icon-button sm" data-action="share" aria-label="Compartilhar ${entry.title}" title="Compartilhar">${icon('share', { size: 16 })}</button>
+                            <button type="button" class="icon-button sm" data-action="edit" aria-label="Editar ${entry.title}" title="Editar">${icon('edit', { size: 16 })}</button>
+                            <button type="button" class="icon-button sm danger" data-action="delete" aria-label="Excluir ${entry.title}" title="Excluir">${icon('trash', { size: 16 })}</button>
+                        </span>
+                    </div>`}
+            </div>
         </div>
     </article>`;
 }
@@ -129,25 +138,28 @@ export function mediaRowHtml(entry, { readonly = false } = {}) {
             ${showBar ? html`<div class="progress progress-slim ${pct >= 100 ? 'is-complete' : ''}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Progresso de ${entry.title}"><span style="width:${pct}%"></span></div>` : ''}
         </div>
         <div class="actions">
-            ${readonly ? '' : html`<div class="status-pick">${statusSelect(entry)}</div>`}
-            ${hasDetails ? html`<button type="button" class="icon-button sm" data-action="details" aria-label="Detalhes de ${entry.title}" title="Detalhes">${icon('book', { size: 16 })}</button>` : ''}
             ${readonly ? '' : html`
-                ${entry.status === 'watching' ? html`<button type="button" class="button button-primary button-sm" data-action="inc" aria-label="${reading ? 'Marcar mais 1 capítulo' : 'Marcar mais 1 episódio'} de ${entry.title}">${reading ? '+1 Cap' : '+1 Ep'}</button>` : ''}
-                ${entry.status !== 'planned' ? html`<button type="button" class="icon-button sm" data-action="${reading ? 'progress' : 'seasons'}" aria-label="${reading ? 'Progresso' : 'Temporadas'} de ${entry.title}" title="${reading ? 'Progresso' : 'Temporadas'}">${icon('layers', { size: 16 })}</button>` : ''}
-                ${favoriteButton(entry)}
-                <button type="button" class="icon-button sm" data-action="share" aria-label="Compartilhar ${entry.title}" title="Compartilhar">${icon('share', { size: 16 })}</button>
-                <button type="button" class="icon-button sm" data-action="edit" aria-label="Editar ${entry.title}" title="Editar">${icon('edit', { size: 16 })}</button>
-                <button type="button" class="icon-button sm danger" data-action="delete" aria-label="Excluir ${entry.title}" title="Excluir">${icon('trash', { size: 16 })}</button>`}
+                <div class="status-pick">${statusSelect(entry)}</div>
+                <span class="inc-slot">${incButton(entry)}</span>`}
+            <span class="icon-group">
+                ${hasDetails ? html`<button type="button" class="icon-button sm" data-action="details" aria-label="Detalhes de ${entry.title}" title="Detalhes">${icon('book', { size: 16 })}</button>` : ''}
+                ${readonly ? '' : html`
+                    ${entry.status !== 'planned' ? html`<button type="button" class="icon-button sm" data-action="${reading ? 'progress' : 'seasons'}" aria-label="${reading ? 'Progresso' : 'Temporadas'} de ${entry.title}" title="${reading ? 'Progresso' : 'Temporadas'}">${icon('layers', { size: 16 })}</button>` : ''}
+                    ${favoriteButton(entry)}
+                    <button type="button" class="icon-button sm" data-action="share" aria-label="Compartilhar ${entry.title}" title="Compartilhar">${icon('share', { size: 16 })}</button>
+                    <button type="button" class="icon-button sm" data-action="edit" aria-label="Editar ${entry.title}" title="Editar">${icon('edit', { size: 16 })}</button>
+                    <button type="button" class="icon-button sm danger" data-action="delete" aria-label="Excluir ${entry.title}" title="Excluir">${icon('trash', { size: 16 })}</button>`}
+            </span>
         </div>
     </article>`;
 }
 
 /** Troca uma capa que não carregou pelo ícone padrão. */
 export function applyImageFallback(img) {
-    const holder = img.closest('.poster, .thumb');
+    const holder = img.closest('.poster, .thumb, .feed-cover');
     if (!holder) return;
     img.remove();
-    if (holder.classList.contains('poster') && !holder.querySelector('.poster-empty')) {
+    if (!holder.classList.contains('thumb') && !holder.querySelector('.poster-empty')) {
         holder.insertAdjacentHTML('afterbegin', posterPlaceholder(img.hasAttribute('data-reading')).toString());
     }
 }
