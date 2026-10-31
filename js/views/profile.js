@@ -8,14 +8,14 @@ import { icon } from '../core/icons.js';
 import { viewPalette } from '../core/palette.js';
 import { refresh } from '../core/router.js';
 import { toast } from '../core/toast.js';
-import { MAX_FAVORITES, SECTIONS, SECTION_KEYS, sectionOf } from '../domain/entry.js';
+import { SECTIONS, SECTION_KEYS, entriesInSections, normalizeSections, sectionOf } from '../domain/entry.js';
 import { canAct, isStaff } from '../domain/roles.js';
 import { backend, isCloud, myRole, state } from '../services/session.js';
 import { avatar, avatarSrc } from '../ui/avatar.js';
 import { openConnectionsModal } from '../ui/connectionsModal.js';
 import { openDetailsModal, openStatsModal } from '../ui/infoModals.js';
 import { mountLibraryBrowser } from '../ui/libraryBrowser.js';
-import { mediaCardHtml } from '../ui/mediaCard.js';
+import { bindFavoritesStrip, favoritesStripHtml } from '../ui/favoritesStrip.js';
 import { openMemberModal } from '../ui/memberModal.js';
 import { openReportModal } from '../ui/reportModal.js';
 import { roleBadge } from '../ui/roleBadge.js';
@@ -73,6 +73,8 @@ export async function mount(root, ctx) {
             entries = profile.relation === 'self' ? await be.library.listMine() : await be.library.listPublic(username);
             // Na prévia do próprio perfil, mostra o mesmo que os visitantes veriam.
             if (profile.relation === 'self' && !profile.showNotes) entries = entries.map((e) => ({ ...e, notes: '' }));
+            // Só as abas ativas aparecem (o banco já esconde as outras de quem visita; na prévia da dona fazemos o mesmo aqui).
+            entries = entriesInSections(entries, profile.sections);
         }
     } catch (err) {
         console.error(err);
@@ -89,6 +91,8 @@ export async function mount(root, ctx) {
     }
 
     const own = profile.relation === 'self';
+    const keys = normalizeSections(profile.sections);          // abas ativas deste perfil
+    const hiddenTabs = SECTION_KEYS.filter((k) => !keys.includes(k)).map((k) => SECTIONS[k].label);
     // Conta suspensa vista por outra pessoa: o banco já esconde nome, bio e foto. Só sobra o aviso.
     if (profile.suspended && !own) {
         document.title = `Perfil indisponível · ${config.siteName}`;
@@ -111,6 +115,7 @@ export async function mount(root, ctx) {
     setHtml(root, html`
         ${own ? html`<div class="notice-box">${icon(profile.isPublic ? 'globe' : 'lock')}<div>
             <strong>Prévia do seu perfil.</strong> ${profile.isPublic ? 'É assim que outras pessoas veem.' : 'Ele está privado: só quem você aprovar vê a biblioteca.'}
+            ${hiddenTabs.length ? html`<span data-hidden-tabs>Abas escondidas de outras pessoas: ${hiddenTabs.join(', ')}.</span> ` : ''}
             <a href="#/configuracoes">Editar perfil</a> · <a href="#/configuracoes/conta">Privacidade</a></div></div>` : ''}
         <header class="profile-head glass-panel">
             ${avatar(profile.displayName || profile.username, 84, avatarSrc(profile))}
@@ -130,8 +135,8 @@ export async function mount(root, ctx) {
             </div>
         </header>
         ${canView ? html`
-        <div data-sections></div>
-        <div id="section-panel" role="tabpanel" class="stack" data-panel>
+        <div data-sections ${keys.length < 2 ? html`hidden` : ''}></div>
+        <div id="section-panel" class="stack" data-panel ${keys.length < 2 ? '' : html`role="tabpanel"`}>
             <div data-tiles></div>
             <div data-favorites-wrap></div>
             <div data-browser class="stack"></div>
@@ -147,22 +152,23 @@ export async function mount(root, ctx) {
         const panel = root.querySelector('[data-panel]');
         const favWrap = root.querySelector('[data-favorites-wrap]');
 
-        // Aba inicial: a que a pessoa usou por último; se ela estiver vazia neste perfil, abre a primeira que tiver obras.
+        // Aba inicial: a que a pessoa usou por último; se não estiver ativa neste perfil ou estiver vazia, abre a primeira ativa que tiver obras.
         const counts = sectionCounts(entries);
+        const tabsOn = keys.length > 1;                    // com uma única aba ativa o seletor some
         let section = loadSection();
-        if (counts[section] === 0) section = SECTION_KEYS.find((k) => counts[k] > 0) || section;
+        if (!keys.includes(section)) section = keys[0];
+        if (counts[section] === 0) section = keys.find((k) => counts[k] > 0) || section;
 
-        // Obras fixadas pela pessoa na aba atual (o site limita a MAX_FAVORITES por aba)
+        // Obras fixadas pela pessoa na aba atual: todas aparecem, numa faixa com rolagem lateral
+        const strip = bindFavoritesStrip(favWrap);
+        offs.push(() => strip.destroy());
         const paintFavorites = () => {
-            const favorites = entries.filter((e) => e.favorite && sectionOf(e) === section).slice(0, MAX_FAVORITES);
-            setHtml(favWrap, favorites.length ? html`
-                <section class="fav-section" data-favorites aria-labelledby="fav-title">
-                    <h2 id="fav-title">${icon('heart', { size: 20 })} Favoritos</h2>
-                    <div class="media-grid">${favorites.map((e) => mediaCardHtml(e, { readonly: true }))}</div>
-                </section>` : '');
+            setHtml(favWrap, favoritesStripHtml(entries.filter((e) => e.favorite && sectionOf(e) === section), section));
+            strip.update();
         };
         const paintTabs = () => {
-            setHtml(sectionsEl, sectionTabsHtml({ active: section, counts, panelId: 'section-panel' }));
+            if (!tabsOn) { panel.removeAttribute('aria-labelledby'); return; }
+            setHtml(sectionsEl, sectionTabsHtml({ active: section, counts, panelId: 'section-panel', keys }));
             panel.setAttribute('aria-labelledby', `tab-${section}`);
         };
         const paintTiles = (status = browser?.getStatus() ?? 'all') => setHtml(tiles, statTilesHtml(entries, { active: status, section }));
@@ -178,7 +184,7 @@ export async function mount(root, ctx) {
         paintFavorites();
 
         const switchSection = (next) => {
-            if (!SECTIONS[next] || next === section) return;
+            if (!keys.includes(next) || next === section) return;
             section = next;
             browser.setSection(section);
             paintTabs();
@@ -186,7 +192,7 @@ export async function mount(root, ctx) {
             paintFavorites();
         };
         switchSectionRef = switchSection;
-        offs.push(bindSectionTabs(sectionsEl, switchSection));
+        if (tabsOn) offs.push(bindSectionTabs(sectionsEl, switchSection, keys));
         // Os cards com os números filtram a lista pelo status correspondente e rolam até ela.
         offs.push(on(tiles, 'click', '[data-stat]', (_, btn) => {
             browser.setStatus(btn.dataset.stat);
@@ -197,7 +203,7 @@ export async function mount(root, ctx) {
             const entry = entries.find((e) => e.id === btn.closest('[data-id]')?.dataset.id);
             if (entry) openDetailsModal(entry);
         }));
-        offs.push(on(root, 'click', '[data-act="stats"]', () => openStatsModal(entries, { section })));
+        offs.push(on(root, 'click', '[data-act="stats"]', () => openStatsModal(entries, { section, sections: keys })));
     }
 
     async function run(btn, task, okMessage) {

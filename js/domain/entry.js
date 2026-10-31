@@ -15,8 +15,6 @@ const READ_STATUS_LABELS = { watching: 'Lendo', planned: 'Quero ler' };
 /** Status "pausados": marcar um episódio tira a obra deles (volta para Assistindo/Concluído). */
 const PAUSED = new Set(['on_hold', 'dropped']);
 
-/** Quantas obras a pessoa pode fixar como favoritas no perfil. */
-export const MAX_FAVORITES = 8;
 /** Tamanho máximo da análise (o texto que a pessoa escreve sobre a obra e que aparece no feed). */
 export const MAX_REVIEW = 2000;
 export const MAX_NOTES = 5000;
@@ -42,6 +40,22 @@ export const normalizeSection = (v) => (SECTIONS[v] ? v : LEGACY_SECTIONS[v] || 
 export const isReadingCategory = (category) => READ_CATEGORIES.includes(category);
 export const sectionOfCategory = (category) => (category === 'Mangá' ? 'manga' : category === 'Light novel' ? 'novel' : 'anime');
 export const sectionOf = (entry) => sectionOfCategory(entry?.category);
+/**
+ * Abas ativas no perfil público (profiles.sections). Aceita lista ou texto do banco ("{anime,manga}"),
+ * devolve só chaves válidas, sempre na ordem das abas. Vazio ou inválido = todas as abas.
+ */
+export function normalizeSections(v) {
+    const list = Array.isArray(v) ? v : typeof v === 'string' ? v.replace(/[{}"\s]/g, '').split(',') : [];
+    const chosen = new Set(list.filter((x) => Object.hasOwn(SECTIONS, x)));
+    const out = SECTION_KEYS.filter((k) => chosen.has(k));
+    return out.length ? out : [...SECTION_KEYS];
+}
+/** Só as obras das abas ativas (o que outras pessoas veem de um perfil). */
+export const entriesInSections = (entries, sections) => {
+    const keys = normalizeSections(sections);
+    return entries.filter((e) => keys.includes(sectionOf(e)));
+};
+
 /** A aba conta capítulos e volumes (Mangá e Light Novel)? Aceita também o nome antigo "read". */
 export const isReadingSection = (section) => Boolean(SECTIONS[normalizeSection(section)]?.reading);
 export const isReading = (entry) => isReadingCategory(entry?.category);
@@ -181,6 +195,31 @@ export function readSummary(entry) {
     const part = (label, done, total) => (total > 0 ? `${label} ${done} / ${total}` : done > 0 ? `${label} ${done}` : '');
     const out = [part('Cap.', entry.chaptersRead || 0, entry.chaptersTotal || 0), part('Vol.', entry.volumesRead || 0, entry.volumesTotal || 0)].filter(Boolean);
     return out.join(' · ') || 'Sem progresso';
+}
+
+/**
+ * Onde a pessoa está na obra, em palavras ("Episódio: 4 da Temporada: 2", "Volume: 5, Capítulo: 10").
+ * É o que outras pessoas veem nos cards do perfil. Vazio quando ainda não há progresso (ou para filmes).
+ * Anime e série: o último episódio visto da temporada mais adiantada. A "Temporada" conta só as de TV
+ * (OVA, filme e especial aparecem pelo nome); com uma única temporada de TV o número dela é omitido.
+ */
+export function positionLabel(entry) {
+    if (isReading(entry)) {
+        const parts = [];
+        if ((entry.volumesRead || 0) > 0) parts.push(`Volume: ${entry.volumesRead}`);
+        if ((entry.chaptersRead || 0) > 0) parts.push(`Capítulo: ${entry.chaptersRead}`);
+        return parts.join(', ');
+    }
+    if (entry.category === 'Filme') return '';
+    let at = -1;
+    entry.seasons.forEach((s, i) => { if (s.watched.length > 0) at = i; });
+    if (at < 0) return '';
+    const season = entry.seasons[at];
+    const ep = season.watched[season.watched.length - 1];
+    if (season.type !== 'TV') return `Episódio: ${ep} de ${season.name}`;
+    const tv = entry.seasons.filter((x) => x.type === 'TV');
+    if (tv.length <= 1) return `Episódio: ${ep}`;
+    return `Episódio: ${ep} da Temporada: ${entry.seasons.slice(0, at + 1).filter((x) => x.type === 'TV').length}`;
 }
 
 export function progressOf(entry) {
@@ -332,14 +371,8 @@ export function findDuplicate(entries, { title = '', sourceRef = '', category = 
     }) || null;
 }
 
-/** Favoritos da aba (o limite de MAX_FAVORITES vale para cada aba separadamente). */
+/** Quantas obras favoritas há (na aba indicada, ou no total). Não existe limite: cada aba mostra todos os favoritos dela. */
 export const favoriteCount = (entries, section = null) => entries.filter((e) => e.favorite && (!section || sectionOf(e) === normalizeSection(section))).length;
-
-/** Deixa só os primeiros `max` favoritos de cada aba (usado ao importar backups). */
-export function capFavorites(entries, max = MAX_FAVORITES) {
-    const n = Object.fromEntries(SECTION_KEYS.map((k) => [k, 0]));
-    return entries.map((e) => (e.favorite && ++n[sectionOf(e)] > max ? { ...e, favorite: false } : e));
-}
 
 // --- listas ------------------------------------------------------------
 

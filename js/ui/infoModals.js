@@ -2,7 +2,7 @@
 import { el, html, on, setHtml } from '../core/dom.js';
 import { icon } from '../core/icons.js';
 import { openModal } from '../core/modal.js';
-import { DAYS, DAY_LABELS, DEFAULT_SECTION, MINUTES_PER_EPISODE, SECTIONS, SECTION_KEYS, isReading, isReadingSection, normalizeSection, originLabel, progressOf, readSummary, sectionOf } from '../domain/entry.js';
+import { DAYS, DAY_LABELS, DEFAULT_SECTION, MINUTES_PER_EPISODE, SECTIONS, SECTION_KEYS, isReading, isReadingSection, normalizeSection, normalizeSections, originLabel, progressOf, readSummary, sectionOf } from '../domain/entry.js';
 import { computeStats, groupByAirDay } from '../domain/stats.js';
 import { applyImageFallback, posterPlaceholder } from './mediaCard.js';
 import { bindReviews, reviewHtml } from './reviewBlock.js';
@@ -122,15 +122,18 @@ function statsBody(s) {
 
 /**
  * Estatísticas em três abas: Anime (com filmes e séries), Mangá e Light Novel.
- * `section` é a aba que abre primeiro.
+ * `section` é a aba que abre primeiro. `sections` limita as abas (perfil de outra pessoa: só as ativas dela);
+ * com uma única aba o seletor some.
  */
-export function openStatsModal(entries, { section = DEFAULT_SECTION } = {}) {
+export function openStatsModal(entries, { section = DEFAULT_SECTION, sections = SECTION_KEYS } = {}) {
+    const keys = normalizeSections(sections);
     let active = normalizeSection(section);
+    if (!keys.includes(active)) active = keys[0];
 
     const content = el(html`
         <div class="stack">
-            <div class="section-tabs" role="tablist" aria-label="Estatísticas por tipo de obra" data-tabs></div>
-            <div class="stack" role="tabpanel" id="stats-panel" data-body></div>
+            <div class="section-tabs" role="tablist" aria-label="Estatísticas por tipo de obra" data-tabs ${keys.length < 2 ? html`hidden` : ''}></div>
+            <div class="stack" id="stats-panel" data-body ${keys.length < 2 ? '' : html`role="tabpanel"`}></div>
             <div class="modal-footer"><button type="button" class="button button-secondary" data-modal-close>Fechar</button></div>
         </div>`);
     const tabs = content.querySelector('[data-tabs]');
@@ -138,21 +141,23 @@ export function openStatsModal(entries, { section = DEFAULT_SECTION } = {}) {
 
     function render(focusTab = false) {
         const counts = Object.fromEntries(SECTION_KEYS.map((k) => [k, entries.filter((e) => sectionOf(e) === k).length]));
-        setHtml(tabs, html`${SECTION_KEYS.map((k) => html`
+        if (keys.length > 1) {
+            setHtml(tabs, html`${keys.map((k) => html`
             <button type="button" role="tab" class="section-tab" id="stats-tab-${k}" data-section="${k}" aria-selected="${String(k === active)}" aria-controls="stats-panel" tabindex="${k === active ? 0 : -1}">
                 ${icon(SECTION_ICONS[k], { size: 17 })}<span>${SECTIONS[k].label}</span><span class="count" aria-label="${counts[k]} obras">${counts[k]}</span>
             </button>`)}`);
-        body.setAttribute('aria-labelledby', `stats-tab-${active}`);
+            body.setAttribute('aria-labelledby', `stats-tab-${active}`);
+        }
         setHtml(body, statsBody(computeStats(entries, active)));
         if (focusTab) tabs.querySelector(`[data-section="${active}"]`)?.focus({ preventScroll: true });
     }
 
     on(content, 'click', '[data-section]', (_, tab) => { active = tab.dataset.section; render(true); });
     on(content, 'keydown', '[data-section]', (e, tab) => {
-        const i = SECTION_KEYS.indexOf(tab.dataset.section);
-        const next = e.key === 'ArrowRight' ? SECTION_KEYS[(i + 1) % SECTION_KEYS.length]
-            : e.key === 'ArrowLeft' ? SECTION_KEYS[(i - 1 + SECTION_KEYS.length) % SECTION_KEYS.length]
-                : e.key === 'Home' ? SECTION_KEYS[0] : e.key === 'End' ? SECTION_KEYS[SECTION_KEYS.length - 1] : null;
+        const i = keys.indexOf(tab.dataset.section);
+        const next = e.key === 'ArrowRight' ? keys[(i + 1) % keys.length]
+            : e.key === 'ArrowLeft' ? keys[(i - 1 + keys.length) % keys.length]
+                : e.key === 'Home' ? keys[0] : e.key === 'End' ? keys[keys.length - 1] : null;
         if (!next) return;
         e.preventDefault();
         active = next;

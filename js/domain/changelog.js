@@ -1,9 +1,19 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.9';
+export const SITE_VERSION = '1.10';
 
 export const CHANGELOG = [
+    {
+        version: '1.10',
+        title: 'Abas do perfil, Explorar em três linhas e favoritos sem limite',
+        items: [
+            'Você escolhe quais abas (Anime, Mangá e Light Novel) outras pessoas veem no seu perfil, em Configurações → Privacidade. As obras das abas desligadas ficam escondidas no perfil, no Explorar e no feed. Com só uma aba ligada, o seletor de abas some do perfil.',
+            'O Explorar agora resume cada pessoa em até três linhas: Animes, Mangás e Light Novels, cada uma com total, ativas e concluídas.',
+            'No perfil de outra pessoa, cada obra mostra em que ponto ela está: "Episódio: 4 da Temporada: 2" ou "Volume: 5, Capítulo: 10".',
+            'Favoritos sem limite: favorite quantas obras quiser. No perfil, os favoritos de cada aba ficam numa faixa com rolagem lateral.',
+        ],
+    },
     {
         version: '1.9',
         title: 'Abas Anime, Mangá e Light Novel',

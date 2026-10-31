@@ -123,6 +123,7 @@ Se você apagar usuários direto no painel do Supabase (*Authentication → User
 ## Perfis e privacidade
 
 - Todo perfil **começa privado**. Só aparece em **Explorar** e mostra a biblioteca para qualquer pessoa em `#/u/usuario` depois que a pessoa ativa **Perfil público**. Enquanto for privado, só quem a pessoa aprovou vê a biblioteca (veja "Seguir pessoas").
+- **Abas visíveis no perfil:** em **Configurações → Privacidade** você escolhe quais abas (Anime, Mangá, Light Novel) outras pessoas veem. As obras de uma aba desligada ficam escondidas **de verdade** (o banco não as entrega no perfil, no Explorar nem no feed); você continua vendo tudo na sua biblioteca. Pelo menos uma aba precisa ficar ligada, e com **só uma** ligada o seletor de abas some do perfil. Na prévia do seu próprio perfil, um aviso lista as abas escondidas. Perfis criados antes dessa versão começam com as três abas ligadas.
 - As **anotações** (diário) continuam só para quem criou a conta, mesmo com o perfil público. Para mostrá-las, ative **Mostrar minhas anotações**. Isso é garantido no banco, não só na tela.
 - Quem não entrou na conta pode ver perfis públicos, mas não consegue ler nem editar nada além disso.
 - Trocar o nome de usuário muda o link do perfil (o antigo deixa de funcionar).
@@ -185,6 +186,8 @@ A biblioteca (e o perfil de quem você visita) tem três abas: **Anime** (inclui
 - **Novas obras já no tipo certo:** o botão **Nova obra** começa na categoria da aba em que você está (*Anime*, *Mangá* ou *Light novel*). Dentro da família ainda dá para trocar a categoria no formulário (Anime ↔ Filme ↔ Série, ou Mangá ↔ Light novel). Se isso mudar a obra de aba (Mangá ↔ Light novel), o site leva você para a aba onde ela foi parar.
 - **Mesmo nome em tipos diferentes:** o anime e o mangá de "Death Note" podem existir juntos, e o filme e a série também. O aviso de **obra repetida** só vale dentro do mesmo tipo (categoria) e diz qual é o tipo na mensagem. A busca do formulário mostra o tipo de cada resultado e marca com "já na sua lista" o que você já tem *daquele tipo*.
 - **Busca na biblioteca:** o campo de busca vale para a aba atual. Se o mesmo nome aparece em outra aba, um aviso abaixo da lista mostra onde ("Também há resultados para essa busca em: Mangá (1)") e o botão leva você até lá, mantendo a busca.
+- **Progresso das obras dos outros:** no perfil de outra pessoa, o card (e a linha do modo lista) diz onde ela está: **"Episódio: 4 da Temporada: 2"** em anime e série, **"Volume: 5, Capítulo: 10"** em mangá e light novel. A temporada conta só as de TV (OVA, filme e especial aparecem pelo nome, como "Episódio: 2 de OVA Especial"); com uma temporada só, aparece apenas "Episódio: 7". Filmes e obras que ainda não começaram mantêm o texto de sempre. Na sua própria biblioteca nada muda.
+- **Explorar em três linhas:** cada cartão do Explorar resume a biblioteca por tipo, **Animes**, **Mangás** e **Light Novels**, cada um com *total*, *ativas* (assistindo ou lendo agora) e *concluídas*. Só entram as abas ligadas da pessoa; uma aba escondida não aparece (nem nas contas).
 - **Cartões de números do topo:** clicar em *Obras*, *Assistindo*, *Concluídas* etc. filtra a lista e **rola suavemente até ela** (quem ativou "reduzir movimento" no sistema tem a rolagem imediata).
 
 - **Categorias:** *Mangá* e *Light novel*. Manhwa (Coreia) e manhua (China) são cadastrados como *Mangá* e ganham um selo de origem ("Manhwa", "Manhua") nos cards, na lista e nos detalhes.
@@ -192,7 +195,7 @@ A biblioteca (e o perfil de quem você visita) tem três abas: **Anime** (inclui
 - **Status de leitura:** *Lendo*, *Quero ler*, *Concluído*, *Em espera* e *Dropado* (por baixo são os mesmos status dos animes, só mudam os nomes). Ao escolher *Concluído*, capítulos e volumes vão até o total, quando ele é conhecido. Obras *Quero ler* ainda não têm +1 Cap: para começar, mude o status para *Lendo*.
 - **Busca:** **AniList** e **MyAnimeList** (via Jikan), sem chave. A busca preenche título, capa, sinopse, gêneros, totais e origem. O TMDB não tem mangá, por isso não aparece na lista. A mesma obra vinda das duas fontes é reconhecida como repetida.
 - **Sem temporadas nem agenda:** mangás não usam temporadas, e a **Agenda** da semana existe só na aba *Anime*.
-- **Favoritos:** o limite de **8** vale por aba (8 em Anime, 8 em Mangá e 8 em Light Novel).
+- **Favoritos:** cada aba tem os seus, sem limite de quantidade (veja "Favoritos").
 - **Estatísticas:** o modal tem as mesmas três abas. *Anime* mostra o tempo assistido e a divisão entre anime, filme e série; *Mangá* e *Light Novel* mostram capítulos e volumes lidos e os gêneros mais lidos.
 - **Feed e compartilhar:** o feed usa "começou a ler" e "concluiu a leitura"; o cartão de compartilhar mostra o progresso de leitura.
 - **Backup:** o `.json` exportado leva os novos campos, e backups antigos (de antes dos mangás) continuam entrando normalmente.
@@ -271,7 +274,7 @@ Ao salvar uma obra como **Concluído**, todos os episódios de todas as temporad
 
 ## Favoritos
 
-O coração no card fixa a obra como favorita (até **8** em cada aba: Anime, Mangá e Light Novel). No perfil, os favoritos aparecem numa seção **Favoritos** logo acima da biblioteca, inclusive para quem visita o perfil público. O limite é aplicado pelo site (no banco o campo é só um marcador).
+O coração no card fixa a obra como favorita. **Não há limite**: dá para favoritar quantas obras quiser, e cada aba (Anime, Mangá, Light Novel) mostra só os favoritos dela. No perfil, os favoritos aparecem numa seção **Favoritos** logo acima da biblioteca, inclusive para quem visita o perfil público, numa **faixa de uma linha só com rolagem lateral**: deslize com o dedo, use a barra de rolagem, Shift + roda do mouse, as setas do teclado (com a faixa selecionada) ou os botões **‹ ›** (que só aparecem quando os favoritos passam da largura da tela). No banco o campo é só um marcador; nada limita a quantidade.
 
 ## Botão voltar
 
@@ -317,7 +320,7 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.9`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.10`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
 
 ## Como o código está organizado
 
@@ -358,6 +361,7 @@ Os dois backends (`local-backend.js` e `supabase-backend.js`) têm a mesma inter
 | Aviso amarelo "O banco de dados precisa ser atualizado", "O banco ainda não aceita este status" ou "Não foi possível excluir a conta" | O `sql/schema.sql` novo ainda não foi executado (veja "Atualizando um site que já está no ar") |
 | Botão "Seguir" ou o Feed dão erro, ou a análise não salva | O `sql/schema.sql` novo ainda não foi executado (a versão 5 inclui seguidores, feed, análises e cores do perfil; a 6, mangás e light novels) |
 | "O banco ainda não aceita mangás e light novels" ao salvar | O `sql/schema.sql` da versão 6 ainda não foi executado |
+| O Explorar mostra zeros, ou "Abas visíveis no perfil" não salva | O `sql/schema.sql` da versão 8 ainda não foi executado (abas ativas do perfil e contagens por tipo) |
 | O painel não abre ou "Denunciar" dá erro | O `sql/schema.sql` da versão 7 ainda não foi executado, ou a sua conta ainda não tem cargo (veja "Definir a Dona") |
 | "Não foi possível criar a conta agora: os cadastros podem estar fechados" | A Dona fechou os cadastros (painel → Site). Vale também para *Add user* no Supabase |
 | "A Dona do site não pode excluir a conta" | Passe o cargo de Dona para outra pessoa antes (veja "Passar o cargo de Dona") |

@@ -4,7 +4,7 @@ import { confirmDialog } from '../core/dialogs.js';
 import { messageOf } from '../core/errors.js';
 import { icon } from '../core/icons.js';
 import { toast } from '../core/toast.js';
-import { MAX_FAVORITES, SECTIONS, addNextChapter, addNextEpisode, applyStatus, favoriteCount, isReading, sectionOf, statusLabel } from '../domain/entry.js';
+import { SECTIONS, addNextChapter, addNextEpisode, applyStatus, isReading, sectionOf, statusLabel } from '../domain/entry.js';
 import { readLegacyEntries } from '../domain/backup.js';
 import { REQUIRED_SCHEMA } from '../services/schema.js';
 import { backend, isCloud, state } from '../services/session.js';
@@ -217,12 +217,8 @@ export async function mount(root) {
             refresh();
         },
         favorite(entry) {
-            if (!entry.favorite && favoriteCount(entries, sectionOf(entry)) >= MAX_FAVORITES) {
-                toast(`Você pode fixar até ${MAX_FAVORITES} favoritos em ${SECTIONS[sectionOf(entry)].label}. Tire um para favoritar outra obra.`, { type: 'info' });
-                return;
-            }
             entry.favorite = !entry.favorite;
-            toast(entry.favorite ? (cloud ? 'Adicionada aos favoritos (aparece no topo do seu perfil).' : 'Adicionada aos favoritos.') : 'Removida dos favoritos.', { type: 'success' });
+            toast(entry.favorite ? (cloud ? 'Adicionada aos favoritos (aparece no seu perfil, na aba dela).' : 'Adicionada aos favoritos.') : 'Removida dos favoritos.', { type: 'success' });
             schedulePersist(entry.id);
             refresh();
         },

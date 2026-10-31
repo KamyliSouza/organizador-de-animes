@@ -4,7 +4,7 @@
 import { config } from '../config.js';
 import { AppError } from '../core/errors.js';
 import { safeUrl } from '../core/dom.js';
-import { normalizeEntry } from '../domain/entry.js';
+import { SECTION_KEYS, normalizeEntry, normalizeSections } from '../domain/entry.js';
 import { normalizeRole } from '../domain/roles.js';
 
 const PAGE = 1000;   // limite de linhas por requisição do Supabase
@@ -102,6 +102,7 @@ const fromProfile = (r) => (r ? {
     showNotes: Boolean(r.show_notes),
     avatarV: Number(r.avatar_v) || 0,
     palette: r.palette || 'default',
+    sections: normalizeSections(r.sections),
 } : null);
 
 const personOf = (r) => ({
@@ -261,6 +262,7 @@ export async function createSupabaseBackend() {
                 if (patch.isPublic !== undefined) clean.is_public = Boolean(patch.isPublic);
                 if (patch.showNotes !== undefined) clean.show_notes = Boolean(patch.showNotes);
                 if (patch.palette !== undefined) clean.palette = String(patch.palette).trim().toLowerCase().slice(0, 24);
+                if (patch.sections !== undefined) clean.sections = normalizeSections(patch.sections);
                 const row = await ok(sb.from('profiles').update(clean).eq('id', uid).select().single(), 'Não foi possível salvar o perfil.');
                 return fromProfile(row);
             },
@@ -327,6 +329,13 @@ export async function createSupabaseBackend() {
                     total: Number(r.total) || 0,
                     watching: Number(r.watching) || 0,
                     completed: Number(r.completed) || 0,
+                    sections: normalizeSections(r.sections),
+                    // resumo por tipo (só as abas ativas da pessoa têm números; bancos sem a v8 não mandam estas colunas)
+                    types: Object.fromEntries(SECTION_KEYS.map((k) => [k, {
+                        total: Number(r[`${k}_total`]) || 0,
+                        active: Number(r[`${k}_active`]) || 0,
+                        completed: Number(r[`${k}_completed`]) || 0,
+                    }])),
                 }));
             },
         },

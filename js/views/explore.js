@@ -2,9 +2,24 @@
 import { debounce, html, setHtml } from '../core/dom.js';
 import { messageOf } from '../core/errors.js';
 import { icon, spinner } from '../core/icons.js';
+import { SECTION_KEYS } from '../domain/entry.js';
 import { backend, isCloud, state } from '../services/session.js';
 import { avatar, avatarSrc } from '../ui/avatar.js';
 import { roleBadge } from '../ui/roleBadge.js';
+
+/** Nome de cada tipo no plural, na ordem das abas. */
+const TYPE_NAMES = { anime: 'Animes', manga: 'Mangás', novel: 'Light Novels' };
+
+/** Uma linha do resumo: "Animes · 12 total · 3 ativas · 5 concluídas" (ativas = assistindo ou lendo agora). */
+const typeLine = (p, key) => {
+    const t = p.types?.[key] || { total: 0, active: 0, completed: 0 };
+    return html`<li class="type-line" data-type="${key}">
+        <span class="type-name">${TYPE_NAMES[key]}</span>
+        <span><b>${t.total}</b> total</span>
+        <span><b>${t.active}</b> ${t.active === 1 ? 'ativa' : 'ativas'}</span>
+        <span><b>${t.completed}</b> ${t.completed === 1 ? 'concluída' : 'concluídas'}</span>
+    </li>`;
+};
 
 const profileCard = (p) => html`
     <a class="profile-card glass-panel" href="#/u/${p.username}" aria-label="Ver perfil de ${p.displayName}">
@@ -13,11 +28,9 @@ const profileCard = (p) => html`
             <div style="min-width:0"><h3>${p.displayName}${roleBadge(p.role)}</h3><p class="handle">@${p.username}</p></div>
         </header>
         <p class="bio">${p.bio || 'Sem descrição.'}</p>
-        <footer>
-            <span><b>${p.total}</b> ${p.total === 1 ? 'obra' : 'obras'}</span>
-            <span><b>${p.watching}</b> em andamento</span>
-            <span><b>${p.completed}</b> concluídas</span>
-        </footer>
+        <ul class="type-lines" aria-label="Resumo da biblioteca">
+            ${SECTION_KEYS.filter((k) => p.sections.includes(k)).map((k) => typeLine(p, k))}
+        </ul>
     </a>`;
 
 export function mount(root) {

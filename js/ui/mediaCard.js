@@ -2,7 +2,7 @@
 // para visitantes de perfil público (somente leitura).
 import { html } from '../core/dom.js';
 import { icon } from '../core/icons.js';
-import { CATEGORY_CLASS, DAY_LABELS, isReading, originLabel, progressOf, readProgress, readSummary, sectionOf, statusLabel, statusesOf } from '../domain/entry.js';
+import { CATEGORY_CLASS, DAY_LABELS, isReading, originLabel, positionLabel, progressOf, readProgress, readSummary, sectionOf, statusLabel, statusesOf } from '../domain/entry.js';
 
 export const starsText = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
 
@@ -37,8 +37,11 @@ const badges = (entry) => html`
     ${originLabel(entry) ? html`<span class="badge badge-muted" title="Origem">${originLabel(entry)}</span>` : ''}
     <span class="badge badge-${entry.status}">${statusLabel(entry.status, sectionOf(entry))}</span>`;
 
-/** Bloco de progresso do card: episódios (Assistir) ou capítulos e volumes (Ler). */
-function progressBlock(entry) {
+/**
+ * Bloco de progresso do card: episódios (anime, filme, série) ou capítulos e volumes (mangá, light novel).
+ * No perfil de outra pessoa (`readonly`) mostra ONDE ela está: "Episódio: 4 da Temporada: 2" ou "Volume: 5, Capítulo: 10".
+ */
+function progressBlock(entry, readonly = false) {
     if (isReading(entry)) {
         const r = readProgress(entry);
         if (entry.status === 'planned') {
@@ -48,15 +51,20 @@ function progressBlock(entry) {
                 <div class="progress" aria-hidden="true"><span style="width:0"></span></div>
             </div>`;
         }
+        const where = readonly ? positionLabel(entry) : '';
         return html`<div class="media-progress">
-            <div class="row-between"><span class="read-summary">${readSummary(entry)}</span>${r.known ? html`<span class="pct">${r.pct}%</span>` : ''}</div>
+            <div class="row-between"><span class="read-summary" ${where ? html`data-position title="${readSummary(entry)}"` : ''}>${where || readSummary(entry)}</span>${r.known ? html`<span class="pct">${r.pct}%</span>` : ''}</div>
             ${r.known ? html`<div class="progress ${r.pct >= 100 ? 'is-complete' : ''}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${r.pct}" aria-label="Progresso de ${entry.title}"><span style="width:${r.pct}%"></span></div>` : ''}
         </div>`;
     }
     const { watched, total, pct } = progressOf(entry);
+    const where = readonly && entry.status !== 'planned' ? positionLabel(entry) : '';
     return entry.status !== 'planned' ? html`
         <div class="media-progress">
-            <div class="row-between"><span>Progresso: <b>${watched}</b> / ${total} eps</span><span class="pct">${pct}%</span></div>
+            ${where
+                ? html`<div class="row-between"><span class="read-summary" data-position><b>${where}</b></span><span class="pct">${pct}%</span></div>
+                    <div class="small">${watched} / ${total} eps no total</div>`
+                : html`<div class="row-between"><span>Progresso: <b>${watched}</b> / ${total} eps</span><span class="pct">${pct}%</span></div>`}
             <div class="progress ${pct >= 100 ? 'is-complete' : ''}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Progresso de ${entry.title}"><span style="width:${pct}%"></span></div>
         </div>` : html`
         <div class="media-progress is-idle">
@@ -101,7 +109,7 @@ export function mediaCardHtml(entry, { readonly = false } = {}) {
                 ${hasDetails ? html`<button type="button" class="link-button" data-action="details">${icon('book', { size: 14 })} Detalhes</button>` : ''}
             </div>
             <div class="media-foot">
-                ${progressBlock(entry)}
+                ${progressBlock(entry, readonly)}
                 ${readonly ? '' : html`
                     <div class="media-actions">
                         <div class="status-row">
@@ -127,7 +135,10 @@ export function mediaRowHtml(entry, { readonly = false } = {}) {
     const showBar = !reading || readProgress(entry).known;
     const hasDetails = Boolean(entry.description || entry.notes || entry.review);
     const statusText = statusLabel(entry.status, sectionOf(entry));
-    const progressText = reading ? `${readSummary(entry)}${showBar ? ` (${pct}%)` : ''}` : `${watched}/${total} eps (${pct}%)`;
+    // No perfil de outra pessoa a linha diz onde ela está ("Episódio: 4 da Temporada: 2"); sem isso, o resumo de sempre.
+    const where = readonly && entry.status !== 'planned' ? positionLabel(entry) : '';
+    const progressText = where ? `${where} (${pct}%)`
+        : reading ? `${readSummary(entry)}${showBar ? ` (${pct}%)` : ''}` : `${watched}/${total} eps (${pct}%)`;
 
     return html`
     <article class="media-row glass-panel ${entry.status === 'dropped' ? 'is-dropped' : ''}" data-id="${entry.id}">

@@ -6,11 +6,14 @@ import { messageOf } from '../core/errors.js';
 import { icon, spinner } from '../core/icons.js';
 import { navigate } from '../core/router.js';
 import { toast } from '../core/toast.js';
+import { SECTIONS, SECTION_KEYS, normalizeSections } from '../domain/entry.js';
 import { backend, isCloud, refreshSession, setProfile, state } from '../services/session.js';
 import { bindDataPanel, dataPanelHtml } from '../ui/dataPanel.js';
 import { guardTabs, settingsHeader } from '../ui/settingsShell.js';
 
 const publicLink = (u) => `${location.origin}${location.pathname}#/u/${u}`;
+
+const SECTION_HINTS = { anime: 'Animes, filmes e séries', manga: 'Mangás, manhwas e manhuas', novel: 'Light novels' };
 
 function privacyPanel(p) {
     return html`
@@ -27,6 +30,15 @@ function privacyPanel(p) {
                 <span><span class="switch-title">Mostrar minhas anotações</span><br>
                 <span class="switch-desc">Por padrão, suas anotações ficam só com você, mesmo com o perfil público. As análises são diferentes: aparecem para quem vê a sua lista.</span></span>
             </label>
+            <div class="sections-group" role="group" aria-labelledby="st-sections-title" aria-describedby="st-sections-desc" data-sections-group>
+                <span class="switch-title" id="st-sections-title">Abas visíveis no seu perfil</span>
+                <p class="switch-desc" id="st-sections-desc">Escolha quais abas outras pessoas veem no seu perfil, no Explorar e no feed. Obras de uma aba desligada ficam escondidas de todo mundo, mas você continua vendo tudo na sua biblioteca. Pelo menos uma aba precisa ficar ligada; com só uma, o seletor de abas some do perfil.</p>
+                ${SECTION_KEYS.map((k) => html`
+                <label class="switch-row">
+                    <input type="checkbox" data-section-check="${k}" ${normalizeSections(p.sections).includes(k) ? 'checked' : ''}>
+                    <span><span class="switch-title">${SECTIONS[k].label}</span><br><span class="switch-desc">${SECTION_HINTS[k]}</span></span>
+                </label>`)}
+            </div>
             <div data-link-box></div>
             <button type="submit" class="button button-primary" data-save>Salvar privacidade</button>
         </form>
@@ -94,6 +106,15 @@ export function mount(root) {
             <button type="button" class="button button-secondary" data-act="copy" aria-label="Copiar link">${icon('copy', { size: 16 })}</button></div></div>` : '');
     renderLink(profile);
 
+    // --- abas do perfil: sempre sobra pelo menos uma ligada ------------------------------------
+    const sectionChecks = () => [...root.querySelectorAll('[data-section-check]')];
+    const checkedSections = () => sectionChecks().filter((c) => c.checked).map((c) => c.dataset.sectionCheck);
+    offs.push(on(root, 'change', '[data-section-check]', (_, box) => {
+        if (checkedSections().length > 0) return;
+        box.checked = true;
+        toast('Deixe pelo menos uma aba ligada no perfil.', { type: 'info' });
+    }));
+
     // --- privacidade ------------------------------------------------------------------------
     $('[data-privacy-form]').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -104,6 +125,7 @@ export function mount(root) {
             const updated = await be.profiles.updateMine({
                 isPublic: $('#st-public').checked,
                 showNotes: $('#st-notes').checked,
+                sections: checkedSections(),
             });
             setProfile(updated);
             renderLink(updated);
@@ -188,6 +210,7 @@ export function mount(root) {
     // --- sair da aba com alterações não salvas -----------------------------------------------
     const isDirty = () => $('#st-public').checked !== state.profile.isPublic
         || $('#st-notes').checked !== state.profile.showNotes
+        || checkedSections().join() !== normalizeSections(state.profile.sections).join()
         || Boolean($('#st-pass').value || $('#st-pass2').value);
     offs.push(guardTabs(root, isDirty));
 

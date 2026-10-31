@@ -9,7 +9,7 @@ import { LEGACY_STORAGE_KEY } from '../domain/backup.js';
 const ONLY_CLOUD = 'Esta função precisa do login ativado (configure o Supabase em js/config.js).';
 const LOCAL_USER = { id: 'local', email: '' };
 const LOCAL_PROFILE = {
-    id: 'local', username: 'local', displayName: 'Modo local', bio: '', isPublic: false, showNotes: false,
+    id: 'local', username: 'local', displayName: 'Modo local', bio: '', isPublic: false, showNotes: false, sections: ['anime', 'manga', 'novel'],
 };
 
 export function createLocalBackend() {

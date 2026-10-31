@@ -47,6 +47,13 @@ alter table public.profiles add  constraint profiles_avatar_v check (avatar_v >=
 alter table public.profiles add column if not exists palette text not null default 'default';
 alter table public.profiles drop constraint if exists profiles_palette_format;
 alter table public.profiles add  constraint profiles_palette_format check (palette ~ '^[a-z0-9-]{1,24}$');
+--   * sections: quais abas da biblioteca aparecem para OUTRAS pessoas (perfil, Explorar e feed). Valores: anime, manga, novel.
+--     Vale para as obras de cada tipo, não só para o visual: as funções públicas abaixo não devolvem obras de uma aba desativada.
+--     A própria pessoa continua vendo e editando tudo na sua biblioteca. Padrão: as três ativas; precisa sobrar pelo menos uma.
+alter table public.profiles add column if not exists sections text[] not null default array['anime', 'manga', 'novel'];
+alter table public.profiles drop constraint if exists profiles_sections_valid;
+alter table public.profiles add  constraint profiles_sections_valid
+  check (cardinality(sections) between 1 and 3 and sections <@ array['anime', 'manga', 'novel']);
 
 
 -- ---------------------------------------------------------------------
@@ -299,6 +306,14 @@ immutable
 set search_path = ''
 as $$ select translate(lower(coalesce(p_text, '')), 'áàâãäéèêëíìîïóòôõöúùûüçñ', 'aaaaaeeeeiiiiooooouuuucn') $$;
 
+-- Aba (anime, manga ou novel) de uma categoria de obra. Anime, Filme e Série ficam na aba "anime".
+create or replace function public.category_section(p_category text)
+returns text
+language sql
+immutable
+set search_path = ''
+as $$ select case p_category when 'Mangá' then 'manga' when 'Light novel' then 'novel' else 'anime' end $$;
+
 -- O texto CONTÉM alguma palavra da lista de nomes proibidos? (ignora maiúsculas e acentos)
 create or replace function public.name_is_blocked(p_text text)
 returns boolean
@@ -321,6 +336,7 @@ revoke all on function public.rank_of_role(text)   from public, anon, authentica
 revoke all on function public.rank_of(uuid)        from public, anon, authenticated;
 revoke all on function public.is_suspended(uuid)   from public, anon, authenticated;
 revoke all on function public.my_rank()            from public, anon, authenticated;
+revoke all on function public.category_section(text) from public, anon, authenticated;
 revoke all on function public.norm_text(text)      from public, anon, authenticated;
 revoke all on function public.name_is_blocked(text) from public, anon, authenticated;
 
@@ -553,7 +569,7 @@ revoke all on public.entries from anon;
 
 -- Obras de um perfil. Quem pode ver: qualquer pessoa (perfil público), a própria dona,
 -- ou quem a dona já aceitou como seguidor (perfil privado). As anotações só saem se a dona permitir;
--- a análise (review) sai junto com a obra.
+-- a análise (review) sai junto com a obra. Obras de uma aba que a dona desativou (profiles.sections) não saem.
 -- (drop antes: o formato do resultado ganhou colunas novas: "review", "review_spoiler" e os contadores de leitura)
 drop function if exists public.get_public_entries(text);
 create function public.get_public_entries(p_username text)
@@ -602,36 +618,76 @@ as $$
       or exists (select 1 from public.follows f
                  where f.follower_id = (select auth.uid()) and f.followee_id = p.id and f.status = 'accepted')
     )
+    -- abas desativadas pela dona do perfil não saem para ninguém (ela mesma vê tudo)
+    and (p.id = (select auth.uid()) or public.category_section(e.category) = any (p.sections))
   order by e.created_at desc;
 $$;
 
--- Lista de perfis públicos com contagens (página "Explorar").
--- (drop antes: o formato do resultado ganhou as colunas "id", "avatar_v" (foto) e "role" (cargo))
+-- Lista de perfis públicos com contagens (página "Explorar"). Só contam as abas ativas de cada perfil;
+-- as colunas anime_*, manga_* e novel_* trazem o resumo de cada tipo (total, em andamento e concluídas)
+-- e "total", "watching" e "completed" continuam sendo a soma das abas ativas.
+-- (drop antes: o formato do resultado ganhou colunas: "sections" e as contagens por tipo)
 drop function if exists public.list_public_profiles(text, int);
 create function public.list_public_profiles(p_query text default '', p_limit int default 30)
 returns table (
-  id           uuid,
-  username     text,
-  display_name text,
-  bio          text,
-  avatar_v     bigint,
-  total        bigint,
-  watching     bigint,
-  completed    bigint,
-  role         text
+  id              uuid,
+  username        text,
+  display_name    text,
+  bio             text,
+  avatar_v        bigint,
+  total           bigint,
+  watching        bigint,
+  completed       bigint,
+  role            text,
+  sections        text[],
+  anime_total     bigint,
+  anime_active    bigint,
+  anime_completed bigint,
+  manga_total     bigint,
+  manga_active    bigint,
+  manga_completed bigint,
+  novel_total     bigint,
+  novel_active    bigint,
+  novel_completed bigint
 )
 language sql
 stable
 security definer
 set search_path = ''
 as $$
+  with e as (
+    select p.id as pid, public.category_section(x.category) as sec, x.status
+    from public.profiles p
+    join public.entries x on x.user_id = p.id
+    where p.is_public
+      and not public.is_suspended(p.id)
+      and public.category_section(x.category) = any (p.sections)
+  ), c as (
+    select pid,
+           count(*)                                                        as total,
+           count(*) filter (where status = 'watching')                     as active,
+           count(*) filter (where status = 'completed')                    as done,
+           count(*) filter (where sec = 'anime')                           as a_total,
+           count(*) filter (where sec = 'anime' and status = 'watching')   as a_active,
+           count(*) filter (where sec = 'anime' and status = 'completed')  as a_done,
+           count(*) filter (where sec = 'manga')                           as m_total,
+           count(*) filter (where sec = 'manga' and status = 'watching')   as m_active,
+           count(*) filter (where sec = 'manga' and status = 'completed')  as m_done,
+           count(*) filter (where sec = 'novel')                           as n_total,
+           count(*) filter (where sec = 'novel' and status = 'watching')   as n_active,
+           count(*) filter (where sec = 'novel' and status = 'completed')  as n_done
+    from e
+    group by pid
+  )
   select p.id, p.username, p.display_name, p.bio, p.avatar_v,
-         count(e.id)                                          as total,
-         count(e.id) filter (where e.status = 'watching')     as watching,
-         count(e.id) filter (where e.status = 'completed')    as completed,
-         (select r.role from public.user_roles r where r.user_id = p.id) as role
+         coalesce(c.total, 0), coalesce(c.active, 0), coalesce(c.done, 0),
+         (select r.role from public.user_roles r where r.user_id = p.id),
+         p.sections,
+         coalesce(c.a_total, 0), coalesce(c.a_active, 0), coalesce(c.a_done, 0),
+         coalesce(c.m_total, 0), coalesce(c.m_active, 0), coalesce(c.m_done, 0),
+         coalesce(c.n_total, 0), coalesce(c.n_active, 0), coalesce(c.n_done, 0)
   from public.profiles p
-  left join public.entries e on e.user_id = p.id
+  left join c on c.pid = p.id
   where p.is_public
     and not public.is_suspended(p.id)
     and (
@@ -639,8 +695,7 @@ as $$
       or strpos(p.username, lower(trim(p_query))) > 0
       or strpos(lower(p.display_name), lower(trim(p_query))) > 0
     )
-  group by p.id
-  order by count(e.id) desc, p.username
+  order by coalesce(c.total, 0) desc, p.username
   limit least(greatest(coalesce(p_limit, 30), 1), 100);
 $$;
 
@@ -702,7 +757,8 @@ returns table (
   following_count bigint,
   palette         text,
   role            text,
-  suspended       boolean
+  suspended       boolean,
+  sections        text[]
 )
 language sql
 stable
@@ -710,7 +766,7 @@ security definer
 set search_path = ''
 as $$
   with t as (
-    select p.id, p.username, p.display_name, p.bio, p.avatar_v, p.is_public, p.show_notes, p.palette,
+    select p.id, p.username, p.display_name, p.bio, p.avatar_v, p.is_public, p.show_notes, p.palette, p.sections,
            (select ur.role from public.user_roles ur where ur.user_id = p.id) as role,
            public.is_suspended(p.id) as sus,
            (select auth.uid()) as me
@@ -744,7 +800,8 @@ as $$
               then (select count(*) from public.follows f where f.follower_id = v.id and f.status = 'accepted') end,
          v.palette,                        -- as cores são só visuais: quem abre o perfil sempre as vê (até o perfil privado trancado)
          case when v.hidden then null else v.role end,
-         v.sus
+         v.sus,
+         case when not v.hidden and (v.is_public or v.rel in ('self', 'accepted')) then v.sections end   -- abas ativas (para quem pode ver o perfil)
   from v;
 $$;
 
@@ -939,6 +996,7 @@ as $$
     and not public.is_suspended(f.followee_id)
     and not public.is_suspended((select auth.uid()))
     and e.activity_at is not null
+    and public.category_section(e.category) = any (p.sections)   -- abas desativadas no perfil não aparecem no feed
     and (p_before_at is null
          or (e.activity_at, e.id) < (p_before_at, coalesce(p_before_id, 'ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid)))
   order by e.activity_at desc, e.id desc
@@ -1471,12 +1529,13 @@ grant execute on function public.admin_set_setting(text, jsonb)    to authentica
 --   5 = cores do perfil (coluna palette)
 --   6 = mangás e light novels (categorias novas e contadores de leitura)
 --   7 = cargos (Dona, Administração, Moderação), painel, denúncias, registro de ações e configurações do site
+--   8 = abas ativas no perfil (coluna sections) e contagens por tipo no Explorar
 create or replace function public.schema_version()
 returns integer
 language sql
 immutable
 set search_path = ''
-as $$ select 7 $$;
+as $$ select 8 $$;
 
 -- Só quem precisa pode executar cada função.
 revoke all on function public.get_public_entries(text)            from public;

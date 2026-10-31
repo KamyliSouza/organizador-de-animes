@@ -69,8 +69,11 @@
 .profile-card h3 { font-size: 1rem; overflow-wrap: anywhere; }
 .profile-card .handle { font-size: .84rem; font-weight: 800; color: var(--primary-text); overflow-wrap: anywhere; }
 .profile-card .bio { font-size: .88rem; color: var(--subtitle-color); min-height: 2.6em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
-.profile-card footer { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .8rem; font-weight: 800; color: var(--subtitle-color); }
-.profile-card footer b { color: var(--text-color); }
+/* Resumo da biblioteca em até 3 linhas (Animes, Mangás, Light Novels): total, ativas e concluídas de cada tipo */
+.type-lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: .8rem; font-weight: 800; color: var(--subtitle-color); }
+.type-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; }
+.type-line .type-name { flex: 0 0 7em; color: var(--primary-text); overflow-wrap: anywhere; }
+.type-line b { color: var(--text-color); }
 
 /* ---------------------------------------------------------
    Configurações

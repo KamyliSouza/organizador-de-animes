@@ -138,6 +138,9 @@
 .switch-row input[type="checkbox"]:focus-visible { outline: 3px solid var(--primary-color); outline-offset: 2px; }
 .switch-row .switch-title { font-weight: 800; }
 .switch-row .switch-desc { font-size: .84rem; color: var(--subtitle-color); }
+.sections-group { display: flex; flex-direction: column; gap: 12px; padding-top: 4px; }
+.sections-group > .switch-title { font-weight: 800; }
+.sections-group > .switch-desc { margin: 0; font-size: .84rem; color: var(--subtitle-color); }
 
 /* ---------------------------------------------------------
    Avisos, selos, chips
@@ -381,9 +384,32 @@
     color: #fb7185; background: rgba(20, 10, 22, .78);
 }
 .poster .fav-badge svg { fill: currentColor; }
-.fav-section { display: flex; flex-direction: column; gap: 12px; }
+.fav-section { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .fav-section h2 { display: flex; align-items: center; gap: 8px; font-size: 1.1rem; }
 .fav-section h2 .icon { color: var(--danger); fill: currentColor; }
+.fav-section h2 .count {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 22px; height: 20px; padding: 0 6px;
+    font-size: .72rem; line-height: 1; font-weight: 800;
+    color: var(--subtitle-color); background: var(--primary-soft); border-radius: var(--radius-pill);
+}
+.fav-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.fav-nav { display: flex; gap: 6px; }
+.fav-nav[hidden] { display: none; }
+.fav-nav .icon-button:disabled { opacity: .4; cursor: default; }
+/* Favoritos em uma linha só, com rolagem lateral (sem limite de quantidade) */
+.fav-strip {
+    display: flex; gap: 14px;
+    overflow-x: auto; overscroll-behavior-x: contain;
+    padding: 6px 0 14px;            /* sem folga nas laterais: os cards têm a mesma largura dos da lista */
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+}
+.fav-strip:focus-visible { outline: 3px solid var(--primary-color); outline-offset: 2px; border-radius: 14px; }
+.fav-item { flex: 0 0 min(340px, 86%); display: flex; scroll-snap-align: start; min-width: 0; }
+.fav-item > .media-card { flex: 1 1 auto; min-width: 0; }
+/* Em telas estreitas cada favorito ocupa a largura toda (igual aos cards da lista): o texto não é espremido */
+@media (max-width: 30em) { .fav-item { flex-basis: 100%; } }
 
 /* Aviso de obra repetida no formulário */
 .notice-box.is-warn { border-color: var(--st-planned); background: color-mix(in srgb, var(--st-planned) 10%, transparent); }
