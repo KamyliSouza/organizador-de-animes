@@ -1,17 +1,16 @@
-// Abas "Assistir" / "Ler" da biblioteca (e do perfil). Cada aba tem a sua própria lista, números e filtros.
+// Abas "Anime" / "Mangá" / "Light Novel" da biblioteca (e do perfil). Cada aba tem a sua própria lista, números e filtros.
+// Filme e Série ficam dentro de Anime (com o selo da categoria no card).
 // Segue o padrão de abas do teclado: setas esquerda/direita, Home e End trocam de aba.
 import { html } from '../core/dom.js';
 import { icon } from '../core/icons.js';
-import { SECTIONS, SECTION_KEYS, sectionOf } from '../domain/entry.js';
+import { DEFAULT_SECTION, SECTIONS, SECTION_KEYS, normalizeSection, sectionOf } from '../domain/entry.js';
 
 const KEY = 'kamylist_section';
-const ICONS = { watch: 'play', read: 'book' };
+export const SECTION_ICONS = { anime: 'play', manga: 'book', novel: 'bookmark' };
 
+/** Aba lembrada neste navegador (as versões antigas guardavam "watch"/"read": viram Anime/Mangá). */
 export function loadSection() {
-    try {
-        const v = localStorage.getItem(KEY);
-        return SECTIONS[v] ? v : 'watch';
-    } catch { return 'watch'; }
+    try { return normalizeSection(localStorage.getItem(KEY)); } catch { return DEFAULT_SECTION; }
 }
 export function saveSection(section) {
     try { localStorage.setItem(KEY, section); } catch { /* ok */ }
@@ -19,18 +18,18 @@ export function saveSection(section) {
 
 /** Quantas obras há em cada seção. */
 export function sectionCounts(entries) {
-    const counts = { watch: 0, read: 0 };
+    const counts = Object.fromEntries(SECTION_KEYS.map((k) => [k, 0]));
     for (const e of entries) counts[sectionOf(e)] += 1;
     return counts;
 }
 
 /** `panelId` é o id do elemento (role="tabpanel") que a aba controla. */
 export function sectionTabsHtml({ active, counts, panelId }) {
-    return html`<div class="section-tabs" role="tablist" aria-label="Seção da biblioteca">
+    return html`<div class="section-tabs" role="tablist" aria-label="Tipo de obra">
         ${SECTION_KEYS.map((key) => html`
         <button type="button" role="tab" class="section-tab" id="tab-${key}" data-section="${key}"
             aria-selected="${String(key === active)}" aria-controls="${panelId}" tabindex="${key === active ? 0 : -1}">
-            ${icon(ICONS[key], { size: 17 })}<span>${SECTIONS[key].label}</span><span class="count" aria-label="${counts[key]} obras">${counts[key]}</span>
+            ${icon(SECTION_ICONS[key], { size: 17 })}<span>${SECTIONS[key].label}</span><span class="count" aria-label="${counts[key]} obras">${counts[key]}</span>
         </button>`)}
     </div>`;
 }

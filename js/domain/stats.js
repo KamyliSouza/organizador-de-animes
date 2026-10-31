@@ -1,10 +1,11 @@
-import { DAYS, MINUTES_PER_EPISODE, SECTIONS, isReading, sectionOf } from './entry.js';
+import { DAYS, DEFAULT_SECTION, MINUTES_PER_EPISODE, SECTIONS, isReading, normalizeSection, sectionOf } from './entry.js';
 
 /**
- * Números de uma seção da biblioteca: contagens por status, categorias e gêneros.
- * "Assistir" soma episódios e tempo estimado; "Ler" soma capítulos e volumes lidos.
+ * Números de uma aba da biblioteca (anime, manga ou novel): contagens por status, categorias e gêneros.
+ * Anime soma episódios e tempo estimado; Mangá e Light Novel somam capítulos e volumes lidos.
  */
-export function computeStats(entries, section = 'watch') {
+export function computeStats(entries, section = DEFAULT_SECTION) {
+    section = normalizeSection(section);
     const list = entries.filter((e) => sectionOf(e) === section);
     const stats = {
         section,
@@ -35,7 +36,7 @@ export function computeStats(entries, section = 'watch') {
     return stats;
 }
 
-/** Obras "Assistindo" agrupadas pelo dia de lançamento semanal (só a seção Assistir tem agenda). */
+/** Obras "Assistindo" agrupadas pelo dia de lançamento semanal (só a aba Anime tem agenda). */
 export function groupByAirDay(entries) {
     const groups = Object.fromEntries(DAYS.map((d) => [d, []]));
     for (const e of entries) {

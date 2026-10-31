@@ -2,7 +2,7 @@
 // "cards" / "lista". Usada na sua biblioteca e nos perfis públicos.
 import { debounce, html, on, setHtml } from '../core/dom.js';
 import { icon } from '../core/icons.js';
-import { SECTIONS, STATUSES, filterEntries, sortEntries, statusesOf } from '../domain/entry.js';
+import { DEFAULT_SECTION, SECTIONS, SECTION_KEYS, STATUSES, filterEntries, normalizeSection, sortEntries, statusesOf } from '../domain/entry.js';
 import { applyImageFallback, mediaCardHtml, mediaRowHtml } from './mediaCard.js';
 
 const VIEW_KEY = 'kamylist_view_mode';
@@ -25,14 +25,15 @@ const SORTS = [
  * @param {object} opts
  * @param {Array} opts.entries
  * @param {boolean} [opts.readonly]
- * @param {'watch'|'read'} [opts.section]  Seção mostrada (Assistir ou Ler). Troque depois com setSection().
+ * @param {'anime'|'manga'|'novel'} [opts.section]  Aba mostrada (Anime, Mangá ou Light Novel). Troque depois com setSection().
  * @param {Record<string,(entry:object, el:Element)=>void>} [opts.actions]  inc, seasons, progress, details, share, edit, delete, add, status
  *        ("cover" = clique na capa = "details"; "status" recebe o novo valor em el.value)
  * @param {(status:string)=>void} [opts.onStatusChange]  chamado quando o filtro de status muda (botões ou cards de números)
+ * @param {(section:string)=>void} [opts.onSectionRequest]  chamado quando a pessoa clica numa aba que também tem a obra buscada
  */
-export function mountLibraryBrowser(root, { entries = [], readonly = false, section: initialSection = 'watch', actions = {}, onStatusChange = null }) {
+export function mountLibraryBrowser(root, { entries = [], readonly = false, section: initialSection = DEFAULT_SECTION, actions = {}, onStatusChange = null, onSectionRequest = null }) {
     const filters = { status: 'all', category: 'all', sort: 'recent', query: '' };
-    let section = SECTIONS[initialSection] ? initialSection : 'watch';
+    let section = normalizeSection(initialSection);
     let view = loadView();
     let all = entries;
 
@@ -42,18 +43,19 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, sect
 
     const toolbar = root.querySelector('[data-toolbar]');
 
-    /** Botões de status e categorias dependem da seção; o resto (ordem, modo, busca) continua como estava. */
+    /** Botões de status e categorias dependem da aba; o resto (ordem, modo, busca) continua como estava. */
     function renderToolbar() {
+        const categories = SECTIONS[section].categories;
         setHtml(toolbar, html`
             <div class="segmented scroll" role="group" aria-label="Filtrar por status">
                 <button type="button" data-status="all" aria-pressed="true">Todos</button>
                 ${statusesOf(section).map(([k, st]) => html`<button type="button" data-status="${k}" aria-pressed="false">${st.label}</button>`)}
             </div>
             <div class="toolbar-group">
-                <select class="select" data-filter="category" aria-label="Filtrar por categoria">
+                ${categories.length > 1 ? html`<select class="select" data-filter="category" aria-label="Filtrar por categoria">
                     <option value="all">Categorias</option>
-                    ${SECTIONS[section].categories.map((c) => html`<option value="${c}">${c}</option>`)}
-                </select>
+                    ${categories.map((c) => html`<option value="${c}">${c}</option>`)}
+                </select>` : ''}
                 <select class="select" data-filter="sort" aria-label="Ordenar">
                     ${SORTS.map(([v, l]) => html`<option value="${v}">${l}</option>`)}
                 </select>
@@ -67,7 +69,8 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, sect
                 </div>
             </div>`);
         toolbar.querySelector('select[data-filter="sort"]').value = filters.sort;
-        toolbar.querySelector('select[data-filter="category"]').value = filters.category;
+        const cat = toolbar.querySelector('select[data-filter="category"]');
+        if (cat) cat.value = filters.category;
         toolbar.querySelector('input[data-filter="query"]').value = filters.query;
     }
 
@@ -79,27 +82,44 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, sect
         root.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
     }
 
+    const FIRST_WORK = { anime: 'Adicione seu primeiro anime, série ou filme.', manga: 'Adicione seu primeiro mangá.', novel: 'Adicione sua primeira light novel.' };
+    const EMPTY_TITLE = { anime: 'Nenhum anime por aqui ainda', manga: 'Nenhum mangá por aqui ainda', novel: 'Nenhuma light novel por aqui ainda' };
+
+    /** Busca digitada: avisa se o mesmo nome aparece nas outras abas (obras de tipos diferentes podem ter o mesmo título). */
+    function otherTypesHtml() {
+        const q = filters.query.trim();
+        if (!q) return '';
+        const found = SECTION_KEYS.filter((k) => k !== section)
+            .map((k) => ({ key: k, count: filterEntries(all, { query: q, section: k }).length }))
+            .filter((x) => x.count > 0);
+        if (!found.length) return '';
+        return html`<div class="notice-box" data-other-types>${icon('search')}<div class="grow">
+            <span>Também há resultados para essa busca em:</span>
+            <div class="notice-actions">${found.map((x) => html`<button type="button" class="button button-secondary button-sm" data-goto-section="${x.key}">${SECTIONS[x.key].label} (${x.count})</button>`)}</div>
+        </div></div>`;
+    }
+
     function renderResults() {
         const inSection = filterEntries(all, { section });
         const list = sortEntries(filterEntries(all, { ...filters, section }), filters.sort);
+        const others = otherTypesHtml();
 
         if (!list.length) {
             const empty = inSection.length === 0;
-            const reading = section === 'read';
             setHtml(results, html`
                 <div class="empty-state glass-panel">
                     ${icon('film', { size: 44 })}
-                    <h3>${empty ? (readonly ? 'Nada por aqui ainda' : 'Sua biblioteca está vazia') : 'Nenhuma obra encontrada'}</h3>
-                    <p>${empty ? (readonly ? 'Esta pessoa ainda não adicionou obras aqui.' : (reading ? 'Adicione seu primeiro mangá ou light novel.' : 'Adicione seu primeiro anime, série ou filme.')) : 'Tente mudar os filtros ou a busca.'}</p>
+                    <h3>${empty ? (readonly ? 'Nada por aqui ainda' : (all.length === 0 ? 'Sua biblioteca está vazia' : EMPTY_TITLE[section])) : 'Nenhuma obra encontrada'}</h3>
+                    <p>${empty ? (readonly ? 'Esta pessoa ainda não adicionou obras aqui.' : FIRST_WORK[section]) : 'Tente mudar os filtros ou a busca.'}</p>
                     ${empty && !readonly && actions.add ? html`<button type="button" class="button button-primary" data-action="add">${icon('plus', { size: 18 })} Adicionar obra</button>` : ''}
-                </div>`);
+                </div>${others}`);
             return;
         }
 
         if (view === 'cards') {
-            setHtml(results, html`<div class="media-grid">${list.map((e) => mediaCardHtml(e, { readonly }))}</div>`);
+            setHtml(results, html`<div class="media-grid">${list.map((e) => mediaCardHtml(e, { readonly }))}</div>${others}`);
         } else {
-            setHtml(results, html`<div class="media-list">${list.map((e) => mediaRowHtml(e, { readonly }))}</div>`);
+            setHtml(results, html`<div class="media-list">${list.map((e) => mediaRowHtml(e, { readonly }))}</div>${others}`);
         }
     }
 
@@ -113,6 +133,7 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, sect
     }
 
     offs.push(on(root, 'click', '[data-status]', (_, b) => setStatus(b.dataset.status)));
+    offs.push(on(results, 'click', '[data-goto-section]', (_, b) => onSectionRequest?.(b.dataset.gotoSection)));
     offs.push(on(root, 'click', '[data-view]', (_, b) => { view = b.dataset.view; saveView(view); syncControls(); renderResults(); }));
     offs.push(on(root, 'change', 'select[data-filter]', (_, s) => { filters[s.dataset.filter] = s.value; renderResults(); }));
 
@@ -146,7 +167,7 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, sect
     syncControls();
     renderResults();
 
-    /** Troca a seção (Assistir/Ler): status e categoria voltam para "todos"; ordem, modo e busca ficam. */
+    /** Troca a aba (Anime/Mangá/Light Novel): status e categoria voltam para "todos"; ordem, modo e busca ficam. */
     function setSection(next) {
         if (!SECTIONS[next] || next === section) return;
         section = next;
@@ -161,7 +182,7 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, sect
     function reveal(id) {
         filters.status = 'all'; filters.category = 'all'; filters.query = '';
         onStatusChange?.('all');
-        root.querySelectorAll('select[data-filter]').forEach((sel) => { if (sel.dataset.filter === 'category') sel.value = 'all'; });
+        root.querySelectorAll('select[data-filter="category"]').forEach((sel) => { sel.value = 'all'; });
         const q = root.querySelector('input[data-filter="query"]');
         if (q) q.value = '';
         syncControls();
@@ -173,8 +194,15 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, sect
         setTimeout(() => card.classList.remove('flash'), 2000);
     }
 
+    /** Rola suavemente até a lista filtrada (usado pelos cards de números do topo). Sem animação se a pessoa pediu menos movimento. */
+    function scrollToList() {
+        const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        root.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
+    }
+
     return {
         reveal,
+        scrollToList,
         getStatus: () => filters.status,
         setStatus,
         setSection,

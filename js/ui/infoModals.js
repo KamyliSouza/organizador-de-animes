@@ -2,10 +2,11 @@
 import { el, html, on, setHtml } from '../core/dom.js';
 import { icon } from '../core/icons.js';
 import { openModal } from '../core/modal.js';
-import { DAYS, DAY_LABELS, MINUTES_PER_EPISODE, SECTIONS, SECTION_KEYS, isReading, originLabel, progressOf, readSummary } from '../domain/entry.js';
+import { DAYS, DAY_LABELS, DEFAULT_SECTION, MINUTES_PER_EPISODE, SECTIONS, SECTION_KEYS, isReading, isReadingSection, normalizeSection, originLabel, progressOf, readSummary, sectionOf } from '../domain/entry.js';
 import { computeStats, groupByAirDay } from '../domain/stats.js';
 import { applyImageFallback, posterPlaceholder } from './mediaCard.js';
 import { bindReviews, reviewHtml } from './reviewBlock.js';
+import { SECTION_ICONS } from './sectionTabs.js';
 
 export function openDetailsModal(entry) {
     const content = el(html`
@@ -75,10 +76,11 @@ export function openScheduleModal({ getEntries, onIncrement }) {
     return openModal({ title: 'Agenda de lançamentos da semana', iconName: 'calendar', size: 'lg', content });
 }
 
-/** Parte de uma aba das estatísticas: o que cada seção mostra. */
+/** Parte de uma aba das estatísticas: o que cada tipo de obra mostra. */
+const CAT_CLASS = { Anime: 'seg-anime', Filme: 'seg-filme', 'Série': 'seg-serie', 'Mangá': 'seg-manga', 'Light novel': 'seg-novel' };
 function statsBody(s) {
-    const reading = s.section === 'read';
-    const cats = reading ? [['Mangá', 'seg-manga'], ['Light novel', 'seg-novel']] : [['Anime', 'seg-anime'], ['Filme', 'seg-filme'], ['Série', 'seg-serie']];
+    const reading = isReadingSection(s.section);
+    const cats = SECTIONS[s.section].categories.map((c) => [c, CAT_CLASS[c]]);
     const total = s.total || 1;
     return html`
         ${reading ? html`
@@ -99,7 +101,7 @@ function statsBody(s) {
             <span class="stat-icon">${icon('hourglass', { size: 22 })}</span>
         </div>`}
 
-        <div>
+        ${cats.length > 1 ? html`<div>
             <p class="field-label" style="margin-bottom:8px">Obras por categoria</p>
             <div class="stacked-bar" role="img" aria-label="Obras por categoria">
                 ${cats.map(([c, cls]) => s.categories[c] ? html`<span class="${cls}" style="width:${(s.categories[c] / total) * 100}%"></span>` : '')}
@@ -108,7 +110,7 @@ function statsBody(s) {
                 ${cats.filter(([c]) => s.categories[c]).map(([c, cls]) => html`<span><i class="${cls}"></i>${c}: ${Math.round((s.categories[c] / total) * 100)}%</span>`)}
                 ${s.total === 0 ? html`<span>Sem obras ainda.</span>` : ''}
             </div>
-        </div>
+        </div>` : ''}
 
         <div>
             <p class="field-label" style="margin-bottom:8px">${reading ? 'Gêneros mais lidos' : 'Gêneros mais vistos'}</p>
@@ -119,15 +121,15 @@ function statsBody(s) {
 }
 
 /**
- * Estatísticas em duas abas: Assistir (animes, filmes e séries) e Ler (mangás e light novels).
+ * Estatísticas em três abas: Anime (com filmes e séries), Mangá e Light Novel.
  * `section` é a aba que abre primeiro.
  */
-export function openStatsModal(entries, { section = 'watch' } = {}) {
-    let active = SECTIONS[section] ? section : 'watch';
+export function openStatsModal(entries, { section = DEFAULT_SECTION } = {}) {
+    let active = normalizeSection(section);
 
     const content = el(html`
         <div class="stack">
-            <div class="section-tabs" role="tablist" aria-label="Estatísticas por seção" data-tabs></div>
+            <div class="section-tabs" role="tablist" aria-label="Estatísticas por tipo de obra" data-tabs></div>
             <div class="stack" role="tabpanel" id="stats-panel" data-body></div>
             <div class="modal-footer"><button type="button" class="button button-secondary" data-modal-close>Fechar</button></div>
         </div>`);
@@ -135,10 +137,10 @@ export function openStatsModal(entries, { section = 'watch' } = {}) {
     const body = content.querySelector('[data-body]');
 
     function render(focusTab = false) {
-        const counts = Object.fromEntries(SECTION_KEYS.map((k) => [k, entries.filter((e) => (isReading(e) ? 'read' : 'watch') === k).length]));
+        const counts = Object.fromEntries(SECTION_KEYS.map((k) => [k, entries.filter((e) => sectionOf(e) === k).length]));
         setHtml(tabs, html`${SECTION_KEYS.map((k) => html`
             <button type="button" role="tab" class="section-tab" id="stats-tab-${k}" data-section="${k}" aria-selected="${String(k === active)}" aria-controls="stats-panel" tabindex="${k === active ? 0 : -1}">
-                ${icon(k === 'watch' ? 'play' : 'book', { size: 17 })}<span>${SECTIONS[k].label}</span><span class="count" aria-label="${counts[k]} obras">${counts[k]}</span>
+                ${icon(SECTION_ICONS[k], { size: 17 })}<span>${SECTIONS[k].label}</span><span class="count" aria-label="${counts[k]} obras">${counts[k]}</span>
             </button>`)}`);
         body.setAttribute('aria-labelledby', `stats-tab-${active}`);
         setHtml(body, statsBody(computeStats(entries, active)));

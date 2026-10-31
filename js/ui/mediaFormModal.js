@@ -6,7 +6,7 @@ import { openModal } from '../core/modal.js';
 import { openTextEditor } from './textEditorModal.js';
 import { messageOf } from '../core/errors.js';
 import { toast } from '../core/toast.js';
-import { DAYS, DAY_LABELS, MAX_CHAPTERS, MAX_EPISODES, MAX_NOTES, MAX_REVIEW, MAX_VOLUMES, SEASON_TYPES, SECTIONS, cloneEntry, emptyEntryFor, findDuplicate, isReading, markAllWatched, normalizeSeason, originLabel, progressOf, readSummary, statusLabel, statusesOf, titleKey } from '../domain/entry.js';
+import { DAYS, DAY_LABELS, MAX_CHAPTERS, MAX_EPISODES, MAX_NOTES, MAX_REVIEW, MAX_VOLUMES, SEASON_TYPES, categoriesFor, cloneEntry, emptyEntryFor, findDuplicate, isReading, isReadingSection, markAllWatched, normalizeSection, normalizeSeason, originLabel, progressOf, readSummary, sectionOf, statusLabel, statusesOf, titleKey } from '../domain/entry.js';
 import { DEFAULT_SOURCE, READ_SOURCES, SOURCES, searchReadings, searchSeasons, searchWorks, sourceAvailable } from '../services/search/index.js';
 
 const SOURCE_KEY = 'kamylist_last_source';
@@ -33,15 +33,15 @@ function mergeSeasons(oldSeasons, nextSeasons) {
 /**
  * @param {object} opts
  * @param {object|null} opts.entry   Obra a editar (null = nova).
- * @param {'watch'|'read'} [opts.section]  Seção da obra nova (Assistir ou Ler). Na edição vale a da própria obra.
+ * @param {'anime'|'manga'|'novel'} [opts.section]  Aba da obra nova (Anime, Mangá ou Light Novel). Na edição vale a da própria obra.
  * @param {(entry:object)=>Promise<void>} opts.onSave
  * @param {object[]} [opts.existing]   Obras que já estão na biblioteca (para avisar de repetidas).
  * @param {(entry:object)=>void} [opts.onShowExisting]  Chamado ao escolher "ver na biblioteca" numa repetida.
  */
-export function openMediaForm({ entry = null, section = 'watch', onSave, existing = [], onShowExisting }) {
+export function openMediaForm({ entry = null, section = 'anime', onSave, existing = [], onShowExisting }) {
     const isEdit = Boolean(entry?.id);
-    const reading = entry ? isReading(entry) : section === 'read';    // mangá/light novel: capítulos e volumes, sem temporadas
-    const sec = reading ? 'read' : 'watch';
+    const reading = entry ? isReading(entry) : isReadingSection(section);    // mangá/light novel: capítulos e volumes, sem temporadas
+    const sec = entry ? sectionOf(entry) : normalizeSection(section);        // aba da obra (a categoria inicial vem dela)
     const sourceList = reading ? READ_SOURCES : SOURCES;
     const draft = cloneEntry(entry || emptyEntryFor(sec));
     const baseRef = draft.sourceRef || '';   // código da obra antes de escolher outro resultado
@@ -149,7 +149,7 @@ export function openMediaForm({ entry = null, section = 'watch', onSave, existin
         <div class="form-grid">
             <div class="field">
                 <label for="mf-category">Categoria</label>
-                <select id="mf-category" class="select">${SECTIONS[sec].categories.map((c) => html`<option value="${c}">${c}</option>`)}</select>
+                <select id="mf-category" class="select">${categoriesFor(reading).map((c) => html`<option value="${c}">${c}</option>`)}</select>
             </div>
             <div class="field">
                 <label for="mf-status">Status</label>
@@ -212,12 +212,12 @@ export function openMediaForm({ entry = null, section = 'watch', onSave, existin
 
     // --- obra repetida -------------------------------------------------------------
     const dupBox = $('[data-dup]');
-    const dupOf = () => findDuplicate(existing, { title: fields.title.value, sourceRef: draft.sourceRef }, entry?.id || '');
+    const dupOf = () => findDuplicate(existing, { title: fields.title.value, sourceRef: draft.sourceRef, category: fields.category.value }, entry?.id || '');
     const describe = (e) => {
-        const label = statusLabel(e.status, isReading(e) ? 'read' : 'watch');
-        if (isReading(e)) return `"${e.title}" (${label}${e.status === 'planned' ? '' : `, ${readSummary(e)}`})`;
+        const label = statusLabel(e.status, sectionOf(e));
+        if (isReading(e)) return `"${e.title}" (${e.category} · ${label}${e.status === 'planned' ? '' : `, ${readSummary(e)}`})`;
         const { watched, total } = progressOf(e);
-        return `"${e.title}" (${label}${e.status === 'planned' ? '' : `, ${watched}/${total} eps`})`;
+        return `"${e.title}" (${e.category} · ${label}${e.status === 'planned' ? '' : `, ${watched}/${total} eps`})`;
     };
     function checkDuplicate() {
         const dup = dupOf();
@@ -233,6 +233,9 @@ export function openMediaForm({ entry = null, section = 'watch', onSave, existin
         dupTimer = setTimeout(checkDuplicate, 200);
     });
     const stopTimer = () => clearTimeout(dupTimer);
+    fields.category.addEventListener('change', checkDuplicate);   // o mesmo nome em outro tipo (anime × filme × mangá...) não é repetida
+    /** Resultado da busca que o mesmo tipo de obra já tem na biblioteca. */
+    const inLibrary = (r) => findDuplicate(existing, { title: r.title, sourceRef: r.sourceRef, category: r.category }, entry?.id || '');
 
     // --- helpers de interface ------------------------------------------------
 
@@ -270,7 +273,7 @@ export function openMediaForm({ entry = null, section = 'watch', onSave, existin
 
     function applyResult(r) {
         fields.title.value = r.title || fields.title.value;
-        if (SECTIONS[sec].categories.includes(r.category)) fields.category.value = r.category;
+        if (categoriesFor(reading).includes(r.category)) fields.category.value = r.category;
         if (r.rating > 0) fields.rating.value = String(r.rating);
         if (r.tags?.length) fields.tags.value = r.tags.join(', ');
         if (r.airDay && fields.air) fields.air.value = r.airDay;
@@ -317,11 +320,11 @@ export function openMediaForm({ entry = null, section = 'watch', onSave, existin
             if (!found.length) { showResultsMessage(boxes.results, 'Nenhum resultado encontrado. Tente outro título ou outra fonte.'); return; }
             setHtml(boxes.results, html`${found.map((r, i) => reading ? html`
                 <button type="button" class="result-item" data-pick="${i}">
-                    <span class="truncate">${r.title} (${r.category}${originLabel(r) ? `, ${originLabel(r)}` : ''})</span>
+                    <span class="truncate">${r.title} (${r.category}${originLabel(r) ? `, ${originLabel(r)}` : ''})${inLibrary(r) ? ' · já na sua lista' : ''}</span>
                     <span class="count">${r.chaptersTotal ? `${r.chaptersTotal} caps` : r.volumesTotal ? `${r.volumesTotal} vols` : 'Em publicação'}</span>
                 </button>` : html`
                 <button type="button" class="result-item" data-pick="${i}">
-                    <span class="truncate">${r.title}${r.category !== 'Anime' ? ` (${r.category})` : ''}</span>
+                    <span class="truncate">${r.title} (${r.category})${inLibrary(r) ? ' · já na sua lista' : ''}</span>
                     <span class="count">${r.category === 'Filme' ? 'Filme' : r.loadDetails ? 'Temporadas' : `${r.seasons.length} Temp.`}</span>
                 </button>`)}`);
             boxes.results.hidden = false;

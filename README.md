@@ -178,17 +178,22 @@ Em **Perfil → Personalização → Cores** cada pessoa escolhe uma entre 8 com
 - **Criar ou ajustar uma combinação:** edite a lista em `tools/palettes.mjs` e rode `node tools/palettes.mjs` (sem `--check`): ele confere o contraste e gera o `css/palettes.css`. Adicione o nome também em `js/domain/palettes.js`. Não é preciso mudar o SQL.
 - No modo local (sem Supabase) a escolha fica guardada só neste navegador.
 
-## Mangás e light novels
+## Abas: Anime, Mangá e Light Novel
 
-A biblioteca (e o perfil de quem você visita) tem duas abas: **Assistir** (animes, filmes e séries) e **Ler** (mangás e light novels). Cada aba tem os próprios números, filtros, favoritos e estatísticas. A última aba usada fica lembrada neste navegador; no perfil de outra pessoa abre a primeira aba que tiver obras.
+A biblioteca (e o perfil de quem você visita) tem três abas: **Anime** (inclui filmes e séries, cada um com o selo da própria categoria no card), **Mangá** e **Light Novel**. Cada aba tem os próprios números, filtros, favoritos e estatísticas. A última aba usada fica lembrada neste navegador; no perfil de outra pessoa abre a primeira aba que tiver obras. (Quem tinha "Assistir" ou "Ler" guardado no navegador cai em *Anime* e *Mangá*.)
+
+- **Novas obras já no tipo certo:** o botão **Nova obra** começa na categoria da aba em que você está (*Anime*, *Mangá* ou *Light novel*). Dentro da família ainda dá para trocar a categoria no formulário (Anime ↔ Filme ↔ Série, ou Mangá ↔ Light novel). Se isso mudar a obra de aba (Mangá ↔ Light novel), o site leva você para a aba onde ela foi parar.
+- **Mesmo nome em tipos diferentes:** o anime e o mangá de "Death Note" podem existir juntos, e o filme e a série também. O aviso de **obra repetida** só vale dentro do mesmo tipo (categoria) e diz qual é o tipo na mensagem. A busca do formulário mostra o tipo de cada resultado e marca com "já na sua lista" o que você já tem *daquele tipo*.
+- **Busca na biblioteca:** o campo de busca vale para a aba atual. Se o mesmo nome aparece em outra aba, um aviso abaixo da lista mostra onde ("Também há resultados para essa busca em: Mangá (1)") e o botão leva você até lá, mantendo a busca.
+- **Cartões de números do topo:** clicar em *Obras*, *Assistindo*, *Concluídas* etc. filtra a lista e **rola suavemente até ela** (quem ativou "reduzir movimento" no sistema tem a rolagem imediata).
 
 - **Categorias:** *Mangá* e *Light novel*. Manhwa (Coreia) e manhua (China) são cadastrados como *Mangá* e ganham um selo de origem ("Manhwa", "Manhua") nos cards, na lista e nos detalhes.
 - **Progresso por contadores:** capítulos lidos / total e volumes lidos / total. O botão **+1 Cap** soma um capítulo (só em obras *Lendo*) e **Progresso** abre a janela para ajustar os quatro números. Total **0** quer dizer "não sei" (obra em publicação): o card mostra só o que já foi lido, sem barra de progresso. Os lidos nunca passam do total.
 - **Status de leitura:** *Lendo*, *Quero ler*, *Concluído*, *Em espera* e *Dropado* (por baixo são os mesmos status dos animes, só mudam os nomes). Ao escolher *Concluído*, capítulos e volumes vão até o total, quando ele é conhecido. Obras *Quero ler* ainda não têm +1 Cap: para começar, mude o status para *Lendo*.
 - **Busca:** **AniList** e **MyAnimeList** (via Jikan), sem chave. A busca preenche título, capa, sinopse, gêneros, totais e origem. O TMDB não tem mangá, por isso não aparece na lista. A mesma obra vinda das duas fontes é reconhecida como repetida.
-- **Sem temporadas nem agenda:** mangás não usam temporadas, e a **Agenda** da semana existe só na aba *Assistir*.
-- **Favoritos:** o limite de **8** vale por aba (8 em Assistir e 8 em Ler).
-- **Estatísticas:** o modal tem duas abas. *Ler* mostra capítulos e volumes lidos, mangá × light novel e os gêneros mais lidos.
+- **Sem temporadas nem agenda:** mangás não usam temporadas, e a **Agenda** da semana existe só na aba *Anime*.
+- **Favoritos:** o limite de **8** vale por aba (8 em Anime, 8 em Mangá e 8 em Light Novel).
+- **Estatísticas:** o modal tem as mesmas três abas. *Anime* mostra o tempo assistido e a divisão entre anime, filme e série; *Mangá* e *Light Novel* mostram capítulos e volumes lidos e os gêneros mais lidos.
 - **Feed e compartilhar:** o feed usa "começou a ler" e "concluiu a leitura"; o cartão de compartilhar mostra o progresso de leitura.
 - **Backup:** o `.json` exportado leva os novos campos, e backups antigos (de antes dos mangás) continuam entrando normalmente.
 
@@ -266,7 +271,7 @@ Ao salvar uma obra como **Concluído**, todos os episódios de todas as temporad
 
 ## Favoritos
 
-O coração no card fixa a obra como favorita (até **8**). No perfil, os favoritos aparecem numa seção **Favoritos** logo acima da biblioteca, inclusive para quem visita o perfil público. O limite é aplicado pelo site (no banco o campo é só um marcador).
+O coração no card fixa a obra como favorita (até **8** em cada aba: Anime, Mangá e Light Novel). No perfil, os favoritos aparecem numa seção **Favoritos** logo acima da biblioteca, inclusive para quem visita o perfil público. O limite é aplicado pelo site (no banco o campo é só um marcador).
 
 ## Botão voltar
 
@@ -274,7 +279,7 @@ O botão voltar do navegador (ou do celular) fecha o modal aberto (estatísticas
 
 ## Obras repetidas
 
-Ao digitar o título (ou escolher um resultado da busca), o formulário avisa se você já tem aquela obra. A comparação ignora maiúsculas, acentos e pontuação, e também reconhece a mesma obra vinda de outra fonte pelo código dela (MyAnimeList, AniList ou TMDB). É só um aviso: ao salvar você escolhe *Cancelar*, *Ver a existente* ou *Adicionar mesmo assim*.
+Ao digitar o título (ou escolher um resultado da busca), o formulário avisa se você já tem aquela obra **do mesmo tipo** (anime, filme, série, mangá ou light novel; o mesmo nome em tipos diferentes é permitido). A comparação ignora maiúsculas, acentos e pontuação, e também reconhece a mesma obra vinda de outra fonte pelo código dela (MyAnimeList, AniList ou TMDB). É só um aviso: ao salvar você escolhe *Cancelar*, *Ver a existente* ou *Adicionar mesmo assim*.
 
 ## Cartão de compartilhamento e capas
 
@@ -312,7 +317,7 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.8`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.9`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
 
 ## Como o código está organizado
 
@@ -325,7 +330,7 @@ js/
   core/                 DOM seguro, roteador, modal, toasts, tema, ícones (inclui a logo 菫)
   domain/               regras puras: obras, temporadas, estatísticas, backup, cargos, histórico de novidades (changelog.js)
   services/             backends (local e Supabase), sessão, busca (Jikan, AniList, TMDB)
-  ui/                   componentes: cards, filtros, modais, cartão de compartilhar, avatar, abas da conta, abas Assistir/Ler, progresso de leitura
+  ui/                   componentes: cards, filtros, modais, cartão de compartilhar, avatar, abas da conta, abas Anime/Mangá/Light Novel, progresso de leitura
   views/                telas: início, biblioteca, login, perfil, explorar, feed (atividade e pedidos), personalização, configurações, painel da equipe (admin.js)
 tools/palettes.mjs      gera css/palettes.css e confere o contraste das cores (node tools/palettes.mjs --check)
 sql/schema.sql          tabelas, regras de segurança e funções do Supabase (pode rodar de novo a qualquer momento)

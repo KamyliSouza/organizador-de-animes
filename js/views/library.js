@@ -65,17 +65,18 @@ export async function mount(root) {
     const sectionsEl = root.querySelector('[data-sections]');
     const panel = root.querySelector('[data-panel]');
     let browser = null;
-    let section = loadSection();     // "watch" = Assistir · "read" = Ler (mangá e light novel)
+    let section = loadSection();     // "anime" (com filme e série) · "manga" · "novel" (light novel)
 
     const paintTiles = () => setHtml(tiles, statTilesHtml(entries, { active: browser?.getStatus() ?? 'all', section }));
     const paintTabs = () => {
         setHtml(sectionsEl, sectionTabsHtml({ active: section, counts: sectionCounts(entries), panelId: 'section-panel' }));
         panel.setAttribute('aria-labelledby', `tab-${section}`);
     };
-    /** Texto e botões do topo mudam com a seção (a Agenda só existe em Assistir). */
+    const LEADS = { anime: 'Sua lista de animes, séries e filmes.', manga: 'Sua lista de mangás.', novel: 'Sua lista de light novels.' };
+    /** Texto e botões do topo mudam com a aba (a Agenda só existe em Anime). */
     const paintHead = () => {
-        root.querySelector('[data-lead]').textContent = section === 'read' ? 'Sua lista de mangás e light novels.' : 'Sua lista de animes, séries e filmes.';
-        root.querySelector('[data-act="schedule"]').hidden = section === 'read';
+        root.querySelector('[data-lead]').textContent = LEADS[section];
+        root.querySelector('[data-act="schedule"]').hidden = section !== 'anime';
     };
     const refresh = () => {
         paintTabs();
@@ -177,15 +178,19 @@ export async function mount(root) {
             existing: entries,
             onShowExisting: (found) => { switchSection(sectionOf(found)); browser?.reveal(found.id); },
             onSave: async (data) => {
+                let saved;
                 if (entry?.id) {
-                    const saved = await be.library.update({ ...data, id: entry.id });
+                    saved = await be.library.update({ ...data, id: entry.id });
                     const i = entries.findIndex((e) => e.id === entry.id);
                     if (i >= 0) entries[i] = saved;
                     toast('Obra atualizada!', { type: 'success' });
                 } else {
-                    entries.unshift(await be.library.create(data));
+                    saved = await be.library.create(data);
+                    entries.unshift(saved);
                     toast('Obra adicionada!', { type: 'success' });
                 }
+                // Mangá ↔ Light novel muda a obra de aba: vai junto, para a pessoa ver onde ela foi parar.
+                if (saved && sectionOf(saved) !== section) switchSection(sectionOf(saved));
                 refresh();
             },
         });
@@ -241,14 +246,15 @@ export async function mount(root) {
         },
     };
 
-    browser = mountLibraryBrowser(root.querySelector('[data-browser]'), { entries, section, actions, onStatusChange: () => paintTiles() });
+    browser = mountLibraryBrowser(root.querySelector('[data-browser]'), { entries, section, actions, onStatusChange: () => paintTiles(), onSectionRequest: switchSection });
     const offTabs = bindSectionTabs(sectionsEl, switchSection);
 
-    // Os cards com os números filtram a lista pelo status correspondente.
+    // Os cards com os números filtram a lista pelo status correspondente e rolam até ela.
     const offTiles = on(tiles, 'click', '[data-stat]', (_, btn) => {
         const status = btn.dataset.stat;
         browser.setStatus(status);
         tiles.querySelector(`[data-stat="${status}"]`)?.focus({ preventScroll: true });
+        browser.scrollToList();
     });
 
     // --- cabeçalho e avisos ---------------------------------------------------------

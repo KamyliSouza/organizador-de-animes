@@ -7,7 +7,7 @@ import { messageOf } from '../core/errors.js';
 import { icon, spinner } from '../core/icons.js';
 import { timeAgo } from '../core/time.js';
 import { toast } from '../core/toast.js';
-import { CATEGORY_CLASS, STATUSES, sectionOfCategory, statusLabel } from '../domain/entry.js';
+import { CATEGORY_CLASS, STATUSES, isReadingCategory, sectionOfCategory, statusLabel } from '../domain/entry.js';
 import { backend, isCloud, setRequestCount, state } from '../services/session.js';
 import { avatar, avatarSrc } from '../ui/avatar.js';
 import { openDetailsModal } from '../ui/infoModals.js';
@@ -30,7 +30,7 @@ const READ_VERBS = {
     review: { _: 'escreveu uma análise de' },
 };
 const verbOf = (item) => {
-    const table = sectionOfCategory(item.category) === 'read' ? READ_VERBS : VERBS;
+    const table = isReadingCategory(item.category) ? READ_VERBS : VERBS;
     return table[item.kind]?.[item.status] || table[item.kind]?._ || 'atualizou';
 };
 
@@ -50,7 +50,7 @@ function feedItem(item) {
         <div class="feed-work">
             <button type="button" class="feed-cover poster-button" data-cover data-username="${person.username}" aria-label="Abrir detalhes de ${item.title}">${item.coverImage
                 ? html`<img src="${item.coverImage}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-fallback>`
-                : posterPlaceholder(sectionOfCategory(item.category) === 'read')}</button>
+                : posterPlaceholder(isReadingCategory(item.category))}</button>
             <div class="feed-info">
                 <h3 class="feed-title">${item.title}</h3>
                 <div class="media-badges">

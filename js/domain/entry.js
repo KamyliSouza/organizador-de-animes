@@ -10,7 +10,7 @@ export const STATUSES = {
     dropped: { label: 'Dropado', icon: 'ban' },
 };
 export const STATUS_KEYS = Object.keys(STATUSES);
-/** Na seção "Ler" (mangás e light novels) dois status mudam de nome; as chaves no banco são as mesmas. */
+/** Nas abas de leitura (Mangá e Light Novel) dois status mudam de nome; as chaves no banco são as mesmas. */
 const READ_STATUS_LABELS = { watching: 'Lendo', planned: 'Quero ler' };
 /** Status "pausados": marcar um episódio tira a obra deles (volta para Assistindo/Concluído). */
 const PAUSED = new Set(['on_hold', 'dropped']);
@@ -21,24 +21,37 @@ export const MAX_FAVORITES = 8;
 export const MAX_REVIEW = 2000;
 export const MAX_NOTES = 5000;
 
-// A biblioteca tem duas seções: "Assistir" (anime, filme, série) e "Ler" (mangá, light novel).
+// A biblioteca tem três abas (seções): "Anime" (anime, filme e série), "Mangá" e "Light Novel".
+// Anime, Filme e Série ficam juntos na aba Anime (cada um com o selo da própria categoria).
+// Mangá e light novel são "de leitura": contam capítulos e volumes em vez de episódios.
 export const WATCH_CATEGORIES = ['Anime', 'Filme', 'Série'];
 export const READ_CATEGORIES = ['Mangá', 'Light novel'];
 export const CATEGORIES = [...WATCH_CATEGORIES, ...READ_CATEGORIES];
 export const CATEGORY_CLASS = { Anime: 'anime', Filme: 'filme', 'Série': 'serie', 'Mangá': 'manga', 'Light novel': 'novel' };
 export const SECTIONS = {
-    watch: { label: 'Assistir', categories: WATCH_CATEGORIES },
-    read: { label: 'Ler', categories: READ_CATEGORIES },
+    anime: { label: 'Anime', categories: WATCH_CATEGORIES, firstCategory: 'Anime', reading: false },
+    manga: { label: 'Mangá', categories: ['Mangá'], firstCategory: 'Mangá', reading: true },
+    novel: { label: 'Light Novel', categories: ['Light novel'], firstCategory: 'Light novel', reading: true },
 };
 export const SECTION_KEYS = Object.keys(SECTIONS);
-export const sectionOfCategory = (category) => (READ_CATEGORIES.includes(category) ? 'read' : 'watch');
+export const DEFAULT_SECTION = 'anime';
+/** Abas antigas (versões até a 1.8 guardavam "watch" e "read"): "watch" virou Anime e "read" virou Mangá. */
+const LEGACY_SECTIONS = { watch: 'anime', read: 'manga' };
+/** Aceita o nome antigo ou novo da aba e devolve uma aba que existe (ou a padrão). */
+export const normalizeSection = (v) => (SECTIONS[v] ? v : LEGACY_SECTIONS[v] || DEFAULT_SECTION);
+export const isReadingCategory = (category) => READ_CATEGORIES.includes(category);
+export const sectionOfCategory = (category) => (category === 'Mangá' ? 'manga' : category === 'Light novel' ? 'novel' : 'anime');
 export const sectionOf = (entry) => sectionOfCategory(entry?.category);
-export const isReading = (entry) => sectionOf(entry) === 'read';
+/** A aba conta capítulos e volumes (Mangá e Light Novel)? Aceita também o nome antigo "read". */
+export const isReadingSection = (section) => Boolean(SECTIONS[normalizeSection(section)]?.reading);
+export const isReading = (entry) => isReadingCategory(entry?.category);
+/** Categorias do formulário: a obra de leitura escolhe entre Mangá e Light novel; a de assistir, entre Anime, Filme e Série. */
+export const categoriesFor = (reading) => (reading ? READ_CATEGORIES : WATCH_CATEGORIES);
 
 /** Nome do status na seção ("Assistindo" ou "Lendo"...). */
-export const statusLabel = (status, section = 'watch') => (section === 'read' && READ_STATUS_LABELS[status]) || STATUSES[status]?.label || '';
+export const statusLabel = (status, section = DEFAULT_SECTION) => (isReadingSection(section) && READ_STATUS_LABELS[status]) || STATUSES[status]?.label || '';
 /** Status da seção como lista [chave, { label, icon }], na ordem de sempre. */
-export const statusesOf = (section = 'watch') => Object.entries(STATUSES).map(([k, st]) => [k, { ...st, label: statusLabel(k, section) }]);
+export const statusesOf = (section = DEFAULT_SECTION) => Object.entries(STATUSES).map(([k, st]) => [k, { ...st, label: statusLabel(k, section) }]);
 
 /** Países de origem aceitos no selo (mangá coreano = manhwa, chinês = manhua). */
 const ORIGIN_RX = /^[A-Z]{2}$/;
@@ -138,10 +151,11 @@ export function emptyEntry() {
     };
 }
 
-/** Obra nova em branco para a seção ("Ler" começa como mangá, em "Lendo"). */
-export function emptyEntryFor(section = 'watch') {
+/** Obra nova em branco para a aba (Mangá começa como mangá em "Lendo"; Light Novel, como light novel). */
+export function emptyEntryFor(section = DEFAULT_SECTION) {
     const base = emptyEntry();
-    return section === 'read' ? { ...base, category: 'Mangá', seasons: [] } : base;
+    const sec = SECTIONS[normalizeSection(section)];
+    return sec.reading ? { ...base, category: sec.firstCategory, seasons: [] } : base;
 }
 
 export const cloneEntry = (e) => JSON.parse(JSON.stringify(e));
@@ -304,23 +318,26 @@ export const titleKey = (title) => String(title ?? '')
 /**
  * Procura na biblioteca uma obra igual à candidata: mesmo código da fonte (mal/anilist/tmdb)
  * ou mesmo título (sem acento, maiúsculas ou pontuação). `ignoreId` é a própria obra, na edição.
+ * Só vale DENTRO do mesmo tipo (categoria): o mangá "Death Note" e o anime "Death Note" podem coexistir,
+ * assim como o anime e o filme com o mesmo nome. Sem `category`, compara com todas.
  */
-export function findDuplicate(entries, { title = '', sourceRef = '' } = {}, ignoreId = '') {
+export function findDuplicate(entries, { title = '', sourceRef = '', category = '' } = {}, ignoreId = '') {
     const key = titleKey(title);
     const ref = cleanRef(sourceRef);
     return entries.find((e) => {
         if (ignoreId && e.id === ignoreId) return false;
+        if (category && e.category !== category) return false;
         if (ref && e.sourceRef === ref) return true;
         return key !== '' && titleKey(e.title) === key;
     }) || null;
 }
 
-/** Favoritos da seção (o limite de MAX_FAVORITES vale para "Assistir" e para "Ler" separadamente). */
-export const favoriteCount = (entries, section = null) => entries.filter((e) => e.favorite && (!section || sectionOf(e) === section)).length;
+/** Favoritos da aba (o limite de MAX_FAVORITES vale para cada aba separadamente). */
+export const favoriteCount = (entries, section = null) => entries.filter((e) => e.favorite && (!section || sectionOf(e) === normalizeSection(section))).length;
 
-/** Deixa só os primeiros `max` favoritos de cada seção (usado ao importar backups). */
+/** Deixa só os primeiros `max` favoritos de cada aba (usado ao importar backups). */
 export function capFavorites(entries, max = MAX_FAVORITES) {
-    const n = { watch: 0, read: 0 };
+    const n = Object.fromEntries(SECTION_KEYS.map((k) => [k, 0]));
     return entries.map((e) => (e.favorite && ++n[sectionOf(e)] > max ? { ...e, favorite: false } : e));
 }
 
@@ -331,7 +348,7 @@ const createdMs = (e) => (e.createdAt ? Date.parse(e.createdAt) || 0 : Number(e.
 export function filterEntries(entries, { status = 'all', category = 'all', query = '', section = 'all' } = {}) {
     const q = query.trim().toLowerCase();
     return entries.filter((e) => {
-        if (section !== 'all' && sectionOf(e) !== section) return false;
+        if (section !== 'all' && sectionOf(e) !== normalizeSection(section)) return false;
         if (status !== 'all' && e.status !== status) return false;
         if (category !== 'all' && e.category !== category) return false;
         if (!q) return true;

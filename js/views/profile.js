@@ -8,7 +8,7 @@ import { icon } from '../core/icons.js';
 import { viewPalette } from '../core/palette.js';
 import { refresh } from '../core/router.js';
 import { toast } from '../core/toast.js';
-import { MAX_FAVORITES, SECTIONS, sectionOf } from '../domain/entry.js';
+import { MAX_FAVORITES, SECTIONS, SECTION_KEYS, sectionOf } from '../domain/entry.js';
 import { canAct, isStaff } from '../domain/roles.js';
 import { backend, isCloud, myRole, state } from '../services/session.js';
 import { avatar, avatarSrc } from '../ui/avatar.js';
@@ -139,6 +139,7 @@ export async function mount(root, ctx) {
 
     const offs = [];
     let browser = null;
+    let switchSectionRef = null;     // troca de aba (definida abaixo, usada pelo aviso "também há resultados em...")
 
     if (canView) {
         const tiles = root.querySelector('[data-tiles]');
@@ -146,13 +147,12 @@ export async function mount(root, ctx) {
         const panel = root.querySelector('[data-panel]');
         const favWrap = root.querySelector('[data-favorites-wrap]');
 
-        // Aba inicial: a que a pessoa usou por último; se ela estiver vazia neste perfil e a outra não, abre a outra.
+        // Aba inicial: a que a pessoa usou por último; se ela estiver vazia neste perfil, abre a primeira que tiver obras.
         const counts = sectionCounts(entries);
         let section = loadSection();
-        if (counts[section] === 0) section = section === 'watch' ? 'read' : 'watch';
-        if (counts[section] === 0) section = loadSection();
+        if (counts[section] === 0) section = SECTION_KEYS.find((k) => counts[k] > 0) || section;
 
-        // Obras fixadas pela pessoa na aba atual (o site limita a MAX_FAVORITES por seção)
+        // Obras fixadas pela pessoa na aba atual (o site limita a MAX_FAVORITES por aba)
         const paintFavorites = () => {
             const favorites = entries.filter((e) => e.favorite && sectionOf(e) === section).slice(0, MAX_FAVORITES);
             setHtml(favWrap, favorites.length ? html`
@@ -171,23 +171,27 @@ export async function mount(root, ctx) {
             entries, readonly: true, section,
             actions: { details: (entry) => openDetailsModal(entry) },
             onStatusChange: (status) => paintTiles(status),
+            onSectionRequest: (next) => switchSectionRef?.(next),
         });
         paintTabs();
         paintTiles();
         paintFavorites();
 
-        offs.push(bindSectionTabs(sectionsEl, (next) => {
+        const switchSection = (next) => {
             if (!SECTIONS[next] || next === section) return;
             section = next;
             browser.setSection(section);
             paintTabs();
             paintTiles();
             paintFavorites();
-        }));
-        // Os cards com os números filtram a lista pelo status correspondente.
+        };
+        switchSectionRef = switchSection;
+        offs.push(bindSectionTabs(sectionsEl, switchSection));
+        // Os cards com os números filtram a lista pelo status correspondente e rolam até ela.
         offs.push(on(tiles, 'click', '[data-stat]', (_, btn) => {
             browser.setStatus(btn.dataset.stat);
             tiles.querySelector(`[data-stat="${btn.dataset.stat}"]`)?.focus({ preventScroll: true });
+            browser.scrollToList();
         }));
         offs.push(on(root, 'click', '[data-favorites] [data-action="details"], [data-favorites] [data-action="cover"]', (_, btn) => {
             const entry = entries.find((e) => e.id === btn.closest('[data-id]')?.dataset.id);

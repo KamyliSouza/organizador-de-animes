@@ -1,9 +1,20 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.8';
+export const SITE_VERSION = '1.9';
 
 export const CHANGELOG = [
+    {
+        version: '1.9',
+        title: 'Abas Anime, Mangá e Light Novel',
+        items: [
+            'A biblioteca (e os perfis) agora tem três abas: Anime, Mangá e Light Novel. Filmes e séries continuam dentro de Anime, cada um com o selo da sua categoria.',
+            'Cada aba tem os próprios números, filtros, favoritos e estatísticas. Ao adicionar uma obra, ela já começa no tipo da aba em que você está.',
+            'O mesmo nome pode existir em tipos diferentes (por exemplo, o anime e o mangá de "Death Note"). O aviso de obra repetida agora só aparece dentro do mesmo tipo, e a busca marca o que você já tem.',
+            'Ao buscar um título na biblioteca, o site avisa se ele também aparece nas outras abas e leva você até lá com um clique.',
+            'Clicar nos cartões de números do topo (Obras, Assistindo, Concluídas...) filtra a lista e rola suavemente até ela.',
+        ],
+    },
     {
         version: '1.8',
         title: 'Formulário, Personalização e foto de perfil',
