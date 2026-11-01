@@ -1,9 +1,19 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.11';
+export const SITE_VERSION = '1.12';
 
 export const CHANGELOG = [
+    {
+        version: '1.12',
+        title: 'Alto contraste como opção de acessibilidade',
+        items: [
+            'Novo painel Acessibilidade na Personalização (em Ajustes, no modo local) com a chave Alto contraste: preto e branco no tema claro, preto e amarelo no tema escuro, bordas firmes, fundos sem transparência, foco bem visível e links sublinhados.',
+            'A opção é só sua: fica guardada na sua conta, vale em qualquer aparelho em que você entrar e não aparece para mais ninguém. Quem visita o seu perfil não recebe o seu alto contraste, e o seu continua valendo quando você visita o perfil de outra pessoa.',
+            'Funciona junto com o tema claro ou escuro e com qualquer combinação de cores. Por isso o Alto contraste saiu da lista de cores do perfil; quem usava essa cor já foi passado para a nova opção.',
+            'Ao sair da conta, a opção é desligada neste navegador, para a próxima pessoa que usar o aparelho não herdar o visual.',
+        ],
+    },
     {
         version: '1.11',
         title: 'Notas com meia estrela',

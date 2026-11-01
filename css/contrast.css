@@ -1,0 +1,175 @@
+/* =========================================================
+   ALTO CONTRASTE — opção de acessibilidade (Personalização → Acessibilidade)
+   Vale quando o <html> tem data-contrast="high" (js/core/contrast.js): só para quem ligou a opção.
+   Fica DEPOIS de tokens.css e palettes.css, por cima de qualquer tema e de qualquer combinação de cores.
+   Parte 1: as cores (gerada, confere AAA: texto 7:1 e componentes 4,5:1 — node tools/palettes.mjs --check).
+   Parte 2: as regras de forma (escritas à mão): bordas firmes, fundos opacos, sem desfoque, links sublinhados.
+   ========================================================= */
+
+/* @cores:inicio — GERADO por tools/palettes.mjs (não edite à mão esta parte) */
+:root[data-contrast="high"] {
+    --primary-color: #000000;
+    --primary-hover: #000000;
+    --primary-soft: rgba(0, 0, 0, 0.08);
+    --primary-text: #000000;
+    --button-bg: #000000;
+    --button-bg-hover: #333333;
+    --button-text: #ffffff;
+    --bg-color: #ffffff;
+    --card-bg: #ffffff;
+    --footer-bg: #ffffff;
+    --nav-bg: #ffffff;
+    --input-bg: #ffffff;
+    --modal-bg: #ffffff;
+    --card-border: #000000;
+    --card-border-strong: #000000;
+    --notice-bg: rgba(0, 0, 0, 0.08);
+    --text-color: #000000;
+    --subtitle-color: #1a1a1a;
+    --muted-color: #262626;
+    --notice-text: #1a1a1a;
+    --st-watching: #1e3a8a;
+    --st-planned: #7c2d12;
+    --st-completed: #14532d;
+    --st-on_hold: #3730a3;
+    --st-dropped: #27272a;
+    --cat-filme: #881337;
+    --cat-serie: #0c4a6e;
+    --danger: #881337;
+    --danger-soft: rgba(136, 19, 55, 0.10);
+    --star: #92400e;
+    --focus-ring: 0 0 0 4px #000000;
+    --shadow-card: none;
+    --shadow-soft: none;
+    --overlay-bg: rgba(0, 0, 0, 0.75);
+    --blur-card: 0px;
+    --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    color-scheme: light;
+}
+:root[data-contrast="high"][data-theme="dark"] {
+    --primary-color: #ffe500;
+    --primary-hover: #ffe500;
+    --primary-soft: rgba(255, 229, 0, 0.14);
+    --primary-text: #ffe500;
+    --button-bg: #ffe500;
+    --button-bg-hover: #ffffff;
+    --button-text: #000000;
+    --bg-color: #000000;
+    --card-bg: #000000;
+    --footer-bg: #000000;
+    --nav-bg: #000000;
+    --input-bg: #000000;
+    --modal-bg: #000000;
+    --card-border: #ffe500;
+    --card-border-strong: #ffe500;
+    --notice-bg: rgba(255, 229, 0, 0.12);
+    --text-color: #ffffff;
+    --subtitle-color: #f2f2f2;
+    --muted-color: #e6e6e6;
+    --notice-text: #f2f2f2;
+    --st-watching: #93c5fd;
+    --st-planned: #f0abfc;
+    --st-completed: #6ee7b7;
+    --st-on_hold: #a5b4fc;
+    --st-dropped: #d4d4d8;
+    --cat-filme: #fda4af;
+    --cat-serie: #7dd3fc;
+    --danger: #fda4af;
+    --danger-soft: rgba(253, 164, 175, 0.16);
+    --star: #fbbf24;
+    --focus-ring: 0 0 0 4px #ffe500;
+    --shadow-card: none;
+    --shadow-soft: none;
+    --overlay-bg: rgba(0, 0, 0, 0.8);
+    --blur-card: 0px;
+    --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffe500' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+    :root[data-contrast="high"]:not([data-theme]) {
+        --primary-color: #ffe500;
+        --primary-hover: #ffe500;
+        --primary-soft: rgba(255, 229, 0, 0.14);
+        --primary-text: #ffe500;
+        --button-bg: #ffe500;
+        --button-bg-hover: #ffffff;
+        --button-text: #000000;
+        --bg-color: #000000;
+        --card-bg: #000000;
+        --footer-bg: #000000;
+        --nav-bg: #000000;
+        --input-bg: #000000;
+        --modal-bg: #000000;
+        --card-border: #ffe500;
+        --card-border-strong: #ffe500;
+        --notice-bg: rgba(255, 229, 0, 0.12);
+        --text-color: #ffffff;
+        --subtitle-color: #f2f2f2;
+        --muted-color: #e6e6e6;
+        --notice-text: #f2f2f2;
+        --st-watching: #93c5fd;
+        --st-planned: #f0abfc;
+        --st-completed: #6ee7b7;
+        --st-on_hold: #a5b4fc;
+        --st-dropped: #d4d4d8;
+        --cat-filme: #fda4af;
+        --cat-serie: #7dd3fc;
+        --danger: #fda4af;
+        --danger-soft: rgba(253, 164, 175, 0.16);
+        --star: #fbbf24;
+        --focus-ring: 0 0 0 4px #ffe500;
+        --shadow-card: none;
+        --shadow-soft: none;
+        --overlay-bg: rgba(0, 0, 0, 0.8);
+        --blur-card: 0px;
+        --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffe500' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+        color-scheme: dark;
+    }
+}
+/* @cores:fim */
+
+/* ---------------------------------------------------------
+   Regras de forma
+   --------------------------------------------------------- */
+:root[data-contrast="high"] body { background-image: none; transition: none; }
+
+/* sem vidro fosco: o texto nunca fica sobre um fundo "borrado" */
+:root[data-contrast="high"] *,
+:root[data-contrast="high"] *::before,
+:root[data-contrast="high"] *::after { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+
+/* links reconhecíveis sem depender da cor */
+:root[data-contrast="high"] a:not([class]),
+:root[data-contrast="high"] .link-button,
+:root[data-contrast="high"] .feed-name,
+:root[data-contrast="high"] .person-link .person-names b { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+
+/* foco bem visível */
+:root[data-contrast="high"] :focus-visible { outline-width: 4px; outline-offset: 3px; }
+:root[data-contrast="high"] .input:focus,
+:root[data-contrast="high"] .select:focus,
+:root[data-contrast="high"] .textarea:focus { box-shadow: var(--focus-ring); }
+
+/* bordas firmes nas peças pequenas */
+:root[data-contrast="high"] .badge,
+:root[data-contrast="high"] .role-badge { border-width: 2px; border-style: solid; border-color: var(--badge-color, currentColor); }
+:root[data-contrast="high"] .role-badge.role-owner { border-color: var(--button-bg); }
+:root[data-contrast="high"] .chip { border-width: 2px; border-color: var(--card-border-strong); color: var(--text-color); }
+:root[data-contrast="high"] .button-danger { border-color: var(--danger); }
+:root[data-contrast="high"] .button-secondary { border-color: var(--card-border-strong); }
+:root[data-contrast="high"] .progress { height: 12px; border: 2px solid var(--card-border-strong); background: var(--bg-color); }
+:root[data-contrast="high"] .progress > span { background: var(--primary-color); }
+:root[data-contrast="high"] .progress.is-complete > span { background: var(--st-completed); }
+:root[data-contrast="high"] .switch-row { border: 2px solid var(--card-border-strong); }
+:root[data-contrast="high"] .switch-row input[type="checkbox"] { border: 2px solid var(--card-border-strong); background: var(--bg-color); }
+:root[data-contrast="high"] .switch-row input[type="checkbox"]::after { background: var(--card-border-strong); box-shadow: none; }
+:root[data-contrast="high"] .switch-row input[type="checkbox"]:checked { background: var(--button-bg); }
+:root[data-contrast="high"] .switch-row input[type="checkbox"]:checked::after { background: var(--button-text); }
+
+/* textos de apoio e campos: nada de transparência */
+:root[data-contrast="high"] .input::placeholder,
+:root[data-contrast="high"] .textarea::placeholder { opacity: 1; }
+:root[data-contrast="high"] .button:disabled,
+:root[data-contrast="high"] .button[aria-disabled="true"] { opacity: .7; border-style: dashed; }
+:root[data-contrast="high"] .poster-empty,
+:root[data-contrast="high"] .empty-state > .icon { opacity: 1; }

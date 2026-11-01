@@ -10,6 +10,7 @@ import { checkAvatarFile, prepareAvatar } from '../services/avatarImage.js';
 import { backend, isCloud, setProfile, state } from '../services/session.js';
 import { avatar, avatarSrc } from '../ui/avatar.js';
 import { openAvatarCropper } from '../ui/avatarCropModal.js';
+import { accessibilityPanelHtml, bindAccessibility } from '../ui/accessibilityPanel.js';
 import { bindDataPanel, dataPanelHtml } from '../ui/dataPanel.js';
 import { bindPalettePicker, palettePickerHtml, selectPalette } from '../ui/palettePicker.js';
 import { guardTabs, settingsHeader } from '../ui/settingsShell.js';
@@ -80,7 +81,7 @@ function palettePanel(current, cloud) {
             ? 'Escolha uma combinação de cores. Ela vale para o site todo enquanto você estiver com login. Quem abrir seu perfil vê estas cores só enquanto estiver nele. A escolha é salva na hora.'
             : 'Escolha uma combinação de cores para o site. A escolha fica salva neste navegador.'}</p>
         ${palettePickerHtml(current)}
-        <p class="field-hint">Todas as combinações têm bom contraste de leitura (padrão WCAG AA), nos temas claro e escuro. Para ainda mais contraste, use "Alto contraste".</p>
+        <p class="field-hint">Todas as combinações têm bom contraste de leitura (padrão WCAG AA), nos temas claro e escuro. Para ainda mais contraste, ligue o "Alto contraste" no painel Acessibilidade, logo abaixo.</p>
         <p class="field-hint" data-palette-status aria-live="polite"></p>
     </section>`;
 }
@@ -126,10 +127,11 @@ export function mount(root) {
                 </div>
             </header>
             <div class="notice-box">${icon('info')}<div>Login e perfis públicos estão desativados porque o Supabase ainda não foi configurado. Siga o <code>README.md</code> para ativar.</div></div>
-            <div class="settings-grid">${palettePanel(ownPalette(), false)}${dataPanelHtml(false)}</div>`);
+            <div class="settings-grid">${palettePanel(ownPalette(), false)}${accessibilityPanelHtml(false)}${dataPanelHtml(false)}</div>`);
         const offData = bindDataPanel(root, be);
         const offPalette = bindPalette(root, be, false);
-        return () => { offData(); offPalette(); };
+        const offContrast = bindAccessibility(root, be, false);
+        return () => { offData(); offPalette(); offContrast(); };
     }
 
     document.title = `Personalização · ${config.siteName}`;
@@ -140,6 +142,7 @@ export function mount(root) {
         <div class="settings-grid">
             ${profilePanel(profile)}
             ${palettePanel(profile.palette, true)}
+            ${accessibilityPanelHtml(true)}
         </div>`);
 
     const $ = (s) => root.querySelector(s);
@@ -275,6 +278,7 @@ export function mount(root) {
             || bio.value.trim() !== p.bio;
     };
     offs.push(bindPalette(root, be, true));
+    offs.push(bindAccessibility(root, be, true));
     offs.push(guardTabs(root, isDirty));
     offs.push(() => check.cancel());
     offs.push(() => { if (blobUrl) URL.revokeObjectURL(blobUrl); });

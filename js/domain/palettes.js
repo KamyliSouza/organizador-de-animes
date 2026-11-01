@@ -10,7 +10,6 @@ export const PALETTES = [
     { id: 'cereja', name: 'Cereja', description: 'Vermelho-rosado.' },
     { id: 'indigo', name: 'Índigo', description: 'Azul-violeta.' },
     { id: 'grafite', name: 'Grafite', description: 'Cinza neutro, discreto.' },
-    { id: 'alto-contraste', name: 'Alto contraste', description: 'Preto e branco no claro; preto e amarelo no escuro. Contraste máximo.' },
 ];
 
 /** Devolve o id se ele for um preset conhecido; senão, o padrão. */

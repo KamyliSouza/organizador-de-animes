@@ -1,6 +1,7 @@
 // Estado da sessão (quem está logado) e acesso ao backend escolhido.
 // Troca de backend em um lugar só: sem chaves do Supabase = modo local.
 import { hasSupabase } from '../config.js';
+import { clearHighContrast, setHighContrast } from '../core/contrast.js';
 import { clearOwnPalette, setOwnPalette } from '../core/palette.js';
 
 const NO_ACCESS = { role: 'member', suspended: false, reason: '' };
@@ -18,6 +19,14 @@ function syncPalette() {
     if (state.backend?.mode !== 'cloud') return;
     if (!state.user) clearOwnPalette();
     else if (state.profile) setOwnPalette(state.profile.palette);
+    syncContrast();
+}
+
+/** O alto contraste da conta vale só para quem o ligou: sem login volta ao normal; com login segue o que está salvo na conta. */
+function syncContrast() {
+    if (state.backend?.mode !== 'cloud') return;
+    if (!state.user) clearHighContrast();
+    else if (state.profile) setHighContrast(state.profile.highContrast);
 }
 
 export const backend = () => state.backend;

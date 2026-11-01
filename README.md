@@ -78,6 +78,7 @@ Sem esse passo, estas coisas não funcionam (o site mostra um aviso amarelo na b
 - **cargos, denúncias e o painel da equipe** (o SQL cria as tabelas de cargos, suspensões, denúncias, registro e configurações do site — a versão do banco passa a ser a **7**; veja "Cargos e painel da equipe", inclusive o SQL que define a Dona);
 - as **abas visíveis no perfil** e as contagens por tipo no Explorar (a versão do banco passa a ser a **8**);
 - as **notas com meia estrela** (o SQL passa as notas de 1–5 para a escala de 0–10, **uma única vez**: 4 estrelas viram 8 pontos, que continuam aparecendo como 4 estrelas — a versão do banco passa a ser a **9**). Rodar o SQL de novo depois disso não muda mais as notas;
+- o **alto contraste** como opção de acessibilidade guardada na conta (o SQL cria a tabela privada `user_prefs` e passa para ela quem usava a cor "Alto contraste" — a versão do banco passa a ser a **10**; veja "Acessibilidade: alto contraste");
 - o botão **Excluir minha conta**.
 
 ---
@@ -98,7 +99,7 @@ python3 -m http.server 8000
 
 Em **Perfil** (menu do topo) a conta tem duas abas, cada uma com o próprio botão de salvar (o que foi digitado numa aba não é salvo pela outra, e o site avisa antes de descartar alterações ao trocar de aba):
 
-- **Personalização** (`#/configuracoes`): o quadro **Seu perfil** (foto de perfil à esquerda; nome de exibição, nome de usuário e "sobre você" à direita) e, logo abaixo, o quadro **Cores** (veja "Cores do perfil"). No celular e em telas estreitas tudo vira uma coluna só.
+- **Personalização** (`#/configuracoes`): o quadro **Seu perfil** (foto de perfil à esquerda; nome de exibição, nome de usuário e "sobre você" à direita) e, logo abaixo, os quadros **Cores** (veja "Cores do perfil") e **Acessibilidade** (veja "Acessibilidade: alto contraste"). No celular e em telas estreitas tudo vira uma coluna só.
 - **Configurações** (`#/configuracoes/conta`): privacidade (perfil público, mostrar anotações), e-mail e senha, sair da conta, backup e a zona de perigo (excluir a conta).
 
 ## Foto de perfil
@@ -172,14 +173,24 @@ Ao adicionar ou editar uma obra existem dois botões, **Minha análise** e **Ano
 
 ## Cores do perfil
 
-Em **Perfil → Personalização → Cores** cada pessoa escolhe uma entre 8 combinações: Ameixa (padrão), Oceano, Floresta, Pôr do sol, Cereja, Índigo, Grafite e **Alto contraste** (preto e branco no tema claro; preto e amarelo no escuro). A escolha é salva na hora.
+Em **Perfil → Personalização → Cores** cada pessoa escolhe uma entre 7 combinações: Ameixa (padrão), Oceano, Floresta, Pôr do sol, Cereja, Índigo e Grafite. A escolha é salva na hora. (O **Alto contraste** deixou de ser uma cor de perfil e virou uma opção de acessibilidade própria, logo abaixo desta lista: veja "Acessibilidade: alto contraste".)
 
 - **Para quem escolheu:** a combinação vale para o site inteiro (nos temas claro e escuro) sempre que a pessoa estiver com a sessão iniciada, em qualquer aparelho.
 - **Para quem visita:** ao abrir o perfil de outra pessoa (com ou sem login, público ou privado ainda trancado), a página usa as cores dela. Ao sair do perfil, volta para as cores de quem está visitando.
-- Todas as combinações passam no contraste de leitura **WCAG AA** (texto 4,5:1; botões e bordas 3:1) nos dois temas. Para conferir depois de mudar algo: `node tools/palettes.mjs --check`.
+- Todas as combinações passam no contraste de leitura **WCAG AA** (texto 4,5:1; botões e bordas 3:1) nos dois temas. Para conferir depois de mudar algo: `node tools/palettes.mjs --check` (ele confere também o alto contraste, em nível AAA).
 - **Etiquetas que mudam com o tema:** as cores de *Assistindo*, *Quero ver*, *Concluído*, *Em espera*, *Dropado*, *Filme* e *Série* também fazem parte da combinação. Cada papel usa por padrão a cor de sempre, mas, quando essa cor ficaria parecida com a cor do próprio tema (por exemplo "Concluído" verde no Floresta, ou "Série" azul no Oceano), o tema troca por outra família de cor (campo `roles` em `tools/palettes.mjs`). O comando de conferência também barra qualquer etiqueta com matiz a menos de 25° da cor do tema e confere o contraste do texto sobre o fundo da própria etiqueta.
-- **Criar ou ajustar uma combinação:** edite a lista em `tools/palettes.mjs` e rode `node tools/palettes.mjs` (sem `--check`): ele confere o contraste e gera o `css/palettes.css`. Adicione o nome também em `js/domain/palettes.js`. Não é preciso mudar o SQL.
+- **Criar ou ajustar uma combinação:** edite a lista em `tools/palettes.mjs` e rode `node tools/palettes.mjs` (sem `--check`): ele confere o contraste e gera o `css/palettes.css` (e o trecho de cores de `css/contrast.css`). Adicione o nome também em `js/domain/palettes.js`. Não é preciso mudar o SQL.
 - No modo local (sem Supabase) a escolha fica guardada só neste navegador.
+
+## Acessibilidade: alto contraste
+
+Em **Personalização → Acessibilidade** (no modo local, em **Ajustes**) há a chave **Alto contraste**: preto e branco no tema claro, preto e amarelo no tema escuro, bordas firmes, fundos opacos (sem vidro fosco nem brilhos), contornos de foco de 4 px e links sublinhados. Todas as cores passam no nível **AAA** (texto 7:1, componentes 4,5:1).
+
+- **É uma opção só de quem a liga.** Ela fica guardada **na conta** (tabela privada `user_prefs`, que só a própria pessoa lê e altera — não fica na tabela de perfis, que qualquer pessoa consegue ler) e vale em qualquer aparelho em que ela entrar. Ninguém mais a vê: o perfil público da pessoa não leva a opção, e quem visita o perfil dela continua com o próprio visual. O contrário também vale: o alto contraste de quem visita fica por cima das cores do perfil visitado.
+- **Vale por cima de tudo:** do tema claro/escuro, do "automático" do sistema e de qualquer combinação de cores (as amostras do seletor de cores continuam mostrando as cores reais de cada uma).
+- **Aplica antes da página pintar:** a última escolha fica em cache neste navegador (`kamylist_contrast`), então não há "piscada" ao abrir. Ao **sair da conta** o cache é apagado, e quem entrar depois no mesmo navegador não herda a opção. Sem Supabase (modo local) a chave fica só neste navegador.
+- **Quem usava a cor "Alto contraste":** o SQL passa essa pessoa para a opção (com a cor do perfil no padrão); no navegador, quem a tinha guardada passa para a opção automaticamente.
+- **Ajustar as cores:** edite `HIGH_CONTRAST` em `tools/palettes.mjs` e rode `node tools/palettes.mjs`: ele confere o contraste e reescreve só o trecho marcado (`@cores:inicio` … `@cores:fim`) de `css/contrast.css`. As regras de forma (bordas, links, foco) ficam no resto do arquivo, escritas à mão.
 
 ## Abas: Anime, Mangá e Light Novel
 
@@ -334,13 +345,13 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.11`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.12`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
 
 ## Como o código está organizado
 
 ```
 index.html              página única (carrega CSS e js/main.js)
-css/                    tokens (cores), palettes.css (combinações de cores, gerado), base, componentes e telas
+css/                    tokens (cores), palettes.css (combinações de cores, gerado), base, componentes, telas e contrast.css (alto contraste)
 js/
   main.js               inicia tudo e define as rotas
   config.js             o único arquivo que você precisa editar
@@ -349,7 +360,7 @@ js/
   services/             backends (local e Supabase), sessão, busca (Jikan, AniList, TMDB)
   ui/                   componentes: cards, filtros, modais, cartão de compartilhar, avatar, abas da conta, abas Anime/Mangá/Light Novel, progresso de leitura
   views/                telas: início, biblioteca, login, perfil, explorar, feed (atividade e pedidos), personalização, configurações, painel da equipe (admin.js)
-tools/palettes.mjs      gera css/palettes.css e confere o contraste das cores (node tools/palettes.mjs --check)
+tools/palettes.mjs      gera css/palettes.css e as cores de css/contrast.css e confere o contraste (node tools/palettes.mjs --check)
 sql/schema.sql          tabelas, regras de segurança e funções do Supabase (pode rodar de novo a qualquer momento)
 ```
 
@@ -363,6 +374,7 @@ Os dois backends (`local-backend.js` e `supabase-backend.js`) têm a mesma inter
 - **Seguir e feed:** a tabela de seguidores não pode ser lida nem escrita direto (só por funções do banco que conferem quem está com a sessão iniciada). Um perfil privado só entrega as obras a quem a pessoa dona do perfil aceitou, e o feed só devolve atividade de quem você segue com vínculo aceito. As anotações privadas nunca saem no feed.
 - **Fotos:** bucket `avatars` com limite de 64 KB e só WebP/JPEG; cada pessoa só envia/troca/apaga o arquivo que tem o próprio ID como nome. O site só monta o endereço da foto com ID (UUID) e versão numérica válidos.
 - **Cargos e moderação:** os cargos ficam em uma tabela fechada (ninguém lê nem escreve direto). Toda ação da equipe passa por funções do banco que conferem o cargo de quem chama, só agem em quem tem cargo menor e deixam rastro no registro. Conta suspensa perde os poderes de equipe. As denúncias e o registro também são tabelas fechadas.
+- **Preferências privadas:** opções como o alto contraste ficam na tabela `user_prefs`, com RLS que só deixa a própria pessoa ler, criar e alterar a sua linha (visitantes não tocam nela, e nenhuma função pública a devolve). Ficam fora da tabela de perfis de propósito, porque a de perfis é legível por qualquer pessoa.
 - **Limites:** até **2000 obras por conta**, e campos com tamanho máximo, validados no banco.
 - **Cadastro aberto:** qualquer pessoa com o link pode criar conta. A Dona pode fechar os cadastros no painel (aba **Site**). Se preferir restringir pelo próprio Supabase, desligue **Authentication → Sign In / Providers → Allow new users to sign up** depois que todos tiverem criado a conta, ou crie os usuários manualmente em **Authentication → Users**.
 
@@ -377,6 +389,7 @@ Os dois backends (`local-backend.js` e `supabase-backend.js`) têm a mesma inter
 | "O banco ainda não aceita mangás e light novels" ao salvar | O `sql/schema.sql` da versão 6 ainda não foi executado |
 | O Explorar mostra zeros, ou "Abas visíveis no perfil" não salva | O `sql/schema.sql` da versão 8 ainda não foi executado (abas ativas do perfil e contagens por tipo) |
 | Erro ao salvar uma nota com meia estrela, ou o aviso amarelo "O banco de dados precisa ser atualizado" logo depois de subir a versão 1.11 | O `sql/schema.sql` da versão 9 ainda não foi executado (rode o SQL **antes** de subir os arquivos). O contrário também acontece: com o SQL já rodado e os arquivos antigos ainda no ar, as notas aparecem como 5 estrelas (o site antigo não conhece a escala de 0 a 10) até você subir os arquivos novos |
+| A chave "Alto contraste" não salva ("O banco de dados está desatualizado") | O `sql/schema.sql` da versão 10 ainda não foi executado (cria a tabela privada `user_prefs`). Sem ele o alto contraste não fica guardado na conta |
 | O painel não abre ou "Denunciar" dá erro | O `sql/schema.sql` da versão 7 ainda não foi executado, ou a sua conta ainda não tem cargo (veja "Definir a Dona") |
 | "Não foi possível criar a conta agora: os cadastros podem estar fechados" | A Dona fechou os cadastros (painel → Site). Vale também para *Add user* no Supabase |
 | "A Dona do site não pode excluir a conta" | Passe o cargo de Dona para outra pessoa antes (veja "Passar o cargo de Dona") |

@@ -39,7 +39,7 @@ function friendly(error, fallback) {
     if (['P0001', '42501', '23514'].includes(code) && msg && !has('Limite') && !/violates|constraint|row-level|permission denied|policy|schema cache/i.test(msg)) return msg;
     if (has('entries_category')) return 'O banco ainda não aceita mangás e light novels. Rode o sql/schema.sql de novo no Supabase (SQL Editor).';
     if (has('entries_status')) return 'O banco ainda não aceita este status ("Dropado" ou "Em espera"). Rode o sql/schema.sql de novo no Supabase (SQL Editor).';
-    if (code === 'PGRST204' || has('schema cache')) return 'O banco de dados está desatualizado. Rode o sql/schema.sql de novo no Supabase (SQL Editor) e recarregue a página.';
+    if (code === 'PGRST204' || code === 'PGRST205' || code === '42P01' || has('schema cache')) return 'O banco de dados está desatualizado. Rode o sql/schema.sql de novo no Supabase (SQL Editor) e recarregue a página.';
     if (code === '23514') return has('Limite') ? 'Limite de obras da conta atingido.' : 'Algum dado está em formato inválido.';
     if (code === '42501' || has('row-level security')) return 'Sem permissão para isso. Saia e entre de novo.';
     if (has('Failed to fetch') || has('NetworkError') || has('Load failed') || error?.name === 'AuthRetryableFetchError') {
@@ -105,6 +105,9 @@ const fromProfile = (r) => (r ? {
     sections: normalizeSections(r.sections),
 } : null);
 
+/** O MEU perfil: o dos outros nunca leva as preferências privadas (tabela user_prefs). */
+const mineOf = (row, prefs) => (row ? { ...fromProfile(row), highContrast: Boolean(prefs?.highContrast) } : null);
+
 const personOf = (r) => ({
     id: r.id,
     username: r.username,
@@ -133,6 +136,20 @@ export async function createSupabaseBackend() {
         if (!uid) throw new AppError('Sua sessão expirou. Entre novamente.');
         return uid;
     };
+
+    // Preferências privadas (alto contraste), na tabela user_prefs. Ficam em memória para voltarem junto com o perfil
+    // quando outra coisa muda (foto, nome...). Sem a tabela (banco antigo) a opção simplesmente vem desligada.
+    let prefsCache = null;   // { uid, highContrast }
+    async function loadPrefs(uid, fresh = false) {
+        if (!fresh && prefsCache?.uid === uid) return prefsCache;
+        try {
+            const { data, error } = await sb.from('user_prefs').select('high_contrast').eq('user_id', uid).maybeSingle();
+            prefsCache = { uid, highContrast: !error && Boolean(data?.high_contrast) };
+        } catch {
+            prefsCache = { uid, highContrast: false };
+        }
+        return prefsCache;
+    }
 
     // Lê todas as páginas de um resultado (o Supabase devolve no máximo 1000 linhas por vez).
     async function fetchAll(makePage) {
@@ -249,8 +266,11 @@ export async function createSupabaseBackend() {
             async getMine() {
                 const uid = await currentUid();
                 if (!uid) return null;
-                const row = await ok(sb.from('profiles').select('*').eq('id', uid).maybeSingle(), 'Não foi possível carregar seu perfil.');
-                return fromProfile(row);
+                const [row, prefs] = await Promise.all([
+                    ok(sb.from('profiles').select('*').eq('id', uid).maybeSingle(), 'Não foi possível carregar seu perfil.'),
+                    loadPrefs(uid, true),
+                ]);
+                return mineOf(row, prefs);
             },
 
             async updateMine(patch) {
@@ -263,8 +283,16 @@ export async function createSupabaseBackend() {
                 if (patch.showNotes !== undefined) clean.show_notes = Boolean(patch.showNotes);
                 if (patch.palette !== undefined) clean.palette = String(patch.palette).trim().toLowerCase().slice(0, 24);
                 if (patch.sections !== undefined) clean.sections = normalizeSections(patch.sections);
-                const row = await ok(sb.from('profiles').update(clean).eq('id', uid).select().single(), 'Não foi possível salvar o perfil.');
-                return fromProfile(row);
+                // preferências privadas (alto contraste): tabela à parte, que só a própria pessoa lê
+                if (patch.highContrast !== undefined) {
+                    const value = Boolean(patch.highContrast);
+                    await ok(sb.from('user_prefs').upsert({ user_id: uid, high_contrast: value }, { onConflict: 'user_id' }).select().single(), 'Não foi possível salvar a opção.');
+                    prefsCache = { uid, highContrast: value };
+                }
+                const row = Object.keys(clean).length
+                    ? await ok(sb.from('profiles').update(clean).eq('id', uid).select().single(), 'Não foi possível salvar o perfil.')
+                    : await ok(sb.from('profiles').select('*').eq('id', uid).single(), 'Não foi possível salvar o perfil.');
+                return mineOf(row, await loadPrefs(uid));
             },
 
             /**
@@ -283,7 +311,7 @@ export async function createSupabaseBackend() {
                 const cur = await ok(sb.from('profiles').select('avatar_v').eq('id', uid).maybeSingle(), 'Não foi possível carregar seu perfil.');
                 const version = Math.max(Math.floor(Date.now() / 1000), (Number(cur?.avatar_v) || 0) + 1);
                 const row = await ok(sb.from('profiles').update({ avatar_v: version }).eq('id', uid).select().single(), 'A foto foi enviada, mas não deu para salvar no perfil.');
-                return fromProfile(row);
+                return mineOf(row, await loadPrefs(uid));
             },
 
             /** Remove a foto: apaga o arquivo do Storage e zera a versão no perfil. */
@@ -293,7 +321,7 @@ export async function createSupabaseBackend() {
                 try { res = await sb.storage.from(AVATAR_BUCKET).remove([uid]); } catch (e) { throw fail(e, 'Não foi possível remover a foto.'); }
                 if (res.error) throw fail(res.error, 'Não foi possível remover a foto.');
                 const row = await ok(sb.from('profiles').update({ avatar_v: 0 }).eq('id', uid).select().single(), 'Não foi possível atualizar o perfil.');
-                return fromProfile(row);
+                return mineOf(row, await loadPrefs(uid));
             },
 
             /**

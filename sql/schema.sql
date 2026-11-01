@@ -580,6 +580,47 @@ revoke all on public.entries from anon;
 
 
 -- ---------------------------------------------------------------------
+-- 4b. Preferências da conta (PRIVADAS)
+-- ---------------------------------------------------------------------
+-- Opções de acessibilidade e de uso que só dizem respeito a quem as ligou. Ficam numa tabela à parte, e não na do perfil,
+-- porque a tabela de perfis pode ser lida por qualquer pessoa (perfil público): aqui só a própria dona lê e edita.
+--   * high_contrast: modo de alto contraste do site (vale só para a pessoa que o ligou; ninguém mais o vê nem o recebe ao abrir o perfil dela).
+create table if not exists public.user_prefs (
+  user_id       uuid primary key references auth.users (id) on delete cascade,
+  high_contrast boolean not null default false
+);
+
+alter table public.user_prefs enable row level security;
+
+drop policy if exists "user_prefs_select_own" on public.user_prefs;
+create policy "user_prefs_select_own" on public.user_prefs
+  for select to authenticated
+  using (user_id = (select auth.uid()));
+
+drop policy if exists "user_prefs_insert_own" on public.user_prefs;
+create policy "user_prefs_insert_own" on public.user_prefs
+  for insert to authenticated
+  with check (user_id = (select auth.uid()));
+
+drop policy if exists "user_prefs_update_own" on public.user_prefs;
+create policy "user_prefs_update_own" on public.user_prefs
+  for update to authenticated
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));
+
+-- Visitantes não tocam nessa tabela; quem tem login só lê, cria e altera a própria linha (ela some junto com a conta).
+revoke all on public.user_prefs from anon, authenticated;
+grant select, insert, update on public.user_prefs to authenticated;
+
+-- "Alto contraste" deixou de ser uma cor de perfil (quem abria o perfil via o visual da pessoa): agora é a opção acima.
+-- Quem usava essa cor passa para o padrão com o alto contraste ligado. Seguro repetir: só mexe em quem ainda tem a cor antiga.
+insert into public.user_prefs (user_id, high_contrast)
+select id, true from public.profiles where palette = 'alto-contraste'
+on conflict (user_id) do update set high_contrast = true;
+update public.profiles set palette = 'default' where palette = 'alto-contraste';
+
+
+-- ---------------------------------------------------------------------
 -- 5. Funções públicas (usadas pelo site via supabase.rpc)
 -- ---------------------------------------------------------------------
 
@@ -1547,12 +1588,13 @@ grant execute on function public.admin_set_setting(text, jsonb)    to authentica
 --   7 = cargos (Dona, Administração, Moderação), painel, denúncias, registro de ações e configurações do site
 --   8 = abas ativas no perfil (coluna sections) e contagens por tipo no Explorar
 --   9 = notas de 0 a 10 (meia estrela = 1 ponto; as notas antigas de 1 a 5 viram o dobro)
+--   10 = preferências privadas da conta (tabela user_prefs: alto contraste); a cor de perfil "Alto contraste" virou essa opção
 create or replace function public.schema_version()
 returns integer
 language sql
 immutable
 set search_path = ''
-as $$ select 9 $$;
+as $$ select 10 $$;
 
 -- Só quem precisa pode executar cada função.
 revoke all on function public.get_public_entries(text)            from public;
