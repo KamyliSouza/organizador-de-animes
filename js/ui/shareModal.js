@@ -4,8 +4,7 @@ import { copyText, downloadBlob, el, html, on } from '../core/dom.js';
 import { icon } from '../core/icons.js';
 import { openModal } from '../core/modal.js';
 import { toast } from '../core/toast.js';
-import { isReading, progressOf, readProgress, readSummary, sectionOf, statusLabel } from '../domain/entry.js';
-import { starsText } from './mediaCard.js';
+import { isReading, progressOf, ratingNumber, readProgress, readSummary, sectionOf, starStates, statusLabel } from '../domain/entry.js';
 
 const W = 1080;
 const H = 1350;
@@ -178,8 +177,7 @@ export async function drawShareCard(entry, owner = '') {
     const starsY = entry.status !== 'planned' ? barY + 138 : barY + 40;
     ctx.font = font(800, 56);
     if (entry.rating > 0) {
-        ctx.fillStyle = '#fbbf24';
-        ctx.fillText(starsText(entry.rating), W / 2, starsY);
+        drawStars(ctx, entry.rating, W / 2, starsY - 20, 56);
     } else {
         ctx.fillStyle = '#8f7a8e';
         ctx.font = font(700, 32);
@@ -192,6 +190,40 @@ export async function drawShareCard(entry, owner = '') {
     ctx.fillText(owner ? `@${owner} · ${config.siteName}` : config.siteName, W / 2, H - 70);
 
     return { canvas, coverIncluded: Boolean(cover) || !entry.coverImage };
+}
+
+/** Cinco estrelas desenhadas à mão (com meia estrela): contorno sempre inteiro, preenchimento cheio, pela metade ou vazio. */
+function drawStars(ctx, rating, centerX, centerY, size) {
+    const gap = size * 0.2;
+    const left = centerX - (5 * size + 4 * gap) / 2;
+    const outer = size / 2;
+    const path = (cx) => {
+        ctx.beginPath();
+        for (let i = 0; i < 10; i++) {
+            const r = i % 2 ? outer * 0.42 : outer;
+            const a = -Math.PI / 2 + (i * Math.PI) / 5;
+            const x = cx + r * Math.cos(a);
+            const y = centerY + r * Math.sin(a);
+            if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+        }
+        ctx.closePath();
+    };
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#fbbf24';
+    ctx.fillStyle = '#fbbf24';
+    starStates(rating).forEach((state, i) => {
+        const cx = left + i * (size + gap) + size / 2;
+        if (state !== 'empty') {
+            ctx.save();
+            if (state === 'half') { ctx.beginPath(); ctx.rect(cx - outer - 4, centerY - outer - 4, outer + 4, size + 8); ctx.clip(); }
+            path(cx);
+            ctx.fill();
+            ctx.restore();
+        }
+        path(cx);
+        ctx.stroke();
+    });
 }
 
 const slug = (s) => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'obra';
@@ -218,7 +250,7 @@ export async function openShareModal({ entry, owner = '' }) {
     });
 
     on(content, 'click', '[data-act="copy"]', async () => {
-        const stars = entry.rating > 0 ? ` (${'⭐'.repeat(entry.rating)})` : '';
+        const stars = entry.rating > 0 ? ` (⭐ ${ratingNumber(entry.rating)}/5)` : '';
         const text = `${isReading(entry) ? '📖' : '🎬'} **${entry.title}** — ${statusLabel(entry.status, sectionOf(entry))}${stars} via ${config.siteName}`;
         const copied = await copyText(text);
         toast(copied ? 'Texto copiado!' : 'Não foi possível copiar.', { type: copied ? 'success' : 'error' });

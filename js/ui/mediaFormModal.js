@@ -4,9 +4,10 @@ import { icon, spinner } from '../core/icons.js';
 import { choiceDialog } from '../core/dialogs.js';
 import { openModal } from '../core/modal.js';
 import { openTextEditor } from './textEditorModal.js';
+import { bindStarRating, starRatingHtml } from './starRating.js';
 import { messageOf } from '../core/errors.js';
 import { toast } from '../core/toast.js';
-import { DAYS, DAY_LABELS, MAX_CHAPTERS, MAX_EPISODES, MAX_NOTES, MAX_REVIEW, MAX_VOLUMES, SEASON_TYPES, categoriesFor, cloneEntry, emptyEntryFor, findDuplicate, isReading, isReadingSection, markAllWatched, normalizeSection, normalizeSeason, originLabel, progressOf, readSummary, sectionOf, statusLabel, statusesOf, titleKey } from '../domain/entry.js';
+import { DAYS, DAY_LABELS, MAX_CHAPTERS, MAX_EPISODES, MAX_NOTES, MAX_RATING, MAX_REVIEW, MAX_VOLUMES, SEASON_TYPES, categoriesFor, cloneEntry, emptyEntryFor, findDuplicate, isReading, isReadingSection, markAllWatched, normalizeSection, normalizeSeason, originLabel, progressOf, readSummary, sectionOf, statusLabel, statusesOf, titleKey } from '../domain/entry.js';
 import { DEFAULT_SOURCE, READ_SOURCES, SOURCES, searchReadings, searchSeasons, searchWorks, sourceAvailable } from '../services/search/index.js';
 
 const SOURCE_KEY = 'kamylist_last_source';
@@ -156,11 +157,8 @@ export function openMediaForm({ entry = null, section = 'anime', onSave, existin
                 <select id="mf-status" class="select">${statusesOf(sec).map(([k, st]) => html`<option value="${k}">${st.label}</option>`)}</select>
             </div>
             <div class="field span-2">
-                <label for="mf-rating">Avaliação</label>
-                <select id="mf-rating" class="select">
-                    <option value="0">Sem nota</option>
-                    ${[1, 2, 3, 4, 5].map((n) => html`<option value="${n}">${'★'.repeat(n)} ${n} ${n === 1 ? 'estrela' : 'estrelas'}</option>`)}
-                </select>
+                <span class="field-label" id="mf-rating-label">Avaliação</span>
+                ${starRatingHtml({ id: 'mf-rating', labelledBy: 'mf-rating-label' })}
             </div>
         </div>
 
@@ -174,7 +172,7 @@ export function openMediaForm({ entry = null, section = 'anime', onSave, existin
     const $ = (sel) => content.querySelector(sel);
     const fields = {
         source: $('#mf-source'), title: $('#mf-title'), tags: $('#mf-tags'), air: $('#mf-air'),
-        category: $('#mf-category'), status: $('#mf-status'), rating: $('#mf-rating'),
+        category: $('#mf-category'), status: $('#mf-status'),
         seasonName: $('#mf-season-name'),
         chRead: $('#mf-ch'), chTotal: $('#mf-ch-total'), volRead: $('#mf-vol'), volTotal: $('#mf-vol-total'),
     };
@@ -206,7 +204,7 @@ export function openMediaForm({ entry = null, section = 'anime', onSave, existin
     paintTexts();
     fields.category.value = draft.category;
     fields.status.value = draft.status;
-    fields.rating.value = String(draft.rating);
+    fields.rating = bindStarRating($('[data-star-rating]'), { value: draft.rating });   // nota de 0 a 10 (meia estrela = 1 ponto)
 
     const modal = openModal({ title: isEdit ? 'Editar / atualizar obra' : (reading ? 'Adicionar mangá ou light novel' : 'Adicionar obra'), iconName: isEdit ? 'edit' : 'plus', content, initialFocus: isEdit ? 'dialog' : '#mf-title' });   // editar não abre o teclado do celular; adicionar abre
 
@@ -274,7 +272,7 @@ export function openMediaForm({ entry = null, section = 'anime', onSave, existin
     function applyResult(r) {
         fields.title.value = r.title || fields.title.value;
         if (categoriesFor(reading).includes(r.category)) fields.category.value = r.category;
-        if (r.rating > 0) fields.rating.value = String(r.rating);
+        if (r.rating > 0) fields.rating.value = r.rating;
         if (r.tags?.length) fields.tags.value = r.tags.join(', ');
         if (r.airDay && fields.air) fields.air.value = r.airDay;
         if (r.sourceRef) { draft.sourceRef = r.sourceRef; pickedKey = titleKey(r.title); }
@@ -514,7 +512,7 @@ export function openMediaForm({ entry = null, section = 'anime', onSave, existin
                 title,
                 category: fields.category.value,
                 status: fields.status.value,
-                rating: toInt(fields.rating.value, 0, 5, 0),
+                rating: toInt(fields.rating.value, 0, MAX_RATING, 0),
                 tags: fields.tags.value.split(',').map((t) => t.trim()).filter(Boolean),
                 airDay: fields.air?.value || '',
                 notes: texts.notes,

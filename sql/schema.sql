@@ -84,7 +84,7 @@ create table if not exists public.entries (
   constraint entries_title_len    check (char_length(title) between 1 and 200),
   constraint entries_category     check (category in ('Anime', 'Filme', 'Série', 'Mangá', 'Light novel')),
   constraint entries_status       check (status in ('watching', 'planned', 'completed', 'on_hold', 'dropped')),
-  constraint entries_rating       check (rating between 0 and 5),
+  constraint entries_rating       check (rating between 0 and 10),
   constraint entries_tags_len     check (cardinality(tags) <= 20),
   constraint entries_genres_len   check (cardinality(genres) <= 20),
   constraint entries_air_day      check (air_day is null or air_day in
@@ -156,6 +156,22 @@ alter table public.entries add  constraint entries_read_counts check (
   and (volumes_total  = 0 or volumes_read  <= volumes_total));
 alter table public.entries drop constraint if exists entries_origin;
 alter table public.entries add  constraint entries_origin check (origin is null or origin ~ '^[A-Z]{2}$');
+
+-- Notas de 0 a 10 (v9). A nota mostrada no site vai de 0 a 5 estrelas, em passos de meia estrela: cada meia estrela vale 1 ponto
+-- (1 = meia estrela, 10 = cinco estrelas, 0 = sem nota).
+-- As notas antigas (1 a 5 estrelas) são MULTIPLICADAS por 2 (4 estrelas viram 8) UMA ÚNICA vez: o bloco abaixo só age enquanto
+-- a restrição antiga (nota até 5) ainda existe, então rodar o script de novo não dobra as notas outra vez.
+do $$
+begin
+  if exists (select 1 from pg_constraint
+             where conrelid = 'public.entries'::regclass and conname = 'entries_rating'
+               and pg_get_constraintdef(oid) ~ '<= 5\)') then
+    alter table public.entries drop constraint entries_rating;
+    update public.entries set rating = rating * 2 where rating > 0;
+    alter table public.entries add constraint entries_rating check (rating between 0 and 10);
+  end if;
+end
+$$;
 
 
 -- ---------------------------------------------------------------------
@@ -1530,12 +1546,13 @@ grant execute on function public.admin_set_setting(text, jsonb)    to authentica
 --   6 = mangás e light novels (categorias novas e contadores de leitura)
 --   7 = cargos (Dona, Administração, Moderação), painel, denúncias, registro de ações e configurações do site
 --   8 = abas ativas no perfil (coluna sections) e contagens por tipo no Explorar
+--   9 = notas de 0 a 10 (meia estrela = 1 ponto; as notas antigas de 1 a 5 viram o dobro)
 create or replace function public.schema_version()
 returns integer
 language sql
 immutable
 set search_path = ''
-as $$ select 8 $$;
+as $$ select 9 $$;
 
 -- Só quem precisa pode executar cada função.
 revoke all on function public.get_public_entries(text)            from public;

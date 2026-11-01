@@ -3,7 +3,7 @@
 // lento ele também responde 5xx. Por isso aqui os pedidos saem espaçados, repetem sozinhos em
 // falhas passageiras e respostas iguais ficam guardadas por alguns minutos.
 import { fetchJson } from '../http.js';
-import { dayToPortuguese, firstSeason, readCategoryOf, readRef, seasonTypeOf, starsFrom } from './shared.js';
+import { dayToPortuguese, firstSeason, readCategoryOf, readRef, seasonTypeOf, ratingFrom } from './shared.js';
 
 const BASE = 'https://api.jikan.moe/v4/anime';
 const BASE_MANGA = 'https://api.jikan.moe/v4/manga';
@@ -84,7 +84,7 @@ export async function searchWorks(query, { limit = 5 } = {}) {
             coverImage: a.images?.jpg?.large_image_url || a.images?.jpg?.image_url || '',
             description: a.synopsis || '',
             genres,
-            rating: starsFrom(a.score, 10),
+            rating: ratingFrom(a.score, 10),
             airDay: dayToPortuguese(a.broadcast?.day),
             tags: ['Anime', type, ...genres.slice(0, 3)],
             seasons: [firstSeason(type, a.episodes)],
@@ -122,7 +122,7 @@ export async function searchReadings(query, { limit = 5 } = {}) {
             coverImage: a.images?.jpg?.large_image_url || a.images?.jpg?.image_url || '',
             description: a.synopsis || '',
             genres,
-            rating: starsFrom(a.score, 10),
+            rating: ratingFrom(a.score, 10),
             tags: [category, ...genres.slice(0, 3)],
             chaptersTotal: a.chapters || 0,
             volumesTotal: a.volumes || 0,

@@ -1,7 +1,7 @@
 // AniList (GraphQL).
 import { cleanHtmlText } from '../../core/dom.js';
 import { fetchJson } from '../http.js';
-import { firstSeason, readCategoryOf, readRef, seasonTypeOf, starsFrom } from './shared.js';
+import { firstSeason, readCategoryOf, readRef, seasonTypeOf, ratingFrom } from './shared.js';
 
 const URL = 'https://graphql.anilist.co';
 
@@ -71,7 +71,7 @@ export async function searchWorks(query, { limit = 5 } = {}) {
             coverImage: a.coverImage?.large || '',
             description: cleanHtmlText(a.description),
             genres,
-            rating: starsFrom(a.averageScore, 100),
+            rating: ratingFrom(a.averageScore, 100),
             airDay: '',
             tags: ['Anime', format, ...genres.slice(0, 3)],
             seasons,
@@ -98,7 +98,7 @@ export async function searchReadings(query, { limit = 5 } = {}) {
             coverImage: a.coverImage?.large || '',
             description: cleanHtmlText(a.description),
             genres,
-            rating: starsFrom(a.averageScore, 100),
+            rating: ratingFrom(a.averageScore, 100),
             tags: [category, ...genres.slice(0, 3)],
             chaptersTotal: a.chapters || 0,
             volumesTotal: a.volumes || 0,

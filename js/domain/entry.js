@@ -15,6 +15,26 @@ const READ_STATUS_LABELS = { watching: 'Lendo', planned: 'Quero ler' };
 /** Status "pausados": marcar um episódio tira a obra deles (volta para Assistindo/Concluído). */
 const PAUSED = new Set(['on_hold', 'dropped']);
 
+/**
+ * Nota da obra: número inteiro de 0 a 10. Cada ponto é MEIA estrela (1 = meia estrela, 10 = cinco estrelas), 0 = sem nota.
+ * Antes da versão 1.11 a nota ia de 1 a 5 estrelas; backups e dados antigos são convertidos ao entrar (ver domain/backup.js).
+ */
+export const MAX_RATING = 10;
+/** "3,5" para 7 pontos; "4" para 8; "0,5" para 1. */
+export const ratingNumber = (rating) => {
+    const r = Math.max(0, Math.min(MAX_RATING, Math.round(Number(rating) || 0)));
+    return r % 2 ? `${(r - 1) / 2},5` : String(r / 2);
+};
+/** Texto para leitor de tela e dicas: "3,5 de 5 estrelas" (ou "Sem nota"). */
+export const ratingLabel = (rating) => (rating > 0 ? `${ratingNumber(rating)} de 5 estrelas` : 'Sem nota');
+/** Estado de cada uma das cinco estrelas: 'full', 'half' ou 'empty'. */
+export const starStates = (rating) => Array.from({ length: 5 }, (_, i) => {
+    const points = (Number(rating) || 0) - i * 2;
+    return points >= 2 ? 'full' : points === 1 ? 'half' : 'empty';
+});
+/** Nota de 1 a 5 estrelas (versões antigas) para a escala de 0 a 10. Valores fora do intervalo são ajustados. */
+export const rating5to10 = (old) => Math.max(0, Math.min(5, Math.round(Number(old) || 0))) * 2;
+
 /** Tamanho máximo da análise (o texto que a pessoa escreve sobre a obra e que aparece no feed). */
 export const MAX_REVIEW = 2000;
 export const MAX_NOTES = 5000;
@@ -138,7 +158,7 @@ export function normalizeEntry(e) {
         title: cleanText(e?.title, 200),
         category,
         status: STATUS_KEYS.includes(e?.status) ? e.status : 'planned',
-        rating: toInt(e?.rating, 0, 5, 0),
+        rating: toInt(e?.rating, 0, MAX_RATING, 0),
         tags: cleanList(e?.tags, 20, 30),
         airDay: DAYS.includes(e?.airDay) ? e.airDay : '',
         notes: cleanText(e?.notes, MAX_NOTES),

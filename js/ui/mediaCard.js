@@ -2,14 +2,10 @@
 // para visitantes de perfil público (somente leitura).
 import { html } from '../core/dom.js';
 import { icon } from '../core/icons.js';
+import { starsHtml } from './stars.js';
 import { CATEGORY_CLASS, DAY_LABELS, isReading, originLabel, positionLabel, progressOf, readProgress, readSummary, sectionOf, statusLabel, statusesOf } from '../domain/entry.js';
 
-export const starsText = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
-
-export function starsHtml(rating) {
-    if (!rating) return html`<span class="muted small">Sem nota</span>`;
-    return html`<span class="stars" role="img" aria-label="${rating} de 5 estrelas">${starsText(rating)}</span>`;
-}
+export { starsHtml } from './stars.js';
 
 /** Ícone de capa vazia: livro para mangá e light novel, filme para o resto. */
 export const posterPlaceholder = (reading = false) => html`<span class="poster-empty">${icon(reading ? 'book' : 'film', { size: 30 })}</span>`;
@@ -145,7 +141,7 @@ export function mediaRowHtml(entry, { readonly = false } = {}) {
         <button type="button" class="thumb poster-button" data-action="cover" aria-label="Abrir detalhes de ${entry.title}" tabindex="${hasDetails ? -1 : 0}">${entry.coverImage ? html`<img src="${entry.coverImage}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-fallback>` : ''}</button>
         <div class="info">
             <h3 class="truncate">${entry.title}</h3>
-            <p>${entry.category}${originLabel(entry) ? ` · ${originLabel(entry)}` : ''} · ${statusText} · ${progressText}${!reading && entry.airDay ? html` · ${DAY_LABELS[entry.airDay]}` : ''}${entry.rating ? html` · <span class="stars" role="img" aria-label="${entry.rating} de 5 estrelas">${starsText(entry.rating)}</span>` : ''}</p>
+            <p>${entry.category}${originLabel(entry) ? ` · ${originLabel(entry)}` : ''} · ${statusText} · ${progressText}${!reading && entry.airDay ? html` · ${DAY_LABELS[entry.airDay]}` : ''}${entry.rating ? html` · ${starsHtml(entry.rating, { size: 13 })}` : ''}</p>
             ${showBar ? html`<div class="progress progress-slim ${pct >= 100 ? 'is-complete' : ''}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Progresso de ${entry.title}"><span style="width:${pct}%"></span></div>` : ''}
         </div>
         <div class="actions">

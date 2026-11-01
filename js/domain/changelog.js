@@ -1,9 +1,19 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.10';
+export const SITE_VERSION = '1.11';
 
 export const CHANGELOG = [
+    {
+        version: '1.11',
+        title: 'Notas com meia estrela',
+        items: [
+            'Agora dá para dar nota com meia estrela: de 0,5 a 5 estrelas, em passos de meia estrela. No formulário da obra, clique na metade esquerda de uma estrela para meia estrela ou na direita para a estrela inteira. Com o teclado, use as setas (meia estrela), PageUp/PageDown (uma estrela), Home (sem nota) e End (cinco estrelas).',
+            'As notas que você já tinha foram convertidas uma única vez, sem perder nada: 4 estrelas continuam sendo 4 estrelas (por baixo, a escala agora vai de 0 a 10).',
+            'As estrelas (inclusive as meias) aparecem nos cartões, na lista, no feed, nos perfis e no cartão de compartilhar. Ao buscar uma obra, a nota da comunidade já vem preenchida na nova escala.',
+            'Backups: o arquivo exportado agora leva a marca da nova escala. Backups antigos (de antes desta versão) continuam entrando, com as notas convertidas automaticamente.',
+        ],
+    },
     {
         version: '1.10',
         title: 'Abas do perfil, Explorar em três linhas e favoritos sem limite',

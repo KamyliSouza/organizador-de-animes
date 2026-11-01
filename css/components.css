@@ -198,7 +198,27 @@
     border-radius: 8px;
 }
 
-.stars { color: var(--star); letter-spacing: 1px; white-space: nowrap; }
+/* Estrelas da nota: contorno inteiro por baixo e preenchimento por cima, recortado em cheio / metade / vazio */
+.stars { display: inline-flex; align-items: center; gap: 1px; color: var(--star); white-space: nowrap; vertical-align: middle; }
+.star { position: relative; display: inline-block; flex: none; width: var(--star-size, 16px); height: var(--star-size, 16px); }
+.star svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.star .star-base { fill: none; }
+.star .star-fill { fill: currentColor; clip-path: inset(0 100% 0 0); }
+.star-half .star-fill { clip-path: inset(0 50% 0 0); }
+.star-full .star-fill { clip-path: none; }
+
+/* Campo de nota do formulário (estrelas com meia estrela) */
+.star-rating { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.star-input {
+    display: inline-flex; align-items: center; gap: 2px;
+    padding: 4px 6px; border-radius: 14px;
+    color: var(--star); cursor: pointer; touch-action: manipulation;
+    border: 1px solid transparent;
+}
+.star-input:focus-visible { outline: 3px solid var(--primary-color); outline-offset: 2px; }
+.star-input .star { pointer-events: none; }
+.star-value { min-width: 4.5em; font-size: .9rem; font-weight: 800; color: var(--subtitle-color); }
+.star-value.is-preview { color: var(--primary-text); }
 
 .avatar {
     display: inline-grid; place-items: center;

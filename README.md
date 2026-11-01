@@ -76,6 +76,8 @@ Sem esse passo, estas coisas não funcionam (o site mostra um aviso amarelo na b
 - as **cores do perfil** (o SQL cria a coluna `palette`);
 - **mangás e light novels** (o SQL libera as categorias *Mangá* e *Light novel* e cria as colunas de capítulos, volumes e origem — a versão do banco passa a ser a **6**);
 - **cargos, denúncias e o painel da equipe** (o SQL cria as tabelas de cargos, suspensões, denúncias, registro e configurações do site — a versão do banco passa a ser a **7**; veja "Cargos e painel da equipe", inclusive o SQL que define a Dona);
+- as **abas visíveis no perfil** e as contagens por tipo no Explorar (a versão do banco passa a ser a **8**);
+- as **notas com meia estrela** (o SQL passa as notas de 1–5 para a escala de 0–10, **uma única vez**: 4 estrelas viram 8 pontos, que continuam aparecendo como 4 estrelas — a versão do banco passa a ser a **9**). Rodar o SQL de novo depois disso não muda mais as notas;
 - o botão **Excluir minha conta**.
 
 ---
@@ -272,6 +274,18 @@ Em qualquer perfil que não seja o seu aparece **Denunciar**: a pessoa escolhe o
 
 Ao salvar uma obra como **Concluído**, todos os episódios de todas as temporadas são marcados como vistos (só quando o status *muda* para Concluído: editar uma obra que já estava concluída não mexe nos episódios).
 
+## Notas com meia estrela
+
+A nota vai de **0,5 a 5 estrelas, em passos de meia estrela** (ou fica sem nota). Por baixo ela é guardada como um número de 0 a 10 (cada meia estrela vale 1 ponto), por isso o banco aceita de 0 a 10.
+
+- **No formulário da obra:** passe o mouse sobre as estrelas para ver a prévia e clique — a **metade esquerda** de uma estrela dá meia estrela, a **direita** dá a estrela inteira. No celular, toque na metade desejada. **Limpar** volta para "Sem nota".
+- **Teclado:** com o campo focado, ← ↓ tiram meia estrela e → ↑ põem meia estrela; PageUp/PageDown mudam uma estrela; Home = sem nota; End = 5 estrelas. Leitores de tela anunciam "3,5 de 5 estrelas" (o campo é um controle deslizante de 0 a 10).
+- **Onde aparecem:** cartões, modo lista, feed, perfis e o cartão de compartilhar (imagem e texto copiado).
+- **Busca:** a nota da comunidade (AniList/MyAnimeList) vem preenchida arredondada para o ponto mais próximo (por exemplo, 93 de 100 → 9 pontos = 4,5 estrelas).
+- **Ordenar por "Melhor nota"** usa os pontos (0 a 10), então 4,5 estrelas vem antes de 4.
+- **Notas antigas:** na atualização, todas as notas de 1 a 5 viram o dobro (uma vez só), então nada muda na tela. No modo local o site faz essa conversão sozinho na primeira abertura, e guarda uma marca (`kamylist_rating_scale`) para não repetir.
+- **Backup:** o `.json` exportado agora é um objeto `{ "app": "KamyList", "ratingScale": 10, "exportedAt": ..., "entries": [...] }`. Backups antigos (uma lista simples, ou um objeto sem `ratingScale`) continuam entrando e têm as notas dobradas na importação; um backup novo é importado como está. O mesmo vale para **Importar obras salvas neste navegador**.
+
 ## Favoritos
 
 O coração no card fixa a obra como favorita. **Não há limite**: dá para favoritar quantas obras quiser, e cada aba (Anime, Mangá, Light Novel) mostra só os favoritos dela. No perfil, os favoritos aparecem numa seção **Favoritos** logo acima da biblioteca, inclusive para quem visita o perfil público, numa **faixa de uma linha só com rolagem lateral**: deslize com o dedo, use a barra de rolagem, Shift + roda do mouse, as setas do teclado (com a faixa selecionada) ou os botões **‹ ›** (que só aparecem quando os favoritos passam da largura da tela). No banco o campo é só um marcador; nada limita a quantidade.
@@ -299,7 +313,7 @@ Se mesmo assim a capa não puder entrar, o cartão sai sem ela e mostra um aviso
 
 - **Do mesmo navegador:** ao entrar pela primeira vez, a biblioteca avisa se encontrar obras salvas da versão antiga e oferece **Importar**. Também fica em **Perfil e configurações → Seus dados**.
 - **De outro navegador/computador:** na versão antiga, exporte o backup; aqui use **Importar backup** e escolha **Adicionar** (mantém o que você já tem) ou **Substituir tudo**.
-- **Exportar** gera um arquivo `.json` com toda a sua lista, bom para guardar uma cópia.
+- **Exportar** gera um arquivo `.json` com toda a sua lista, bom para guardar uma cópia. Backups antigos entram normalmente (as notas de 1 a 5 são convertidas para a escala nova).
 
 ## Busca de séries e filmes (TMDB, opcional)
 
@@ -320,7 +334,7 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.10`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.11`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
 
 ## Como o código está organizado
 
@@ -362,6 +376,7 @@ Os dois backends (`local-backend.js` e `supabase-backend.js`) têm a mesma inter
 | Botão "Seguir" ou o Feed dão erro, ou a análise não salva | O `sql/schema.sql` novo ainda não foi executado (a versão 5 inclui seguidores, feed, análises e cores do perfil; a 6, mangás e light novels) |
 | "O banco ainda não aceita mangás e light novels" ao salvar | O `sql/schema.sql` da versão 6 ainda não foi executado |
 | O Explorar mostra zeros, ou "Abas visíveis no perfil" não salva | O `sql/schema.sql` da versão 8 ainda não foi executado (abas ativas do perfil e contagens por tipo) |
+| Erro ao salvar uma nota com meia estrela, ou o aviso amarelo "O banco de dados precisa ser atualizado" logo depois de subir a versão 1.11 | O `sql/schema.sql` da versão 9 ainda não foi executado (rode o SQL **antes** de subir os arquivos). O contrário também acontece: com o SQL já rodado e os arquivos antigos ainda no ar, as notas aparecem como 5 estrelas (o site antigo não conhece a escala de 0 a 10) até você subir os arquivos novos |
 | O painel não abre ou "Denunciar" dá erro | O `sql/schema.sql` da versão 7 ainda não foi executado, ou a sua conta ainda não tem cargo (veja "Definir a Dona") |
 | "Não foi possível criar a conta agora: os cadastros podem estar fechados" | A Dona fechou os cadastros (painel → Site). Vale também para *Add user* no Supabase |
 | "A Dona do site não pode excluir a conta" | Passe o cargo de Dona para outra pessoa antes (veja "Passar o cargo de Dona") |

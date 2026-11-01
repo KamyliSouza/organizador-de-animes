@@ -4,7 +4,7 @@
 import { uuid } from '../core/dom.js';
 import { AppError } from '../core/errors.js';
 import { normalizeEntry } from '../domain/entry.js';
-import { LEGACY_STORAGE_KEY } from '../domain/backup.js';
+import { LEGACY_STORAGE_KEY, localRatingsAreNew, markLocalRatingsNew, withNewRating } from '../domain/backup.js';
 
 const ONLY_CLOUD = 'Esta função precisa do login ativado (configure o Supabase em js/config.js).';
 const LOCAL_USER = { id: 'local', email: '' };
@@ -18,7 +18,15 @@ export function createLocalBackend() {
     const read = () => {
         try {
             const list = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY));
-            return Array.isArray(list) ? list.map(normalizeEntry) : [];
+            if (!Array.isArray(list)) { markLocalRatingsNew(); return []; }   // nada salvo ainda: o que vier já usa a escala nova
+            if (localRatingsAreNew()) return list.map(normalizeEntry);
+            // Primeira leitura depois da versão 1.11: as notas de 1 a 5 estrelas viram 0 a 10 (o dobro), uma única vez.
+            const upgraded = list.map(withNewRating);
+            try {
+                localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(upgraded));
+                markLocalRatingsNew();
+            } catch { /* sem espaço: devolve convertido e tenta gravar na próxima vez */ }
+            return upgraded.map(normalizeEntry);
         } catch {
             return memory ?? [];
         }
@@ -27,6 +35,7 @@ export function createLocalBackend() {
     const write = (list) => {
         try {
             localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(list));
+            markLocalRatingsNew();
             memory = null;
         } catch (e) {
             memory = list;

@@ -30,8 +30,8 @@ export const readCategoryOf = (apiType) => (/novel/i.test(String(apiType || ''))
 /** Código da obra de leitura (prefixo próprio: o MAL repete os números entre animes e mangás). */
 export const readRef = (malId, anilistId) => (malId ? `malmanga:${malId}` : anilistId ? `almanga:${anilistId}` : '');
 
-/** Nota de 0–10 (ou 0–100) da comunidade para estrelas 0–5. */
-export const starsFrom = (value, outOf) => (value ? Math.round((value / outOf) * 5) : 0);
+/** Nota da comunidade (de 0 a 10, ou de 0 a 100) para a nota do site: pontos de 0 a 10 (cada ponto é meia estrela). */
+export const ratingFrom = (value, outOf) => (value ? Math.max(0, Math.min(10, Math.round((value / outOf) * 10))) : 0);
 
 export const firstSeason = (type, totalEps) => ({
     name: '1ª Temporada',
