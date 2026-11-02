@@ -13,6 +13,7 @@ const RESET_FIELDS = [
     ['display_name', 'Nome de exibição', 'volta para "Usuário" + 4 letras ou números'],
     ['bio', 'Descrição (bio)', 'fica vazia'],
     ['avatar', 'Foto de perfil', 'a foto some'],
+    ['background', 'Imagem de fundo do perfil', 'o fundo some'],
     ['username', 'Nome de usuário (@)', 'vira "user_" + código; o link antigo do perfil deixa de funcionar'],
 ];
 const FIELD_NAMES = Object.fromEntries(RESET_FIELDS.map(([k, label]) => [k, label.toLowerCase()]));
@@ -46,7 +47,7 @@ export function openMemberModal({ member, actorRole, moderation, onChanged }) {
             ${!allowed ? blocked : html`
             <section class="manage-section" aria-labelledby="mm-reset">
                 <h3 id="mm-reset">Restaurar dados do perfil</h3>
-                <p class="field-hint">Use quando o nome, a bio ou a foto forem impróprios. A pessoa pode editar de novo depois.</p>
+                <p class="field-hint">Use quando o nome, a bio, a foto ou o fundo forem impróprios. A pessoa pode editar de novo depois.</p>
                 ${RESET_FIELDS.map(([key, label, effect]) => html`
                     <label class="check-row"><input type="checkbox" data-reset="${key}"><span>${label} <span class="muted small">(${effect})</span></span></label>`)}
                 <div><button type="button" class="button button-secondary" data-do="reset" disabled>Restaurar o que marquei</button></div>

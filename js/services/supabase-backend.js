@@ -103,6 +103,8 @@ const fromProfile = (r) => (r ? {
     avatarV: Number(r.avatar_v) || 0,
     palette: r.palette || 'default',
     sections: normalizeSections(r.sections),
+    bgV: Number(r.bg_v) || 0,                       // versão da imagem de fundo (0 = sem fundo)
+    bgBlur: r.bg_blur !== false,                    // desfoque dos cards sobre o fundo (ligado por padrão)
 } : null);
 
 /** O MEU perfil: o dos outros nunca leva as preferências privadas (tabela user_prefs). */
@@ -118,6 +120,7 @@ const personOf = (r) => ({
 
 const redirectUrl = () => location.origin + location.pathname;
 const AVATAR_BUCKET = 'avatars';
+const BACKGROUND_BUCKET = 'backgrounds';
 
 // --- backend -------------------------------------------------------------
 
@@ -283,6 +286,7 @@ export async function createSupabaseBackend() {
                 if (patch.showNotes !== undefined) clean.show_notes = Boolean(patch.showNotes);
                 if (patch.palette !== undefined) clean.palette = String(patch.palette).trim().toLowerCase().slice(0, 24);
                 if (patch.sections !== undefined) clean.sections = normalizeSections(patch.sections);
+                if (patch.bgBlur !== undefined) clean.bg_blur = Boolean(patch.bgBlur);
                 // preferências privadas (alto contraste): tabela à parte, que só a própria pessoa lê
                 if (patch.highContrast !== undefined) {
                     const value = Boolean(patch.highContrast);
@@ -321,6 +325,33 @@ export async function createSupabaseBackend() {
                 try { res = await sb.storage.from(AVATAR_BUCKET).remove([uid]); } catch (e) { throw fail(e, 'Não foi possível remover a foto.'); }
                 if (res.error) throw fail(res.error, 'Não foi possível remover a foto.');
                 const row = await ok(sb.from('profiles').update({ avatar_v: 0 }).eq('id', uid).select().single(), 'Não foi possível atualizar o perfil.');
+                return mineOf(row, await loadPrefs(uid));
+            },
+
+            /**
+             * Troca a imagem de fundo do perfil. `blob` já vem reduzido e em WebP (js/services/backgroundImage.js).
+             * Igual à foto: o arquivo tem sempre o nome da conta, então enviar de novo SOBRESCREVE o anterior.
+             */
+            async setBackground(blob) {
+                const uid = await requireUid();
+                let res;
+                try {
+                    res = await sb.storage.from(BACKGROUND_BUCKET).upload(uid, blob, { upsert: true, contentType: blob.type, cacheControl: '31536000' });
+                } catch (e) { throw fail(e, 'Não foi possível enviar o fundo.'); }
+                if (res.error) throw fail(res.error, 'Não foi possível enviar o fundo.');
+                const cur = await ok(sb.from('profiles').select('bg_v').eq('id', uid).maybeSingle(), 'Não foi possível carregar seu perfil.');
+                const version = Math.max(Math.floor(Date.now() / 1000), (Number(cur?.bg_v) || 0) + 1);
+                const row = await ok(sb.from('profiles').update({ bg_v: version }).eq('id', uid).select().single(), 'O fundo foi enviado, mas não deu para salvar no perfil.');
+                return mineOf(row, await loadPrefs(uid));
+            },
+
+            /** Remove o fundo: apaga o arquivo do Storage e zera a versão no perfil. */
+            async removeBackground() {
+                const uid = await requireUid();
+                let res;
+                try { res = await sb.storage.from(BACKGROUND_BUCKET).remove([uid]); } catch (e) { throw fail(e, 'Não foi possível remover o fundo.'); }
+                if (res.error) throw fail(res.error, 'Não foi possível remover o fundo.');
+                const row = await ok(sb.from('profiles').update({ bg_v: 0 }).eq('id', uid).select().single(), 'Não foi possível atualizar o perfil.');
                 return mineOf(row, await loadPrefs(uid));
             },
 

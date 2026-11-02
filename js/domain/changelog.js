@@ -1,9 +1,21 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.13';
+export const SITE_VERSION = '1.14';
 
 export const CHANGELOG = [
+    {
+        version: '1.14',
+        title: 'Fundo personalizado no perfil',
+        items: [
+            'Novo painel Fundo do perfil na Personalização: escolha uma imagem para aparecer atrás da página pública do seu perfil. Quem abrir o seu link vê o fundo; o resto do site continua normal.',
+            'A imagem é reduzida e convertida para WebP aqui no navegador antes de enviar, então fica leve. Só existe um fundo por conta: ao trocar ou remover, o anterior é apagado.',
+            'Chave Desfoque nos cards. Ligada: os cards ficam semitransparentes e desfocam a imagem atrás deles. Desligada: os cards ficam opacos e a imagem fica com metade do brilho. Vale para o tema claro e para o escuro, e o texto continua legível com qualquer imagem.',
+            'Quem usa Alto contraste não vê a imagem de fundo. Se a imagem não carregar, a página volta ao visual normal.',
+            'A equipe pode restaurar (remover) o fundo de um perfil impróprio. No botão Denunciar, o motivo "Foto" virou "Foto ou fundo impróprio".',
+            'Ajuste: o número da aba selecionada (Anime, Mangá, Light Novel) ganhou um contorno em vez de um fundo clareado, para ficar mais fácil de ler.',
+        ],
+    },
     {
         version: '1.13',
         title: 'Novo tema Strong Violet',

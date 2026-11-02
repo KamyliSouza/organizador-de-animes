@@ -669,7 +669,7 @@
     font-size: .72rem; line-height: 1; font-weight: 800;
     color: var(--subtitle-color); background: var(--primary-soft); border-radius: var(--radius-pill);
 }
-.section-tab[aria-selected="true"] .count { color: var(--button-text); background: color-mix(in srgb, var(--button-text) 22%, transparent); }
+.section-tab[aria-selected="true"] .count { color: var(--button-text); background: transparent; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--button-text) 70%, transparent); }   /* contorno em vez de fundo clareado: o número mantém o contraste do botão */
 .modal .section-tabs { margin-bottom: 0; }
 .read-facts { font-size: .86rem; color: var(--subtitle-color); }
 .read-facts b { color: var(--primary-text); }

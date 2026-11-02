@@ -1,0 +1,866 @@
+diff -ruN a/README.md b/README.md
+--- a/README.md	2026-11-01 17:22:32.000000000 -0300
++++ b/README.md	2026-11-02 06:09:49.000000000 -0300
+@@ -79,6 +79,7 @@
+ - as **abas visíveis no perfil** e as contagens por tipo no Explorar (a versão do banco passa a ser a **8**);
+ - as **notas com meia estrela** (o SQL passa as notas de 1–5 para a escala de 0–10, **uma única vez**: 4 estrelas viram 8 pontos, que continuam aparecendo como 4 estrelas — a versão do banco passa a ser a **9**). Rodar o SQL de novo depois disso não muda mais as notas;
+ - o **alto contraste** como opção de acessibilidade guardada na conta (o SQL cria a tabela privada `user_prefs` e passa para ela quem usava a cor "Alto contraste" — a versão do banco passa a ser a **10**; veja "Acessibilidade: alto contraste");
++- o **fundo do perfil** (o SQL cria as colunas `bg_v` e `bg_blur`, o armazenamento `backgrounds` e libera "Imagem de fundo" no Restaurar da equipe — a versão do banco passa a ser a **11**; veja "Fundo do perfil");
+ - o botão **Excluir minha conta**.
+ 
+ ---
+@@ -123,6 +124,20 @@
+ 
+ Se você apagar usuários direto no painel do Supabase (*Authentication → Users*), a foto da pessoa **não** é removida sozinha (o banco não consegue apagar arquivos do Storage): apague em **Storage → avatars**. Pelo botão "Excluir minha conta" do próprio site isso é feito automaticamente.
+ 
++## Fundo do perfil
++
++Em **Personalização → Fundo do perfil** a pessoa escolhe uma imagem que aparece **atrás da página pública do seu perfil** (`#/u/seu-nome`). Ela só aparece nessa página: o resto do site (biblioteca, feed, configurações...) continua com o visual normal. Quem abre o perfil vê o fundo da pessoa visitada; a dona vê o próprio fundo na prévia.
++
++- **Envio:** JPG, PNG, WebP ou GIF de até **20 MB**. O **navegador** reduz a imagem (no máximo **1600 px** no lado maior, sem ampliar) e a converte para **WebP** antes de enviar (JPEG nos navegadores sem suporte a WebP), geralmente com **60 a 200 KB**. Se a imagem não couber em 360 KB, o site baixa a qualidade e, se for preciso, as dimensões. O servidor ainda recusa qualquer arquivo acima de **384 KB** ou que não seja WebP/JPEG. Depois do envio, a tela mostra o tamanho final e o da imagem original.
++- **Uma imagem por conta:** o arquivo (bucket público `backgrounds`) se chama como o ID da conta, então trocar **sobrescreve** a anterior. **Remover fundo** apaga o arquivo. O número da versão (`bg_v`) vai no endereço da imagem, então um fundo trocado aparece na hora.
++- **Chave "Desfoque nos cards"** (salva na hora, ligada por padrão):
++  - **Ligada:** os cards ficam **semitransparentes** com desfoque (`backdrop-filter`) da imagem que está atrás deles.
++  - **Desligada:** os cards ficam **opacos** e a imagem fica com **50% do brilho** (`brightness(.5)`).
++- **Contraste:** as cores dos cards vêm do tema (claro ou escuro) e da combinação de cores em uso, e um "véu" na cor do tema fica entre a imagem e os cards. O resultado foi medido com imagens de pior caso (toda branca, toda preta e uma foto colorida) nas 8 combinações de cores, nos dois temas e nos dois modos: todo texto fica com **pelo menos 4,5:1**. Textos que ficariam direto sobre a imagem (o título "Favoritos" e o aviso "Prévia do seu perfil") ganham um painel. Menu, rodapé e barra de baixo ficam um pouco mais firmes sobre a imagem. Quem usa **Alto contraste** (opção de quem está olhando) não vê a imagem, e quem pede "reduzir transparência" no sistema vê os cards opacos.
++- **Público como a foto de perfil:** o fundo aparece até em perfil privado ainda trancado (é só visual, não revela a biblioteca). Conta suspensa: some para os outros.
++- **Moderação:** em **Gerenciar → Restaurar dados do perfil** a equipe marca **Imagem de fundo do perfil** e o fundo some na hora (o arquivo também é apagado; se o Supabase recusar, apague em **Storage → backgrounds**). A ação vai para o registro como "restaurou o fundo do perfil de". Ao denunciar, o motivo "Foto" agora é **"Foto ou fundo impróprio"**.
++- Se a imagem não carregar (arquivo apagado, sem internet), a página volta ao visual normal sozinha.
++
+ ## Perfis e privacidade
+ 
+ - Todo perfil **começa privado**. Só aparece em **Explorar** e mostra a biblioteca para qualquer pessoa em `#/u/usuario` depois que a pessoa ativa **Perfil público**. Enquanto for privado, só quem a pessoa aprovou vê a biblioteca (veja "Seguir pessoas").
+@@ -263,7 +278,7 @@
+ 
+ ### Restaurar, renomear e suspender
+ 
+-- **Restaurar:** o nome de exibição volta para "Usuário" + 4 caracteres; a bio fica vazia; o @ vira `user_` + um código (o link antigo do perfil deixa de funcionar); a foto some. A pessoa pode editar de novo depois. Ao restaurar a foto, o site a esconde na hora e tenta apagar o arquivo; se o Supabase recusar, apague em **Storage → avatars** (o perfil já aparece sem foto).
++- **Restaurar:** o nome de exibição volta para "Usuário" + 4 caracteres; a bio fica vazia; o @ vira `user_` + um código (o link antigo do perfil deixa de funcionar); a foto some; o fundo do perfil some. A pessoa pode editar de novo depois. Ao restaurar a foto, o site a esconde na hora e tenta apagar o arquivo; se o Supabase recusar, apague em **Storage → avatars** (o perfil já aparece sem foto).
+ - **Renomear:** troca só o nome de exibição (1 a 40 caracteres), mesmo que contenha uma palavra da lista de nomes proibidos.
+ - **Suspender:** o perfil some para as outras pessoas (Explorar, link do perfil, seguidores, feed). Quem é suspensa continua vendo a própria biblioteca e vê um aviso no topo com o motivo, mas não consegue seguir nem denunciar, e perde os poderes de equipe enquanto durar. **Reativar** devolve tudo.
+ 
+@@ -345,13 +360,13 @@
+ ## Logo e novidades do site
+ 
+ - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
+-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.13`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
++- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.14`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+ 
+ ## Como o código está organizado
+ 
+ ```
+ index.html              página única (carrega CSS e js/main.js)
+-css/                    tokens (cores), palettes.css (combinações de cores, gerado), base, componentes, telas e contrast.css (alto contraste)
++css/                    tokens (cores), palettes.css (combinações de cores, gerado), base, componentes, telas, profile-bg.css (fundo do perfil) e contrast.css (alto contraste)
+ js/
+   main.js               inicia tudo e define as rotas
+   config.js             o único arquivo que você precisa editar
+@@ -372,7 +387,7 @@
+ - **Sem XSS:** todo texto vindo de usuários ou de APIs é escapado antes de ir para a tela; capas só aceitam `https`.
+ - **CSP:** o `index.html` só permite scripts do próprio site e do jsDelivr (onde fica a biblioteca do Supabase) e só conversa com as APIs usadas.
+ - **Seguir e feed:** a tabela de seguidores não pode ser lida nem escrita direto (só por funções do banco que conferem quem está com a sessão iniciada). Um perfil privado só entrega as obras a quem a pessoa dona do perfil aceitou, e o feed só devolve atividade de quem você segue com vínculo aceito. As anotações privadas nunca saem no feed.
+-- **Fotos:** bucket `avatars` com limite de 64 KB e só WebP/JPEG; cada pessoa só envia/troca/apaga o arquivo que tem o próprio ID como nome. O site só monta o endereço da foto com ID (UUID) e versão numérica válidos.
++- **Fotos e fundos:** bucket `avatars` com limite de 64 KB e bucket `backgrounds` com limite de 384 KB, os dois só WebP/JPEG; cada pessoa só envia/troca/apaga o arquivo que tem o próprio ID como nome. O site só monta o endereço da imagem com ID (UUID) e versão numérica válidos, e só aceita endereços `https`.
+ - **Cargos e moderação:** os cargos ficam em uma tabela fechada (ninguém lê nem escreve direto). Toda ação da equipe passa por funções do banco que conferem o cargo de quem chama, só agem em quem tem cargo menor e deixam rastro no registro. Conta suspensa perde os poderes de equipe. As denúncias e o registro também são tabelas fechadas.
+ - **Preferências privadas:** opções como o alto contraste ficam na tabela `user_prefs`, com RLS que só deixa a própria pessoa ler, criar e alterar a sua linha (visitantes não tocam nela, e nenhuma função pública a devolve). Ficam fora da tabela de perfis de propósito, porque a de perfis é legível por qualquer pessoa.
+ - **Limites:** até **2000 obras por conta**, e campos com tamanho máximo, validados no banco.
+@@ -393,7 +408,8 @@
+ | O painel não abre ou "Denunciar" dá erro | O `sql/schema.sql` da versão 7 ainda não foi executado, ou a sua conta ainda não tem cargo (veja "Definir a Dona") |
+ | "Não foi possível criar a conta agora: os cadastros podem estar fechados" | A Dona fechou os cadastros (painel → Site). Vale também para *Add user* no Supabase |
+ | "A Dona do site não pode excluir a conta" | Passe o cargo de Dona para outra pessoa antes (veja "Passar o cargo de Dona") |
+-| "O armazenamento de fotos ainda não existe" ou "A foto ficou grande demais" | O `sql/schema.sql` novo não foi executado (cria o bucket `avatars` com o limite de 64 KB) |
++| "O armazenamento de fotos ainda não existe" ou "A foto ficou grande demais" | O `sql/schema.sql` novo não foi executado (cria o bucket `avatars` com o limite de 64 KB e, na versão 11, o `backgrounds` com 384 KB; o mesmo aviso aparece ao enviar o fundo do perfil) |
++| O fundo do perfil não envia, ou a chave "Desfoque nos cards" não salva | O `sql/schema.sql` da versão 11 ainda não foi executado (cria as colunas `bg_v` e `bg_blur` e o armazenamento `backgrounds`) |
+ | MAL mostra "Muitas buscas seguidas" ou "Serviço indisponível" | O Jikan limitou ou está lento: espere alguns segundos ou use o AniList |
+ | E-mail de confirmação não chega | Veja o spam; o plano gratuito limita e-mails por hora. Para grupos pequenos, desligue **Confirm email** |
+ | Link do e-mail leva a uma página errada | **Site URL** / **Redirect URLs** não batem com o endereço do GitHub Pages |
+diff -ruN a/css/components.css b/css/components.css
+--- a/css/components.css	2026-10-31 22:46:33.000000000 -0300
++++ b/css/components.css	2026-11-01 22:18:10.000000000 -0300
+@@ -669,7 +669,7 @@
+     font-size: .72rem; line-height: 1; font-weight: 800;
+     color: var(--subtitle-color); background: var(--primary-soft); border-radius: var(--radius-pill);
+ }
+-.section-tab[aria-selected="true"] .count { color: var(--button-text); background: color-mix(in srgb, var(--button-text) 22%, transparent); }
++.section-tab[aria-selected="true"] .count { color: var(--button-text); background: transparent; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--button-text) 70%, transparent); }   /* contorno em vez de fundo clareado: o número mantém o contraste do botão */
+ .modal .section-tabs { margin-bottom: 0; }
+ .read-facts { font-size: .86rem; color: var(--subtitle-color); }
+ .read-facts b { color: var(--primary-text); }
+diff -ruN a/css/profile-bg.css b/css/profile-bg.css
+--- a/css/profile-bg.css	1969-12-31 21:00:00.000000000 -0300
++++ b/css/profile-bg.css	2026-11-02 06:01:58.000000000 -0300
+@@ -0,0 +1,90 @@
++/* =========================================================
++   FUNDO DO PERFIL (js/ui/profileBackground.js, js/ui/backgroundPanel.js)
++   A imagem fica numa camada fixa atrás da página do perfil. Um "véu" na cor do tema fica entre a imagem e os cards:
++   ele aproxima qualquer imagem (clara, escura, colorida) dos tons do site, para o texto dos cards ser sempre legível.
++   Duas opções (atributo data-bg):
++     blur  = cards semitransparentes com desfoque da imagem atrás deles;
++     solid = cards opacos e a imagem com 50% do brilho (sem desfoque).
++   As cores saem das variáveis do tema, então valem para claro/escuro e para qualquer combinação de cores.
++   O alto contraste (css/contrast.css) esconde o fundo e mantém os cards opacos.
++   ========================================================= */
++
++/* --- a imagem e o véu (página do perfil e prévia da Personalização) --- */
++.bg-art { position: relative; overflow: hidden; isolation: isolate; }
++.profile-bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
++.bg-art-img {
++    position: absolute; inset: 0; width: 100%; height: 100%; max-width: none;
++    object-fit: cover; object-position: center;
++    opacity: 0; transition: opacity .4s ease;
++}
++.bg-art-img.is-loaded { opacity: 1; }
++.bg-art-veil { position: absolute; inset: 0; pointer-events: none; }
++
++/* desfoque ligado: o véu clareia (tema claro) ou escurece (tema escuro) a imagem pela metade */
++.bg-art[data-bg="blur"] .bg-art-veil { background: color-mix(in srgb, var(--bg-color) var(--bg-veil, 65%), transparent); }
++/* desfoque desligado: 50% do brilho (pedido) e um véu leve na cor do tema para as bordas não destoarem */
++.bg-art[data-bg="solid"] .bg-art-img { filter: brightness(.5); }
++.bg-art[data-bg="solid"] .bg-art-veil { background: color-mix(in srgb, var(--bg-color) 14%, transparent); }
++
++/* --- cards sobre o fundo --- */
++:root:not([data-contrast="high"]) [data-bg] {
++    /* cor opaca de partida dos cards sobre o fundo: a do diálogo da combinação de cores, puxada para o branco (tema claro) ou para o
++       cinza escuro do sistema (tema escuro), pois "Canvas" acompanha o tema da página */
++    --bg-solid: color-mix(in srgb, var(--modal-bg) 50%, Canvas);
++}
++:root:not([data-contrast="high"]) [data-bg="blur"] {
++    --card-bg: color-mix(in srgb, var(--bg-solid) var(--bg-card, 90%), transparent);
++    --blur-card: 16px;
++}
++:root:not([data-contrast="high"]) [data-bg="solid"] {
++    --card-bg: var(--bg-solid);
++    --blur-card: 0px;
++}
++@media (prefers-reduced-transparency: reduce) {
++    :root:not([data-contrast="high"]) [data-bg="blur"] { --card-bg: var(--bg-solid); --blur-card: 0px; }
++}
++
++/* Textos que ficariam direto sobre a imagem ganham um painel (como os cards) */
++[data-bg] .fav-head, [data-bg] .notice-box {
++    padding: 8px 14px;
++    background-color: var(--card-bg);
++    border: 2px solid var(--card-border);
++    border-radius: var(--radius-small);
++    backdrop-filter: blur(var(--blur-card));
++    -webkit-backdrop-filter: blur(var(--blur-card));
++}
++[data-bg] .notice-box { background-image: linear-gradient(var(--notice-bg), var(--notice-bg)); }
++/* Peças pequenas com fundo em tinta (etiquetas, tags, botão secundário) ganham uma base opaca: o contraste delas não depende da imagem */
++[data-bg="blur"] .badge {
++    background-color: var(--bg-solid);
++    background-image: linear-gradient(color-mix(in srgb, var(--badge-color, var(--primary-color)) 14%, transparent), color-mix(in srgb, var(--badge-color, var(--primary-color)) 14%, transparent));
++}
++[data-bg="blur"] .chip, [data-bg="blur"] .button-secondary {
++    background-color: var(--bg-solid);
++    background-image: linear-gradient(var(--notice-bg), var(--notice-bg));
++}
++/* o card marcado nos números do topo trocava o fundo por uma tinta quase transparente: mantém o card por baixo */
++[data-bg] .stat-tile[aria-pressed="true"] { background-color: var(--card-bg); background-image: linear-gradient(var(--notice-bg), var(--notice-bg)); }
++/* menu, rodapé e barra de baixo (fora da tela do perfil) também ficam sobre a imagem: um pouco mais firmes que o normal */
++.profile-bg[data-bg="blur"] ~ .site-nav, .profile-bg[data-bg="blur"] ~ .site-footer, .profile-bg[data-bg="blur"] ~ .tab-bar { background-color: color-mix(in srgb, color-mix(in srgb, var(--modal-bg) 50%, Canvas) 92%, transparent); }
++.profile-bg[data-bg="solid"] ~ .site-nav, .profile-bg[data-bg="solid"] ~ .site-footer, .profile-bg[data-bg="solid"] ~ .tab-bar { background-color: color-mix(in srgb, var(--modal-bg) 50%, Canvas); }
++
++/* Alto contraste: sem imagem, sem transparência */
++:root[data-contrast="high"] .profile-bg { display: none; }
++:root[data-contrast="high"] .bg-preview .bg-art-img, :root[data-contrast="high"] .bg-preview .bg-art-veil { display: none; }
++
++/* --- prévia na Personalização --- */
++.bg-editor { display: grid; grid-template-columns: minmax(0, 22rem) minmax(0, 1fr); gap: 20px 28px; align-items: start; }
++.bg-controls { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
++.bg-preview {
++    position: relative; aspect-ratio: 16 / 9; width: 100%;
++    display: flex; align-items: center; justify-content: center; padding: 14px;
++    border: 2px solid var(--card-border); border-radius: var(--radius-small);
++    background: var(--bg-color);
++}
++.bg-preview-empty { border-style: dashed; text-align: center; font-size: .9rem; }
++.bg-preview-card { position: relative; display: flex; flex-direction: column; gap: 2px; max-width: 100%; padding: 12px 14px; border-radius: 16px; text-align: center; font-size: .86rem; }
++.bg-preview-card span { color: var(--subtitle-color); }
++@media (max-width: 45em) {
++    .bg-editor { grid-template-columns: minmax(0, 1fr); }
++}
+diff -ruN a/index.html b/index.html
+--- a/index.html	2026-11-01 08:10:24.000000000 -0300
++++ b/index.html	2026-11-01 22:15:53.000000000 -0300
+@@ -22,6 +22,7 @@
+     <link rel="stylesheet" href="css/base.css">
+     <link rel="stylesheet" href="css/components.css">
+     <link rel="stylesheet" href="css/views.css">
++    <link rel="stylesheet" href="css/profile-bg.css">   <!-- fundo do perfil (Personalização → Fundo do perfil) -->
+     <link rel="stylesheet" href="css/contrast.css">   <!-- alto contraste (opção de acessibilidade): por último, vale por cima de tudo -->
+ 
+     <!-- Marca que o JavaScript está ligado, aplica o tema salvo e vigia a inicialização -->
+diff -ruN a/js/core/icons.js b/js/core/icons.js
+--- a/js/core/icons.js	2026-11-01 08:08:54.000000000 -0300
++++ b/js/core/icons.js	2026-11-01 22:15:13.000000000 -0300
+@@ -56,6 +56,7 @@
+     mail: '<path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><polyline points="22,6 12,13 2,6"/>',
+     shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+     flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>',
++    image: '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>',
+     eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+     sparkles: '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"/>',
+ };
+diff -ruN a/js/domain/changelog.js b/js/domain/changelog.js
+--- a/js/domain/changelog.js	2026-11-01 17:22:32.000000000 -0300
++++ b/js/domain/changelog.js	2026-11-02 06:09:45.000000000 -0300
+@@ -1,10 +1,22 @@
+ // Histórico de novidades do site (aparece no botão de versão do rodapé).
+ // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
+ // Escreva para a comunidade: frases curtas, sem termos técnicos.
+-export const SITE_VERSION = '1.13';
++export const SITE_VERSION = '1.14';
+ 
+ export const CHANGELOG = [
+     {
++        version: '1.14',
++        title: 'Fundo personalizado no perfil',
++        items: [
++            'Novo painel Fundo do perfil na Personalização: escolha uma imagem para aparecer atrás da página pública do seu perfil. Quem abrir o seu link vê o fundo; o resto do site continua normal.',
++            'A imagem é reduzida e convertida para WebP aqui no navegador antes de enviar, então fica leve. Só existe um fundo por conta: ao trocar ou remover, o anterior é apagado.',
++            'Chave Desfoque nos cards. Ligada: os cards ficam semitransparentes e desfocam a imagem atrás deles. Desligada: os cards ficam opacos e a imagem fica com metade do brilho. Vale para o tema claro e para o escuro, e o texto continua legível com qualquer imagem.',
++            'Quem usa Alto contraste não vê a imagem de fundo. Se a imagem não carregar, a página volta ao visual normal.',
++            'A equipe pode restaurar (remover) o fundo de um perfil impróprio. No botão Denunciar, o motivo "Foto" virou "Foto ou fundo impróprio".',
++            'Ajuste: o número da aba selecionada (Anime, Mangá, Light Novel) ganhou um contorno em vez de um fundo clareado, para ficar mais fácil de ler.',
++        ],
++    },
++    {
+         version: '1.13',
+         title: 'Novo tema Strong Violet',
+         items: [
+diff -ruN a/js/domain/roles.js b/js/domain/roles.js
+--- a/js/domain/roles.js	2026-10-28 22:39:37.000000000 -0300
++++ b/js/domain/roles.js	2026-11-01 22:14:17.000000000 -0300
+@@ -36,7 +36,7 @@
+ export const MOTIVES = [
+     ['nome', 'Nome ofensivo ou impróprio'],
+     ['bio', 'Descrição (bio) imprópria'],
+-    ['foto', 'Foto imprópria'],
++    ['foto', 'Foto ou fundo impróprio'],
+     ['spam', 'Spam ou propaganda'],
+     ['outro', 'Outro motivo'],
+ ];
+@@ -47,6 +47,7 @@
+     reset_display_name: 'restaurou o nome de exibição de',
+     reset_bio: 'restaurou a bio de',
+     reset_avatar: 'restaurou a foto de',
++    reset_background: 'restaurou o fundo do perfil de',
+     reset_username: 'restaurou o nome de usuário de',
+     rename: 'renomeou',
+     suspend: 'suspendeu',
+diff -ruN a/js/services/avatarImage.js b/js/services/avatarImage.js
+--- a/js/services/avatarImage.js	2026-10-29 23:43:04.000000000 -0300
++++ b/js/services/avatarImage.js	2026-11-01 22:14:34.000000000 -0300
+@@ -14,7 +14,7 @@
+ const BAD_FILE = 'Escolha uma imagem (JPG, PNG, WebP ou GIF) de até 12 MB.';
+ 
+ /** Lê a imagem respeitando a rotação do celular (EXIF). */
+-async function decode(file) {
++export async function decode(file) {
+     if (typeof createImageBitmap === 'function') {
+         try { return { source: await createImageBitmap(file, { imageOrientation: 'from-image' }), release() {} }; } catch { /* tenta pelo <img> */ }
+     }
+@@ -33,7 +33,7 @@
+     }
+ }
+ 
+-const sizeOf = (src) => ({ w: src.naturalWidth || src.videoWidth || src.width, h: src.naturalHeight || src.videoHeight || src.height });
++export const sizeOf = (src) => ({ w: src.naturalWidth || src.videoWidth || src.width, h: src.naturalHeight || src.videoHeight || src.height });
+ 
+ function makeCanvas(size) {
+     const c = document.createElement('canvas');
+@@ -77,7 +77,7 @@
+     return out;
+ }
+ 
+-const toBlob = (canvas, type, quality) => new Promise((resolve) => canvas.toBlob(resolve, type, quality));
++export const toBlob = (canvas, type, quality) => new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+ 
+ /** Confere tipo e tamanho do arquivo escolhido. Lança AppError com mensagem pronta. */
+ export function checkAvatarFile(file) {
+diff -ruN a/js/services/backgroundImage.js b/js/services/backgroundImage.js
+--- a/js/services/backgroundImage.js	1969-12-31 21:00:00.000000000 -0300
++++ b/js/services/backgroundImage.js	2026-11-01 22:14:41.000000000 -0300
+@@ -0,0 +1,84 @@
++// Prepara a imagem de FUNDO do perfil NO NAVEGADOR antes de enviar: reduz (no máximo 1600 px no lado maior, sem ampliar)
++// e comprime em WebP (JPEG nos navegadores que não geram WebP). O resultado costuma ter 60 a 200 KB.
++// O plano gratuito do Supabase não tem redimensionamento de imagens, por isso essa etapa é feita aqui.
++// O bucket "backgrounds" aceita até 384 KB: este módulo mira em 360 KB e reduz a imagem mais um pouco se precisar.
++import { AppError } from '../core/errors.js';
++import { decode, sizeOf, toBlob } from './avatarImage.js';
++
++export const BACKGROUND_MAX_SIDE = 1600;
++export const BACKGROUND_MAX_BYTES = 360 * 1024;
++const MAX_INPUT_BYTES = 20 * 1024 * 1024;          // imagem original (antes de reduzir)
++const QUALITIES = [0.8, 0.68, 0.56, 0.44, 0.32];
++const SCALES = [1, 0.8, 0.64, 0.5];                // se nem a menor qualidade couber, reduz também as dimensões
++const INPUT_TYPE = /^image\/(png|jpe?g|webp|gif|bmp|avif)$/i;
++const BAD_FILE = 'Escolha uma imagem (JPG, PNG, WebP ou GIF) de até 20 MB.';
++
++/** Confere tipo e tamanho do arquivo escolhido. Lança AppError com mensagem pronta. */
++export function checkBackgroundFile(file) {
++    if (!file || !INPUT_TYPE.test(file.type || '')) throw new AppError(BAD_FILE);
++    if (file.size > MAX_INPUT_BYTES) throw new AppError(BAD_FILE);
++}
++
++/** Dimensões finais: cabe em 1600 px no lado maior, nunca amplia. */
++export function fitSize(w, h, maxSide = BACKGROUND_MAX_SIDE) {
++    const k = Math.min(1, maxSide / Math.max(w, h));
++    return { width: Math.max(1, Math.round(w * k)), height: Math.max(1, Math.round(h * k)) };
++}
++
++function makeCanvas(w, h) {
++    const c = document.createElement('canvas');
++    c.width = w; c.height = h;
++    return c;
++}
++
++/** Reduz até (width x height) em etapas (metade por vez) para ficar nítido. `background` pinta o fundo (JPEG não tem transparência). */
++function resize(source, width, height, background = null) {
++    const { w, h } = sizeOf(source);
++    let current = source;
++    let cw = w, ch = h;
++    while (cw / 2 >= width && ch / 2 >= height) {
++        const nw = Math.max(width, Math.floor(cw / 2));
++        const nh = Math.max(height, Math.floor(ch / 2));
++        const c = makeCanvas(nw, nh);
++        const ctx = c.getContext('2d');
++        ctx.imageSmoothingQuality = 'high';
++        ctx.drawImage(current, 0, 0, cw, ch, 0, 0, nw, nh);
++        current = c; cw = nw; ch = nh;
++    }
++    const out = makeCanvas(width, height);
++    const ctx = out.getContext('2d');
++    if (background) { ctx.fillStyle = background; ctx.fillRect(0, 0, width, height); }
++    ctx.imageSmoothingQuality = 'high';
++    ctx.drawImage(current, 0, 0, cw, ch, 0, 0, width, height);
++    return out;
++}
++
++/**
++ * file (File) -> { blob, type, width, height, originalBytes }. Lança AppError com mensagem pronta.
++ * `type` é "image/webp" ou "image/jpeg".
++ */
++export async function prepareBackground(file, { maxBytes = BACKGROUND_MAX_BYTES, maxSide = BACKGROUND_MAX_SIDE } = {}) {
++    checkBackgroundFile(file);
++    const { source, release } = await decode(file);
++    try {
++        const { w, h } = sizeOf(source);
++        if (!w || !h) throw new AppError('Não foi possível ler essa imagem. Tente outro arquivo.');
++        for (const type of ['image/webp', 'image/jpeg']) {
++            let unsupported = false;
++            for (const scale of SCALES) {
++                const { width, height } = fitSize(w * scale, h * scale, maxSide);
++                const canvas = resize(source, width, height, type === 'image/jpeg' ? '#ffffff' : null);
++                for (const q of QUALITIES) {
++                    const blob = await toBlob(canvas, type, q);
++                    if (!blob || blob.type !== type) { unsupported = true; break; }   // este navegador não gera esse formato: tenta o próximo
++                    if (blob.size <= maxBytes) return { blob, type: blob.type, width, height, originalBytes: file.size };
++                }
++                if (unsupported) break;           // reduzir as dimensões não adianta: passa direto para o JPEG
++            }
++        }
++        throw new AppError('Não consegui reduzir essa imagem o bastante. Tente outra.');
++    } finally {
++        release();
++        if (typeof source.close === 'function') source.close();
++    }
++}
+diff -ruN a/js/services/schema.js b/js/services/schema.js
+--- a/js/services/schema.js	2026-11-01 08:07:39.000000000 -0300
++++ b/js/services/schema.js	2026-11-01 22:14:04.000000000 -0300
+@@ -1,4 +1,4 @@
+ // Versão do esquema do banco (sql/schema.sql) que este site espera.
+ // Se o banco do Supabase estiver numa versão menor, a biblioteca avisa para rodar o SQL de novo.
+-// 1 = original · 2 = Em espera, favoritos e códigos de obra · 3 = foto de perfil · 4 = seguir, feed e análises · 5 = cores do perfil · 6 = mangás e light novels · 7 = cargos e painel de administração · 8 = abas ativas no perfil e contagens por tipo · 9 = notas de 0 a 10 (meia estrela) · 10 = preferências privadas da conta (alto contraste)
+-export const REQUIRED_SCHEMA = 10;
++// 1 = original · 2 = Em espera, favoritos e códigos de obra · 3 = foto de perfil · 4 = seguir, feed e análises · 5 = cores do perfil · 6 = mangás e light novels · 7 = cargos e painel de administração · 8 = abas ativas no perfil e contagens por tipo · 9 = notas de 0 a 10 (meia estrela) · 10 = preferências privadas da conta (alto contraste) · 11 = fundo do perfil
++export const REQUIRED_SCHEMA = 11;
+diff -ruN a/js/services/supabase-backend.js b/js/services/supabase-backend.js
+--- a/js/services/supabase-backend.js	2026-11-01 08:08:16.000000000 -0300
++++ b/js/services/supabase-backend.js	2026-11-01 22:14:17.000000000 -0300
+@@ -103,6 +103,8 @@
+     avatarV: Number(r.avatar_v) || 0,
+     palette: r.palette || 'default',
+     sections: normalizeSections(r.sections),
++    bgV: Number(r.bg_v) || 0,                       // versão da imagem de fundo (0 = sem fundo)
++    bgBlur: r.bg_blur !== false,                    // desfoque dos cards sobre o fundo (ligado por padrão)
+ } : null);
+ 
+ /** O MEU perfil: o dos outros nunca leva as preferências privadas (tabela user_prefs). */
+@@ -118,6 +120,7 @@
+ 
+ const redirectUrl = () => location.origin + location.pathname;
+ const AVATAR_BUCKET = 'avatars';
++const BACKGROUND_BUCKET = 'backgrounds';
+ 
+ // --- backend -------------------------------------------------------------
+ 
+@@ -283,6 +286,7 @@
+                 if (patch.showNotes !== undefined) clean.show_notes = Boolean(patch.showNotes);
+                 if (patch.palette !== undefined) clean.palette = String(patch.palette).trim().toLowerCase().slice(0, 24);
+                 if (patch.sections !== undefined) clean.sections = normalizeSections(patch.sections);
++                if (patch.bgBlur !== undefined) clean.bg_blur = Boolean(patch.bgBlur);
+                 // preferências privadas (alto contraste): tabela à parte, que só a própria pessoa lê
+                 if (patch.highContrast !== undefined) {
+                     const value = Boolean(patch.highContrast);
+@@ -324,6 +328,33 @@
+                 return mineOf(row, await loadPrefs(uid));
+             },
+ 
++            /**
++             * Troca a imagem de fundo do perfil. `blob` já vem reduzido e em WebP (js/services/backgroundImage.js).
++             * Igual à foto: o arquivo tem sempre o nome da conta, então enviar de novo SOBRESCREVE o anterior.
++             */
++            async setBackground(blob) {
++                const uid = await requireUid();
++                let res;
++                try {
++                    res = await sb.storage.from(BACKGROUND_BUCKET).upload(uid, blob, { upsert: true, contentType: blob.type, cacheControl: '31536000' });
++                } catch (e) { throw fail(e, 'Não foi possível enviar o fundo.'); }
++                if (res.error) throw fail(res.error, 'Não foi possível enviar o fundo.');
++                const cur = await ok(sb.from('profiles').select('bg_v').eq('id', uid).maybeSingle(), 'Não foi possível carregar seu perfil.');
++                const version = Math.max(Math.floor(Date.now() / 1000), (Number(cur?.bg_v) || 0) + 1);
++                const row = await ok(sb.from('profiles').update({ bg_v: version }).eq('id', uid).select().single(), 'O fundo foi enviado, mas não deu para salvar no perfil.');
++                return mineOf(row, await loadPrefs(uid));
++            },
++
++            /** Remove o fundo: apaga o arquivo do Storage e zera a versão no perfil. */
++            async removeBackground() {
++                const uid = await requireUid();
++                let res;
++                try { res = await sb.storage.from(BACKGROUND_BUCKET).remove([uid]); } catch (e) { throw fail(e, 'Não foi possível remover o fundo.'); }
++                if (res.error) throw fail(res.error, 'Não foi possível remover o fundo.');
++                const row = await ok(sb.from('profiles').update({ bg_v: 0 }).eq('id', uid).select().single(), 'Não foi possível atualizar o perfil.');
++                return mineOf(row, await loadPrefs(uid));
++            },
++
+             /**
+              * Perfil de qualquer pessoa, já respeitando a privacidade (função get_profile do banco).
+              * Devolve null se o usuário não existir. Perfil privado visto por quem não é seguidor aceito
+diff -ruN a/js/ui/backgroundPanel.js b/js/ui/backgroundPanel.js
+--- a/js/ui/backgroundPanel.js	1969-12-31 21:00:00.000000000 -0300
++++ b/js/ui/backgroundPanel.js	2026-11-01 22:15:40.000000000 -0300
+@@ -0,0 +1,140 @@
++// Painel "Fundo do perfil" (Personalização, só com login): enviar, trocar e remover a imagem de fundo e ligar/desligar o desfoque.
++//  - A imagem é reduzida e convertida para WebP aqui no navegador antes de enviar (js/services/backgroundImage.js).
++//  - Só existe uma imagem por conta: ao trocar ou remover, a anterior é apagada.
++//  - O fundo é público (aparece na página do seu perfil, para quem abrir). O desfoque salva na hora, como as cores.
++import { html, on, setHtml } from '../core/dom.js';
++import { messageOf } from '../core/errors.js';
++import { icon, spinner } from '../core/icons.js';
++import { toast } from '../core/toast.js';
++import { checkBackgroundFile, prepareBackground } from '../services/backgroundImage.js';
++import { setProfile, state } from '../services/session.js';
++import { backgroundPreviewHtml, backgroundSrc } from './profileBackground.js';
++
++const kb = (bytes) => `${Math.max(1, Math.round(bytes / 1024))} KB`;
++
++export function backgroundPanelHtml(p) {
++    const has = Boolean(backgroundSrc(p));
++    return html`
++    <section class="panel panel-wide glass-panel" aria-labelledby="st-bg">
++        <h2 id="st-bg">${icon('image')} Fundo do perfil</h2>
++        <p class="field-hint">Uma imagem que aparece atrás da página do seu perfil, para quem abrir o seu link. Ela só aparece ali: o resto do site continua normal. Como a foto de perfil, o fundo é público.</p>
++        <div class="bg-editor">
++            <div data-bg-preview-wrap>${backgroundPreviewHtml(p)}</div>
++            <div class="bg-controls">
++                <div class="row">
++                    <label class="button button-secondary" data-bg-pick>${icon('image', { size: 17 })} <span data-bg-pick-text>${has ? 'Trocar fundo' : 'Escolher fundo'}</span>
++                        <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="sr-only" data-bg-input aria-label="Escolher uma imagem de fundo para o perfil"></label>
++                    <button type="button" class="button button-ghost" data-act="bg-remove" ${has ? '' : 'hidden'}>${icon('trash', { size: 17 })} Remover fundo</button>
++                </div>
++                <label class="switch-row">
++                    <input type="checkbox" id="st-bgblur" data-bgblur-switch ${p.bgBlur !== false ? 'checked' : ''} aria-describedby="st-bgblur-desc">
++                    <span><span class="switch-title">Desfoque nos cards</span><br>
++                    <span class="switch-desc" id="st-bgblur-desc">Ligado: os cards ficam semitransparentes e desfocam a imagem que está atrás deles. Desligado: os cards ficam opacos e a imagem fica mais escura (metade do brilho), para o texto continuar fácil de ler. Vale para o tema claro e para o escuro.</span></span>
++                </label>
++            </div>
++        </div>
++        <p class="field-hint">Escolha uma imagem JPG, PNG, WebP ou GIF de até 20 MB. Antes de enviar, o site a reduz (no máximo 1600 px) e converte para WebP, então ela fica leve. Só existe um fundo por conta: ao trocar ou remover, o anterior é apagado. Quem ligar o "Alto contraste" não vê o fundo.</p>
++        <p class="field-hint" data-bg-status aria-live="polite"></p>
++    </section>`;
++}
++
++/** Liga o painel. `be` é o backend. Devolve a função que desfaz a ligação. */
++export function bindBackgroundPanel(root, be) {
++    const $ = (s) => root.querySelector(s);
++    const wrap = $('[data-bg-preview-wrap]');
++    const status = $('[data-bg-status]');
++    const input = $('[data-bg-input]');
++    const removeBtn = $('[data-act="bg-remove"]');
++    const pickText = $('[data-bg-pick-text]');
++    const blurBox = $('[data-bgblur-switch]');
++    let busy = false;
++    let blobUrl = '';
++    let saving = Promise.resolve();
++    let current = state.profile?.bgBlur !== false;               // valor em vigor (a tela já mostra o novo antes de salvar)
++
++    const setBusy = (on_, text = '') => {
++        busy = on_;
++        input.disabled = on_;
++        removeBtn.disabled = on_;
++        $('[data-bg-pick]').classList.toggle('is-disabled', on_);
++        wrap.setAttribute('aria-busy', String(on_));
++        setHtml(status, on_ ? html`${spinner(14)} ${text}` : text);
++    };
++    const revoke = () => { if (blobUrl) { URL.revokeObjectURL(blobUrl); blobUrl = ''; } };
++    const paint = (profile, override = '') => {
++        setHtml(wrap, backgroundPreviewHtml(profile, override));
++        const has = Boolean(backgroundSrc(profile));
++        removeBtn.hidden = !has;
++        pickText.textContent = has ? 'Trocar fundo' : 'Escolher fundo';
++    };
++
++    const offs = [];
++    offs.push(on(root, 'change', '[data-bg-input]', async (_, el) => {
++        const file = el.files?.[0];
++        el.value = '';
++        if (!file || busy) return;
++        setBusy(true, 'Abrindo a imagem...');
++        try {
++            checkBackgroundFile(file);                                  // tipo e tamanho, antes de processar
++            setBusy(true, 'Reduzindo e convertendo para WebP...');
++            const prepared = await prepareBackground(file);
++            setBusy(true, 'Enviando...');
++            const updated = await be.profiles.setBackground(prepared.blob);
++            revoke();
++            blobUrl = URL.createObjectURL(prepared.blob);
++            setProfile(updated);
++            paint(updated, blobUrl);
++            setBusy(false, `Fundo atualizado! ${prepared.width}×${prepared.height} px, ${kb(prepared.blob.size)} (a imagem original tinha ${kb(prepared.originalBytes)}).`);
++            toast('Fundo atualizado!', { type: 'success' });
++        } catch (err) {
++            console.error(err);
++            setBusy(false, '');
++            toast(messageOf(err, 'Não foi possível trocar o fundo.'), { type: 'error' });
++        }
++    }));
++
++    offs.push(on(root, 'click', '[data-act="bg-remove"]', async () => {
++        if (busy) return;
++        setBusy(true, 'Removendo...');
++        try {
++            const updated = await be.profiles.removeBackground();
++            revoke();
++            setProfile(updated);
++            paint(updated);
++            setBusy(false, '');
++            toast('Fundo removido.', { type: 'success' });
++        } catch (err) {
++            console.error(err);
++            setBusy(false, '');
++            toast(messageOf(err, 'Não foi possível remover o fundo.'), { type: 'error' });
++        }
++    }));
++
++    // Desfoque: aparece na prévia na hora, salva em seguida e volta atrás se não conseguir salvar
++    offs.push(on(root, 'change', '[data-bgblur-switch]', (_, box) => {
++        const before = current;
++        const next = box.checked;
++        current = next;
++        const preview = wrap.querySelector('[data-bg]');
++        if (preview) preview.dataset.bg = next ? 'blur' : 'solid';
++        status.textContent = 'Salvando...';
++        saving = saving.then(async () => {
++            try {
++                const updated = await be.profiles.updateMine({ bgBlur: next });
++                setProfile(updated);
++                status.textContent = next ? 'Desfoque ligado.' : 'Desfoque desligado.';
++            } catch (err) {
++                console.error(err);
++                current = before;
++                box.checked = before;
++                const again = wrap.querySelector('[data-bg]');
++                if (again) again.dataset.bg = before ? 'blur' : 'solid';
++                status.textContent = '';
++                toast(messageOf(err, 'Não foi possível salvar a opção.'), { type: 'error' });
++            }
++        });
++    }));
++
++    offs.push(() => revoke());
++    return () => offs.forEach((off) => off());
++}
+diff -ruN a/js/ui/memberModal.js b/js/ui/memberModal.js
+--- a/js/ui/memberModal.js	2026-10-28 16:24:58.000000000 -0300
++++ b/js/ui/memberModal.js	2026-11-01 22:14:04.000000000 -0300
+@@ -13,6 +13,7 @@
+     ['display_name', 'Nome de exibição', 'volta para "Usuário" + 4 letras ou números'],
+     ['bio', 'Descrição (bio)', 'fica vazia'],
+     ['avatar', 'Foto de perfil', 'a foto some'],
++    ['background', 'Imagem de fundo do perfil', 'o fundo some'],
+     ['username', 'Nome de usuário (@)', 'vira "user_" + código; o link antigo do perfil deixa de funcionar'],
+ ];
+ const FIELD_NAMES = Object.fromEntries(RESET_FIELDS.map(([k, label]) => [k, label.toLowerCase()]));
+@@ -46,7 +47,7 @@
+             ${!allowed ? blocked : html`
+             <section class="manage-section" aria-labelledby="mm-reset">
+                 <h3 id="mm-reset">Restaurar dados do perfil</h3>
+-                <p class="field-hint">Use quando o nome, a bio ou a foto forem impróprios. A pessoa pode editar de novo depois.</p>
++                <p class="field-hint">Use quando o nome, a bio, a foto ou o fundo forem impróprios. A pessoa pode editar de novo depois.</p>
+                 ${RESET_FIELDS.map(([key, label, effect]) => html`
+                     <label class="check-row"><input type="checkbox" data-reset="${key}"><span>${label} <span class="muted small">(${effect})</span></span></label>`)}
+                 <div><button type="button" class="button button-secondary" data-do="reset" disabled>Restaurar o que marquei</button></div>
+diff -ruN a/js/ui/profileBackground.js b/js/ui/profileBackground.js
+--- a/js/ui/profileBackground.js	1969-12-31 21:00:00.000000000 -0300
++++ b/js/ui/profileBackground.js	2026-11-01 22:15:31.000000000 -0300
+@@ -0,0 +1,67 @@
++// Imagem de fundo do perfil (só aparece na página pública #/u/nome, nunca no resto do site).
++//  - Fica no bucket público "backgrounds" (uma imagem por pessoa; o nome do arquivo é o ID da conta).
++//  - O desfoque é uma opção da pessoa (bgBlur):
++//      ligado    -> cards semitransparentes que desfocam a imagem atrás deles;
++//      desligado -> cards opacos e a imagem com 50% do brilho.
++//    As cores dos cards vêm do tema e da combinação de cores em uso (modo claro/escuro), então o contraste acompanha os dois.
++//  - Alto contraste (opção de acessibilidade de quem está olhando) esconde a imagem: fundos sem transparência são o objetivo dele.
++import { config } from '../config.js';
++import { html } from '../core/dom.js';
++
++export const BACKGROUND_BUCKET = 'backgrounds';
++const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
++
++/** Endereço público do fundo de um perfil, ou '' se a pessoa não tem fundo. O número da versão (bgV) evita mostrar um fundo antigo em cache. */
++export function backgroundSrc(profile) {
++    const v = Number(profile?.bgV);
++    if (!profile || !Number.isSafeInteger(v) || v <= 0 || !UUID_RX.test(String(profile.id || ''))) return '';
++    const base = String(config.supabaseUrl || '').replace(/\/+$/, '');
++    if (!/^https:\/\//.test(base)) return '';
++    return `${base}/storage/v1/object/public/${BACKGROUND_BUCKET}/${profile.id}?v=${v}`;
++}
++
++export const backgroundMode = (profile) => (profile?.bgBlur === false ? 'solid' : 'blur');
++
++/**
++ * Coloca o fundo atrás da página do perfil. `view` é o contêiner da tela (recebe data-bg e as cores dos cards).
++ * Sem fundo, não faz nada. Se a imagem não carregar, tudo volta ao visual normal. Devolve a função que remove o fundo.
++ */
++export function showProfileBackground(view, profile) {
++    const src = backgroundSrc(profile);
++    if (!src) return () => {};
++    const mode = backgroundMode(profile);
++    const layer = document.createElement('div');
++    layer.className = 'profile-bg bg-art';
++    layer.dataset.bg = mode;
++    layer.setAttribute('aria-hidden', 'true');
++    const img = document.createElement('img');
++    img.className = 'bg-art-img';
++    img.alt = '';
++    img.decoding = 'async';
++    img.referrerPolicy = 'no-referrer';
++    const veil = document.createElement('span');
++    veil.className = 'bg-art-veil';
++    layer.append(img, veil);
++
++    const off = () => { layer.remove(); view.removeAttribute('data-bg'); };
++    img.addEventListener('load', () => img.classList.add('is-loaded'), { once: true });
++    img.addEventListener('error', off, { once: true });
++    img.src = src;
++    view.dataset.bg = mode;
++    document.body.prepend(layer);
++    return off;
++}
++
++/** Prévia do fundo na tela de Personalização: a imagem com um cartão de exemplo, já no modo escolhido. */
++export function backgroundPreviewHtml(profile, srcOverride = '') {
++    const src = srcOverride || backgroundSrc(profile);
++    if (!src) {
++        return html`<div class="bg-preview bg-preview-empty" data-bg-preview><span class="muted">Nenhum fundo escolhido: o seu perfil usa as cores normais do site.</span></div>`;
++    }
++    return html`
++    <div class="bg-preview bg-art" data-bg="${backgroundMode(profile)}" data-bg-preview>
++        <img class="bg-art-img is-loaded" src="${src}" alt="Prévia do seu fundo de perfil" decoding="async" referrerpolicy="no-referrer">
++        <span class="bg-art-veil"></span>
++        <div class="bg-preview-card glass-panel"><strong>Seu perfil</strong><span>Assim os cards ficam sobre o fundo.</span></div>
++    </div>`;
++}
+diff -ruN a/js/views/profile.js b/js/views/profile.js
+--- a/js/views/profile.js	2026-10-31 10:14:30.000000000 -0300
++++ b/js/views/profile.js	2026-11-01 22:15:40.000000000 -0300
+@@ -18,6 +18,7 @@
+ import { bindFavoritesStrip, favoritesStripHtml } from '../ui/favoritesStrip.js';
+ import { openMemberModal } from '../ui/memberModal.js';
+ import { openReportModal } from '../ui/reportModal.js';
++import { showProfileBackground } from '../ui/profileBackground.js';
+ import { roleBadge } from '../ui/roleBadge.js';
+ import { bindSectionTabs, loadSection, sectionCounts, sectionTabsHtml } from '../ui/sectionTabs.js';
+ import { statTilesHtml } from '../ui/statTiles.js';
+@@ -107,6 +108,8 @@
+     // Enquanto você estiver neste perfil, a página usa as cores escolhidas pela pessoa (sai ao sair da tela).
+     // Vale também para perfil privado ainda trancado: as cores não revelam nada da biblioteca.
+     const restorePalette = profile.palette ? viewPalette(profile.palette) : null;
++    // Imagem de fundo da pessoa (só nesta página; some ao sair). Perfil suspenso visto por outra pessoa já veio sem fundo do banco.
++    const removeBackground = showProfileBackground(root, profile);
+     document.title = `${profile.displayName} (@${profile.username}) · ${config.siteName}`;
+     // Equipe gerencia por aqui (o banco confere o cargo de novo). Denunciar: qualquer pessoa com conta ativa, menos no próprio perfil.
+     const canManage = !own && canAct(myRole(), profile.role);
+@@ -254,5 +257,5 @@
+         openConnectionsModal({ username: profile.username, kind: btn.dataset.conn, own, be, onChanged: () => refresh() });
+     }));
+ 
+-    return () => { offs.forEach((off) => off()); browser?.destroy(); restorePalette?.(); };
++    return () => { offs.forEach((off) => off()); browser?.destroy(); restorePalette?.(); removeBackground(); };
+ }
+diff -ruN a/js/views/settings.js b/js/views/settings.js
+--- a/js/views/settings.js	2026-11-01 08:08:54.000000000 -0300
++++ b/js/views/settings.js	2026-11-01 22:15:40.000000000 -0300
+@@ -11,6 +11,7 @@
+ import { avatar, avatarSrc } from '../ui/avatar.js';
+ import { openAvatarCropper } from '../ui/avatarCropModal.js';
+ import { accessibilityPanelHtml, bindAccessibility } from '../ui/accessibilityPanel.js';
++import { backgroundPanelHtml, bindBackgroundPanel } from '../ui/backgroundPanel.js';
+ import { bindDataPanel, dataPanelHtml } from '../ui/dataPanel.js';
+ import { bindPalettePicker, palettePickerHtml, selectPalette } from '../ui/palettePicker.js';
+ import { guardTabs, settingsHeader } from '../ui/settingsShell.js';
+@@ -141,6 +142,7 @@
+         ${settingsHeader({ profile, active: 'personalizacao' })}
+         <div class="settings-grid">
+             ${profilePanel(profile)}
++            ${backgroundPanelHtml(profile)}
+             ${palettePanel(profile.palette, true)}
+             ${accessibilityPanelHtml(true)}
+         </div>`);
+@@ -278,6 +280,7 @@
+             || bio.value.trim() !== p.bio;
+     };
+     offs.push(bindPalette(root, be, true));
++    offs.push(bindBackgroundPanel(root, be));
+     offs.push(bindAccessibility(root, be, true));
+     offs.push(guardTabs(root, isDirty));
+     offs.push(() => check.cancel());
+diff -ruN a/sql/schema.sql b/sql/schema.sql
+--- a/sql/schema.sql	2026-11-01 08:07:33.000000000 -0300
++++ b/sql/schema.sql	2026-11-01 22:13:57.000000000 -0300
+@@ -54,6 +54,13 @@
+ alter table public.profiles drop constraint if exists profiles_sections_valid;
+ alter table public.profiles add  constraint profiles_sections_valid
+   check (cardinality(sections) between 1 and 3 and sections <@ array['anime', 'manga', 'novel']);
++--   * bg_v / bg_blur: imagem de fundo da página pública do perfil. bg_v é a "versão" da imagem (0 = sem fundo), como o avatar_v;
++--     o arquivo fica no armazenamento "backgrounds" (seção 6). bg_blur liga/desliga o desfoque dos cards sobre o fundo
++--     (ligado = cards translúcidos com desfoque; desligado = cards opacos e imagem escurecida).
++alter table public.profiles add column if not exists bg_v    bigint  not null default 0;
++alter table public.profiles add column if not exists bg_blur boolean not null default true;
++alter table public.profiles drop constraint if exists profiles_bg_v;
++alter table public.profiles add  constraint profiles_bg_v check (bg_v >= 0);
+ 
+ 
+ -- ---------------------------------------------------------------------
+@@ -815,7 +822,9 @@
+   palette         text,
+   role            text,
+   suspended       boolean,
+-  sections        text[]
++  sections        text[],
++  bg_v            bigint,
++  bg_blur         boolean
+ )
+ language sql
+ stable
+@@ -824,6 +833,7 @@
+ as $$
+   with t as (
+     select p.id, p.username, p.display_name, p.bio, p.avatar_v, p.is_public, p.show_notes, p.palette, p.sections,
++           p.bg_v, p.bg_blur,
+            (select ur.role from public.user_roles ur where ur.user_id = p.id) as role,
+            public.is_suspended(p.id) as sus,
+            (select auth.uid()) as me
+@@ -858,7 +868,9 @@
+          v.palette,                        -- as cores são só visuais: quem abre o perfil sempre as vê (até o perfil privado trancado)
+          case when v.hidden then null else v.role end,
+          v.sus,
+-         case when not v.hidden and (v.is_public or v.rel in ('self', 'accepted')) then v.sections end   -- abas ativas (para quem pode ver o perfil)
++         case when not v.hidden and (v.is_public or v.rel in ('self', 'accepted')) then v.sections end,   -- abas ativas (para quem pode ver o perfil)
++         case when v.hidden then 0 else v.bg_v end,    -- o fundo é visual, como a foto: aparece até no perfil privado trancado, mas some se a conta estiver suspensa
++         v.bg_blur
+   from v;
+ $$;
+ 
+@@ -1237,8 +1249,8 @@
+ end;
+ $$;
+ 
+--- Troca nome de exibição, bio, foto e/ou nome de usuário por um valor neutro.
+--- p_fields: 'display_name', 'bio', 'avatar', 'username'
++-- Troca nome de exibição, bio, foto, fundo e/ou nome de usuário por um valor neutro.
++-- p_fields: 'display_name', 'bio', 'avatar', 'background', 'username'
+ create or replace function public.admin_reset_profile(p_user uuid, p_fields text[])
+ returns void
+ language plpgsql
+@@ -1255,7 +1267,7 @@
+   if p_fields is null or cardinality(p_fields) = 0 then
+     raise exception 'Escolha o que restaurar.' using errcode = '22023';
+   end if;
+-  if exists (select 1 from unnest(p_fields) x where x not in ('display_name', 'bio', 'avatar', 'username')) then
++  if exists (select 1 from unnest(p_fields) x where x not in ('display_name', 'bio', 'avatar', 'background', 'username')) then
+     raise exception 'Campo inválido.' using errcode = '22023';
+   end if;
+   select * into t from public.profiles where id = p_user;
+@@ -1279,6 +1291,16 @@
+       exception when others then
+         null;
+       end;
++    elsif f = 'background' then
++      perform public.log_action('reset_background', p_user, '{}'::jsonb);
++      update public.profiles set bg_v = 0 where id = p_user;
++      -- Igual à foto: o site só mostra o fundo quando bg_v > 0; apagar o arquivo é um extra.
++      begin
++        perform set_config('storage.allow_delete_query', 'true', true);
++        delete from storage.objects where bucket_id = 'backgrounds' and name = p_user::text;
++      exception when others then
++        null;
++      end;
+     elsif f = 'username' then
+       fresh := 'user_' || substr(replace(p_user::text, '-', ''), 1, 8);
+       while exists (select 1 from public.profiles x where x.username = fresh and x.id <> p_user) and tries < 5 loop
+@@ -1589,12 +1611,13 @@
+ --   8 = abas ativas no perfil (coluna sections) e contagens por tipo no Explorar
+ --   9 = notas de 0 a 10 (meia estrela = 1 ponto; as notas antigas de 1 a 5 viram o dobro)
+ --   10 = preferências privadas da conta (tabela user_prefs: alto contraste); a cor de perfil "Alto contraste" virou essa opção
++--   11 = fundo do perfil (colunas bg_v e bg_blur, armazenamento "backgrounds") e restauração do fundo pela equipe
+ create or replace function public.schema_version()
+ returns integer
+ language sql
+ immutable
+ set search_path = ''
+-as $$ select 10 $$;
++as $$ select 11 $$;
+ 
+ -- Só quem precisa pode executar cada função.
+ revoke all on function public.get_public_entries(text)            from public;
+@@ -1666,3 +1689,36 @@
+ create policy "avatars_delete_own" on storage.objects
+   for delete to authenticated
+   using (bucket_id = 'avatars' and name = (select auth.uid())::text);
++
++
++-- Fundos de perfil: outro bucket público, "backgrounds", também com UMA imagem por pessoa (o nome do arquivo é o ID da conta).
++--   * o site reduz a imagem (no máximo 1600 px no lado maior) e converte para WebP (JPEG nos navegadores que não geram WebP)
++--     antes de enviar; o limite de 384 KB e o filtro de tipo abaixo são a segunda trava, no servidor;
++--   * qualquer pessoa pode VER (bucket público), mas só a dona envia, troca ou apaga o seu.
++insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
++values ('backgrounds', 'backgrounds', true, 393216, array['image/webp', 'image/jpeg'])
++on conflict (id) do update
++  set public = true,
++      file_size_limit = 393216,
++      allowed_mime_types = array['image/webp', 'image/jpeg'];
++
++drop policy if exists "backgrounds_select_own" on storage.objects;
++create policy "backgrounds_select_own" on storage.objects
++  for select to authenticated
++  using (bucket_id = 'backgrounds' and name = (select auth.uid())::text);
++
++drop policy if exists "backgrounds_insert_own" on storage.objects;
++create policy "backgrounds_insert_own" on storage.objects
++  for insert to authenticated
++  with check (bucket_id = 'backgrounds' and name = (select auth.uid())::text);
++
++drop policy if exists "backgrounds_update_own" on storage.objects;
++create policy "backgrounds_update_own" on storage.objects
++  for update to authenticated
++  using      (bucket_id = 'backgrounds' and name = (select auth.uid())::text)
++  with check (bucket_id = 'backgrounds' and name = (select auth.uid())::text);
++
++drop policy if exists "backgrounds_delete_own" on storage.objects;
++create policy "backgrounds_delete_own" on storage.objects
++  for delete to authenticated
++  using (bucket_id = 'backgrounds' and name = (select auth.uid())::text);

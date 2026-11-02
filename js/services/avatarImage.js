@@ -14,7 +14,7 @@ const INPUT_TYPE = /^image\/(png|jpe?g|webp|gif|bmp|avif)$/i;
 const BAD_FILE = 'Escolha uma imagem (JPG, PNG, WebP ou GIF) de até 12 MB.';
 
 /** Lê a imagem respeitando a rotação do celular (EXIF). */
-async function decode(file) {
+export async function decode(file) {
     if (typeof createImageBitmap === 'function') {
         try { return { source: await createImageBitmap(file, { imageOrientation: 'from-image' }), release() {} }; } catch { /* tenta pelo <img> */ }
     }
@@ -33,7 +33,7 @@ async function decode(file) {
     }
 }
 
-const sizeOf = (src) => ({ w: src.naturalWidth || src.videoWidth || src.width, h: src.naturalHeight || src.videoHeight || src.height });
+export const sizeOf = (src) => ({ w: src.naturalWidth || src.videoWidth || src.width, h: src.naturalHeight || src.videoHeight || src.height });
 
 function makeCanvas(size) {
     const c = document.createElement('canvas');
@@ -77,7 +77,7 @@ function squareThumb(source, background, crop = null) {
     return out;
 }
 
-const toBlob = (canvas, type, quality) => new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+export const toBlob = (canvas, type, quality) => new Promise((resolve) => canvas.toBlob(resolve, type, quality));
 
 /** Confere tipo e tamanho do arquivo escolhido. Lança AppError com mensagem pronta. */
 export function checkAvatarFile(file) {

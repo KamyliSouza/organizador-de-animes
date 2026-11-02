@@ -11,6 +11,7 @@ import { backend, isCloud, setProfile, state } from '../services/session.js';
 import { avatar, avatarSrc } from '../ui/avatar.js';
 import { openAvatarCropper } from '../ui/avatarCropModal.js';
 import { accessibilityPanelHtml, bindAccessibility } from '../ui/accessibilityPanel.js';
+import { backgroundPanelHtml, bindBackgroundPanel } from '../ui/backgroundPanel.js';
 import { bindDataPanel, dataPanelHtml } from '../ui/dataPanel.js';
 import { bindPalettePicker, palettePickerHtml, selectPalette } from '../ui/palettePicker.js';
 import { guardTabs, settingsHeader } from '../ui/settingsShell.js';
@@ -141,6 +142,7 @@ export function mount(root) {
         ${settingsHeader({ profile, active: 'personalizacao' })}
         <div class="settings-grid">
             ${profilePanel(profile)}
+            ${backgroundPanelHtml(profile)}
             ${palettePanel(profile.palette, true)}
             ${accessibilityPanelHtml(true)}
         </div>`);
@@ -278,6 +280,7 @@ export function mount(root) {
             || bio.value.trim() !== p.bio;
     };
     offs.push(bindPalette(root, be, true));
+    offs.push(bindBackgroundPanel(root, be));
     offs.push(bindAccessibility(root, be, true));
     offs.push(guardTabs(root, isDirty));
     offs.push(() => check.cancel());

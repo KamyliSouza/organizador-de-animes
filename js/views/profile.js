@@ -18,6 +18,7 @@ import { mountLibraryBrowser } from '../ui/libraryBrowser.js';
 import { bindFavoritesStrip, favoritesStripHtml } from '../ui/favoritesStrip.js';
 import { openMemberModal } from '../ui/memberModal.js';
 import { openReportModal } from '../ui/reportModal.js';
+import { showProfileBackground } from '../ui/profileBackground.js';
 import { roleBadge } from '../ui/roleBadge.js';
 import { bindSectionTabs, loadSection, sectionCounts, sectionTabsHtml } from '../ui/sectionTabs.js';
 import { statTilesHtml } from '../ui/statTiles.js';
@@ -107,6 +108,8 @@ export async function mount(root, ctx) {
     // Enquanto você estiver neste perfil, a página usa as cores escolhidas pela pessoa (sai ao sair da tela).
     // Vale também para perfil privado ainda trancado: as cores não revelam nada da biblioteca.
     const restorePalette = profile.palette ? viewPalette(profile.palette) : null;
+    // Imagem de fundo da pessoa (só nesta página; some ao sair). Perfil suspenso visto por outra pessoa já veio sem fundo do banco.
+    const removeBackground = showProfileBackground(root, profile);
     document.title = `${profile.displayName} (@${profile.username}) · ${config.siteName}`;
     // Equipe gerencia por aqui (o banco confere o cargo de novo). Denunciar: qualquer pessoa com conta ativa, menos no próprio perfil.
     const canManage = !own && canAct(myRole(), profile.role);
@@ -254,5 +257,5 @@ export async function mount(root, ctx) {
         openConnectionsModal({ username: profile.username, kind: btn.dataset.conn, own, be, onChanged: () => refresh() });
     }));
 
-    return () => { offs.forEach((off) => off()); browser?.destroy(); restorePalette?.(); };
+    return () => { offs.forEach((off) => off()); browser?.destroy(); restorePalette?.(); removeBackground(); };
 }

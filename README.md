@@ -79,6 +79,7 @@ Sem esse passo, estas coisas não funcionam (o site mostra um aviso amarelo na b
 - as **abas visíveis no perfil** e as contagens por tipo no Explorar (a versão do banco passa a ser a **8**);
 - as **notas com meia estrela** (o SQL passa as notas de 1–5 para a escala de 0–10, **uma única vez**: 4 estrelas viram 8 pontos, que continuam aparecendo como 4 estrelas — a versão do banco passa a ser a **9**). Rodar o SQL de novo depois disso não muda mais as notas;
 - o **alto contraste** como opção de acessibilidade guardada na conta (o SQL cria a tabela privada `user_prefs` e passa para ela quem usava a cor "Alto contraste" — a versão do banco passa a ser a **10**; veja "Acessibilidade: alto contraste");
+- o **fundo do perfil** (o SQL cria as colunas `bg_v` e `bg_blur`, o armazenamento `backgrounds` e libera "Imagem de fundo" no Restaurar da equipe — a versão do banco passa a ser a **11**; veja "Fundo do perfil");
 - o botão **Excluir minha conta**.
 
 ---
@@ -122,6 +123,20 @@ Em **Perfil** (menu do topo) a conta tem duas abas, cada uma com o próprio bot�
 | Projeto sem uso | pausa após ~1 semana sem atividade | basta abrir o site/Supabase para retomar |
 
 Se você apagar usuários direto no painel do Supabase (*Authentication → Users*), a foto da pessoa **não** é removida sozinha (o banco não consegue apagar arquivos do Storage): apague em **Storage → avatars**. Pelo botão "Excluir minha conta" do próprio site isso é feito automaticamente.
+
+## Fundo do perfil
+
+Em **Personalização → Fundo do perfil** a pessoa escolhe uma imagem que aparece **atrás da página pública do seu perfil** (`#/u/seu-nome`). Ela só aparece nessa página: o resto do site (biblioteca, feed, configurações...) continua com o visual normal. Quem abre o perfil vê o fundo da pessoa visitada; a dona vê o próprio fundo na prévia.
+
+- **Envio:** JPG, PNG, WebP ou GIF de até **20 MB**. O **navegador** reduz a imagem (no máximo **1600 px** no lado maior, sem ampliar) e a converte para **WebP** antes de enviar (JPEG nos navegadores sem suporte a WebP), geralmente com **60 a 200 KB**. Se a imagem não couber em 360 KB, o site baixa a qualidade e, se for preciso, as dimensões. O servidor ainda recusa qualquer arquivo acima de **384 KB** ou que não seja WebP/JPEG. Depois do envio, a tela mostra o tamanho final e o da imagem original.
+- **Uma imagem por conta:** o arquivo (bucket público `backgrounds`) se chama como o ID da conta, então trocar **sobrescreve** a anterior. **Remover fundo** apaga o arquivo. O número da versão (`bg_v`) vai no endereço da imagem, então um fundo trocado aparece na hora.
+- **Chave "Desfoque nos cards"** (salva na hora, ligada por padrão):
+  - **Ligada:** os cards ficam **semitransparentes** com desfoque (`backdrop-filter`) da imagem que está atrás deles.
+  - **Desligada:** os cards ficam **opacos** e a imagem fica com **50% do brilho** (`brightness(.5)`).
+- **Contraste:** as cores dos cards vêm do tema (claro ou escuro) e da combinação de cores em uso, e um "véu" na cor do tema fica entre a imagem e os cards. O resultado foi medido com imagens de pior caso (toda branca, toda preta e uma foto colorida) nas 8 combinações de cores, nos dois temas e nos dois modos: todo texto fica com **pelo menos 4,5:1**. Textos que ficariam direto sobre a imagem (o título "Favoritos" e o aviso "Prévia do seu perfil") ganham um painel. Menu, rodapé e barra de baixo ficam um pouco mais firmes sobre a imagem. Quem usa **Alto contraste** (opção de quem está olhando) não vê a imagem, e quem pede "reduzir transparência" no sistema vê os cards opacos.
+- **Público como a foto de perfil:** o fundo aparece até em perfil privado ainda trancado (é só visual, não revela a biblioteca). Conta suspensa: some para os outros.
+- **Moderação:** em **Gerenciar → Restaurar dados do perfil** a equipe marca **Imagem de fundo do perfil** e o fundo some na hora (o arquivo também é apagado; se o Supabase recusar, apague em **Storage → backgrounds**). A ação vai para o registro como "restaurou o fundo do perfil de". Ao denunciar, o motivo "Foto" agora é **"Foto ou fundo impróprio"**.
+- Se a imagem não carregar (arquivo apagado, sem internet), a página volta ao visual normal sozinha.
 
 ## Perfis e privacidade
 
@@ -263,7 +278,7 @@ Em qualquer perfil que não seja o seu aparece **Denunciar**: a pessoa escolhe o
 
 ### Restaurar, renomear e suspender
 
-- **Restaurar:** o nome de exibição volta para "Usuário" + 4 caracteres; a bio fica vazia; o @ vira `user_` + um código (o link antigo do perfil deixa de funcionar); a foto some. A pessoa pode editar de novo depois. Ao restaurar a foto, o site a esconde na hora e tenta apagar o arquivo; se o Supabase recusar, apague em **Storage → avatars** (o perfil já aparece sem foto).
+- **Restaurar:** o nome de exibição volta para "Usuário" + 4 caracteres; a bio fica vazia; o @ vira `user_` + um código (o link antigo do perfil deixa de funcionar); a foto some; o fundo do perfil some. A pessoa pode editar de novo depois. Ao restaurar a foto, o site a esconde na hora e tenta apagar o arquivo; se o Supabase recusar, apague em **Storage → avatars** (o perfil já aparece sem foto).
 - **Renomear:** troca só o nome de exibição (1 a 40 caracteres), mesmo que contenha uma palavra da lista de nomes proibidos.
 - **Suspender:** o perfil some para as outras pessoas (Explorar, link do perfil, seguidores, feed). Quem é suspensa continua vendo a própria biblioteca e vê um aviso no topo com o motivo, mas não consegue seguir nem denunciar, e perde os poderes de equipe enquanto durar. **Reativar** devolve tudo.
 
@@ -345,13 +360,13 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.13`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.14`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
 
 ## Como o código está organizado
 
 ```
 index.html              página única (carrega CSS e js/main.js)
-css/                    tokens (cores), palettes.css (combinações de cores, gerado), base, componentes, telas e contrast.css (alto contraste)
+css/                    tokens (cores), palettes.css (combinações de cores, gerado), base, componentes, telas, profile-bg.css (fundo do perfil) e contrast.css (alto contraste)
 js/
   main.js               inicia tudo e define as rotas
   config.js             o único arquivo que você precisa editar
@@ -372,7 +387,7 @@ Os dois backends (`local-backend.js` e `supabase-backend.js`) têm a mesma inter
 - **Sem XSS:** todo texto vindo de usuários ou de APIs é escapado antes de ir para a tela; capas só aceitam `https`.
 - **CSP:** o `index.html` só permite scripts do próprio site e do jsDelivr (onde fica a biblioteca do Supabase) e só conversa com as APIs usadas.
 - **Seguir e feed:** a tabela de seguidores não pode ser lida nem escrita direto (só por funções do banco que conferem quem está com a sessão iniciada). Um perfil privado só entrega as obras a quem a pessoa dona do perfil aceitou, e o feed só devolve atividade de quem você segue com vínculo aceito. As anotações privadas nunca saem no feed.
-- **Fotos:** bucket `avatars` com limite de 64 KB e só WebP/JPEG; cada pessoa só envia/troca/apaga o arquivo que tem o próprio ID como nome. O site só monta o endereço da foto com ID (UUID) e versão numérica válidos.
+- **Fotos e fundos:** bucket `avatars` com limite de 64 KB e bucket `backgrounds` com limite de 384 KB, os dois só WebP/JPEG; cada pessoa só envia/troca/apaga o arquivo que tem o próprio ID como nome. O site só monta o endereço da imagem com ID (UUID) e versão numérica válidos, e só aceita endereços `https`.
 - **Cargos e moderação:** os cargos ficam em uma tabela fechada (ninguém lê nem escreve direto). Toda ação da equipe passa por funções do banco que conferem o cargo de quem chama, só agem em quem tem cargo menor e deixam rastro no registro. Conta suspensa perde os poderes de equipe. As denúncias e o registro também são tabelas fechadas.
 - **Preferências privadas:** opções como o alto contraste ficam na tabela `user_prefs`, com RLS que só deixa a própria pessoa ler, criar e alterar a sua linha (visitantes não tocam nela, e nenhuma função pública a devolve). Ficam fora da tabela de perfis de propósito, porque a de perfis é legível por qualquer pessoa.
 - **Limites:** até **2000 obras por conta**, e campos com tamanho máximo, validados no banco.
@@ -393,7 +408,8 @@ Os dois backends (`local-backend.js` e `supabase-backend.js`) têm a mesma inter
 | O painel não abre ou "Denunciar" dá erro | O `sql/schema.sql` da versão 7 ainda não foi executado, ou a sua conta ainda não tem cargo (veja "Definir a Dona") |
 | "Não foi possível criar a conta agora: os cadastros podem estar fechados" | A Dona fechou os cadastros (painel → Site). Vale também para *Add user* no Supabase |
 | "A Dona do site não pode excluir a conta" | Passe o cargo de Dona para outra pessoa antes (veja "Passar o cargo de Dona") |
-| "O armazenamento de fotos ainda não existe" ou "A foto ficou grande demais" | O `sql/schema.sql` novo não foi executado (cria o bucket `avatars` com o limite de 64 KB) |
+| "O armazenamento de fotos ainda não existe" ou "A foto ficou grande demais" | O `sql/schema.sql` novo não foi executado (cria o bucket `avatars` com o limite de 64 KB e, na versão 11, o `backgrounds` com 384 KB; o mesmo aviso aparece ao enviar o fundo do perfil) |
+| O fundo do perfil não envia, ou a chave "Desfoque nos cards" não salva | O `sql/schema.sql` da versão 11 ainda não foi executado (cria as colunas `bg_v` e `bg_blur` e o armazenamento `backgrounds`) |
 | MAL mostra "Muitas buscas seguidas" ou "Serviço indisponível" | O Jikan limitou ou está lento: espere alguns segundos ou use o AniList |
 | E-mail de confirmação não chega | Veja o spam; o plano gratuito limita e-mails por hora. Para grupos pequenos, desligue **Confirm email** |
 | Link do e-mail leva a uma página errada | **Site URL** / **Redirect URLs** não batem com o endereço do GitHub Pages |

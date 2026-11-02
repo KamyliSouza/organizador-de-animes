@@ -36,7 +36,7 @@ export const canEditSetting = (role, key) => rankOf(role) >= (SETTING_RANK[key] 
 export const MOTIVES = [
     ['nome', 'Nome ofensivo ou impróprio'],
     ['bio', 'Descrição (bio) imprópria'],
-    ['foto', 'Foto imprópria'],
+    ['foto', 'Foto ou fundo impróprio'],
     ['spam', 'Spam ou propaganda'],
     ['outro', 'Outro motivo'],
 ];
@@ -47,6 +47,7 @@ const ACTIONS = {
     reset_display_name: 'restaurou o nome de exibição de',
     reset_bio: 'restaurou a bio de',
     reset_avatar: 'restaurou a foto de',
+    reset_background: 'restaurou o fundo do perfil de',
     reset_username: 'restaurou o nome de usuário de',
     rename: 'renomeou',
     suspend: 'suspendeu',

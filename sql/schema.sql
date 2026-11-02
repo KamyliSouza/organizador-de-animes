@@ -54,6 +54,13 @@ alter table public.profiles add column if not exists sections text[] not null de
 alter table public.profiles drop constraint if exists profiles_sections_valid;
 alter table public.profiles add  constraint profiles_sections_valid
   check (cardinality(sections) between 1 and 3 and sections <@ array['anime', 'manga', 'novel']);
+--   * bg_v / bg_blur: imagem de fundo da página pública do perfil. bg_v é a "versão" da imagem (0 = sem fundo), como o avatar_v;
+--     o arquivo fica no armazenamento "backgrounds" (seção 6). bg_blur liga/desliga o desfoque dos cards sobre o fundo
+--     (ligado = cards translúcidos com desfoque; desligado = cards opacos e imagem escurecida).
+alter table public.profiles add column if not exists bg_v    bigint  not null default 0;
+alter table public.profiles add column if not exists bg_blur boolean not null default true;
+alter table public.profiles drop constraint if exists profiles_bg_v;
+alter table public.profiles add  constraint profiles_bg_v check (bg_v >= 0);
 
 
 -- ---------------------------------------------------------------------
@@ -815,7 +822,9 @@ returns table (
   palette         text,
   role            text,
   suspended       boolean,
-  sections        text[]
+  sections        text[],
+  bg_v            bigint,
+  bg_blur         boolean
 )
 language sql
 stable
@@ -824,6 +833,7 @@ set search_path = ''
 as $$
   with t as (
     select p.id, p.username, p.display_name, p.bio, p.avatar_v, p.is_public, p.show_notes, p.palette, p.sections,
+           p.bg_v, p.bg_blur,
            (select ur.role from public.user_roles ur where ur.user_id = p.id) as role,
            public.is_suspended(p.id) as sus,
            (select auth.uid()) as me
@@ -858,7 +868,9 @@ as $$
          v.palette,                        -- as cores são só visuais: quem abre o perfil sempre as vê (até o perfil privado trancado)
          case when v.hidden then null else v.role end,
          v.sus,
-         case when not v.hidden and (v.is_public or v.rel in ('self', 'accepted')) then v.sections end   -- abas ativas (para quem pode ver o perfil)
+         case when not v.hidden and (v.is_public or v.rel in ('self', 'accepted')) then v.sections end,   -- abas ativas (para quem pode ver o perfil)
+         case when v.hidden then 0 else v.bg_v end,    -- o fundo é visual, como a foto: aparece até no perfil privado trancado, mas some se a conta estiver suspensa
+         v.bg_blur
   from v;
 $$;
 
@@ -1237,8 +1249,8 @@ begin
 end;
 $$;
 
--- Troca nome de exibição, bio, foto e/ou nome de usuário por um valor neutro.
--- p_fields: 'display_name', 'bio', 'avatar', 'username'
+-- Troca nome de exibição, bio, foto, fundo e/ou nome de usuário por um valor neutro.
+-- p_fields: 'display_name', 'bio', 'avatar', 'background', 'username'
 create or replace function public.admin_reset_profile(p_user uuid, p_fields text[])
 returns void
 language plpgsql
@@ -1255,7 +1267,7 @@ begin
   if p_fields is null or cardinality(p_fields) = 0 then
     raise exception 'Escolha o que restaurar.' using errcode = '22023';
   end if;
-  if exists (select 1 from unnest(p_fields) x where x not in ('display_name', 'bio', 'avatar', 'username')) then
+  if exists (select 1 from unnest(p_fields) x where x not in ('display_name', 'bio', 'avatar', 'background', 'username')) then
     raise exception 'Campo inválido.' using errcode = '22023';
   end if;
   select * into t from public.profiles where id = p_user;
@@ -1276,6 +1288,16 @@ begin
       begin
         perform set_config('storage.allow_delete_query', 'true', true);
         delete from storage.objects where bucket_id = 'avatars' and name = p_user::text;
+      exception when others then
+        null;
+      end;
+    elsif f = 'background' then
+      perform public.log_action('reset_background', p_user, '{}'::jsonb);
+      update public.profiles set bg_v = 0 where id = p_user;
+      -- Igual à foto: o site só mostra o fundo quando bg_v > 0; apagar o arquivo é um extra.
+      begin
+        perform set_config('storage.allow_delete_query', 'true', true);
+        delete from storage.objects where bucket_id = 'backgrounds' and name = p_user::text;
       exception when others then
         null;
       end;
@@ -1589,12 +1611,13 @@ grant execute on function public.admin_set_setting(text, jsonb)    to authentica
 --   8 = abas ativas no perfil (coluna sections) e contagens por tipo no Explorar
 --   9 = notas de 0 a 10 (meia estrela = 1 ponto; as notas antigas de 1 a 5 viram o dobro)
 --   10 = preferências privadas da conta (tabela user_prefs: alto contraste); a cor de perfil "Alto contraste" virou essa opção
+--   11 = fundo do perfil (colunas bg_v e bg_blur, armazenamento "backgrounds") e restauração do fundo pela equipe
 create or replace function public.schema_version()
 returns integer
 language sql
 immutable
 set search_path = ''
-as $$ select 10 $$;
+as $$ select 11 $$;
 
 -- Só quem precisa pode executar cada função.
 revoke all on function public.get_public_entries(text)            from public;
@@ -1666,3 +1689,36 @@ drop policy if exists "avatars_delete_own" on storage.objects;
 create policy "avatars_delete_own" on storage.objects
   for delete to authenticated
   using (bucket_id = 'avatars' and name = (select auth.uid())::text);
+
+
+-- Fundos de perfil: outro bucket público, "backgrounds", também com UMA imagem por pessoa (o nome do arquivo é o ID da conta).
+--   * o site reduz a imagem (no máximo 1600 px no lado maior) e converte para WebP (JPEG nos navegadores que não geram WebP)
+--     antes de enviar; o limite de 384 KB e o filtro de tipo abaixo são a segunda trava, no servidor;
+--   * qualquer pessoa pode VER (bucket público), mas só a dona envia, troca ou apaga o seu.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('backgrounds', 'backgrounds', true, 393216, array['image/webp', 'image/jpeg'])
+on conflict (id) do update
+  set public = true,
+      file_size_limit = 393216,
+      allowed_mime_types = array['image/webp', 'image/jpeg'];
+
+drop policy if exists "backgrounds_select_own" on storage.objects;
+create policy "backgrounds_select_own" on storage.objects
+  for select to authenticated
+  using (bucket_id = 'backgrounds' and name = (select auth.uid())::text);
+
+drop policy if exists "backgrounds_insert_own" on storage.objects;
+create policy "backgrounds_insert_own" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'backgrounds' and name = (select auth.uid())::text);
+
+drop policy if exists "backgrounds_update_own" on storage.objects;
+create policy "backgrounds_update_own" on storage.objects
+  for update to authenticated
+  using      (bucket_id = 'backgrounds' and name = (select auth.uid())::text)
+  with check (bucket_id = 'backgrounds' and name = (select auth.uid())::text);
+
+drop policy if exists "backgrounds_delete_own" on storage.objects;
+create policy "backgrounds_delete_own" on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'backgrounds' and name = (select auth.uid())::text);
