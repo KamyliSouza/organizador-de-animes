@@ -9,6 +9,7 @@ export const PALETTES = [
     { id: 'por-do-sol', name: 'Pôr do sol', description: 'Laranja queimado, quente.' },
     { id: 'cereja', name: 'Cereja', description: 'Vermelho-rosado.' },
     { id: 'indigo', name: 'Índigo', description: 'Azul-violeta.' },
+    { id: 'strong-violet', name: 'Strong Violet', description: 'Violeta intenso (#7F29C5), forte e elegante.' },
     { id: 'grafite', name: 'Grafite', description: 'Cinza neutro, discreto.' },
 ];
 

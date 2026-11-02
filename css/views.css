@@ -129,7 +129,7 @@
 .palette-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 @media (min-width: 30em) { .palette-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 56.25em) { .palette-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-/* Com 7 combinações a última linha ficaria com buraco: o último cartão ocupa o espaço que sobra (2 colunas, ou a linha toda) */
+/* Se a quantidade de combinações não fechar a última linha, o último cartão ocupa o espaço que sobra (2 colunas, ou a linha toda). Com 8 (4×2) não faz nada. */
 @media (min-width: 30em) { .palette-item:last-child:nth-child(odd) { grid-column: 1 / -1; } }
 @media (min-width: 56.25em) {
     .palette-item:last-child:nth-child(odd) { grid-column: auto; }

@@ -1,9 +1,18 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.12';
+export const SITE_VERSION = '1.13';
 
 export const CHANGELOG = [
+    {
+        version: '1.13',
+        title: 'Novo tema Strong Violet',
+        items: [
+            'Nova combinação de cores no perfil: Strong Violet, um violeta intenso baseado na cor #7F29C5. Escolha em Perfil → Personalização → Cores (fica entre Índigo e Grafite).',
+            'Botões, links, destaques e etiquetas foram ajustados para ler bem nos dois temas: no claro o violeta forte fica no botão e no destaque; no escuro ele clareia para não sumir no fundo. As etiquetas de status e categoria continuam com cores bem diferentes do violeta, para você nunca confundir uma coisa com a outra.',
+            'Como as outras cores, é salva na sua conta e quem visita o seu perfil vê o Strong Violet enquanto estiver nele. O Alto contraste continua valendo por cima, se você ligar.',
+        ],
+    },
     {
         version: '1.12',
         title: 'Alto contraste como opção de acessibilidade',

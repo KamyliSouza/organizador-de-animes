@@ -173,7 +173,7 @@ Ao adicionar ou editar uma obra existem dois botões, **Minha análise** e **Ano
 
 ## Cores do perfil
 
-Em **Perfil → Personalização → Cores** cada pessoa escolhe uma entre 7 combinações: Ameixa (padrão), Oceano, Floresta, Pôr do sol, Cereja, Índigo e Grafite. A escolha é salva na hora. (O **Alto contraste** deixou de ser uma cor de perfil e virou uma opção de acessibilidade própria, logo abaixo desta lista: veja "Acessibilidade: alto contraste".)
+Em **Perfil → Personalização → Cores** cada pessoa escolhe uma entre 8 combinações: Ameixa (padrão), Oceano, Floresta, Pôr do sol, Cereja, Índigo, Strong Violet (violeta intenso, base `#7F29C5`) e Grafite. A escolha é salva na hora. (O **Alto contraste** deixou de ser uma cor de perfil e virou uma opção de acessibilidade própria, logo abaixo desta lista: veja "Acessibilidade: alto contraste".)
 
 - **Para quem escolheu:** a combinação vale para o site inteiro (nos temas claro e escuro) sempre que a pessoa estiver com a sessão iniciada, em qualquer aparelho.
 - **Para quem visita:** ao abrir o perfil de outra pessoa (com ou sem login, público ou privado ainda trancado), a página usa as cores dela. Ao sair do perfil, volta para as cores de quem está visitando.
@@ -345,7 +345,7 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.12`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.13`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
 
 ## Como o código está organizado
 
