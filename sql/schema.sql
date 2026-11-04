@@ -13,6 +13,8 @@
 --     envia/troca/apaga a sua (seção 6).
 --   * Seguir: a tabela "follows" não é acessível direto; tudo passa por funções
 --     que respeitam perfil público/privado e a aprovação de pedidos (seção 5).
+--   * Trocar a foto ou o fundo tem espera entre trocas e limite por dia, aplicados
+--     aqui no banco (seção 7).
 -- =====================================================================
 
 
@@ -1612,12 +1614,13 @@ grant execute on function public.admin_set_setting(text, jsonb)    to authentica
 --   9 = notas de 0 a 10 (meia estrela = 1 ponto; as notas antigas de 1 a 5 viram o dobro)
 --   10 = preferências privadas da conta (tabela user_prefs: alto contraste); a cor de perfil "Alto contraste" virou essa opção
 --   11 = fundo do perfil (colunas bg_v e bg_blur, armazenamento "backgrounds") e restauração do fundo pela equipe
+--   12 = limites para trocar a foto e o fundo (tabela media_changes, funções my_media_limits e media_limits, gatilho no armazenamento)
 create or replace function public.schema_version()
 returns integer
 language sql
 immutable
 set search_path = ''
-as $$ select 11 $$;
+as $$ select 12 $$;
 
 -- Só quem precisa pode executar cada função.
 revoke all on function public.get_public_entries(text)            from public;
@@ -1722,3 +1725,160 @@ drop policy if exists "backgrounds_delete_own" on storage.objects;
 create policy "backgrounds_delete_own" on storage.objects
   for delete to authenticated
   using (bucket_id = 'backgrounds' and name = (select auth.uid())::text);
+
+
+-- ---------------------------------------------------------------------
+-- 7. Limites para trocar a foto e o fundo (cooldown + limite diário)
+-- ---------------------------------------------------------------------
+-- Trocar a foto ou o fundo sem parar (para fugir de denúncias ou só para gastar armazenamento e banda) é barrado AQUI, no banco:
+--   * Cada troca (enviar uma imagem nova para o bucket "avatars" ou "backgrounds") fica registrada em media_changes.
+--   * Espera entre trocas: 30 segundos, separadamente para a foto e para o fundo.
+--   * Limite por dia: 10 trocas nas últimas 24 horas, somando foto E fundo.
+--   * Vale também para quem tentar enviar direto ao Storage, sem passar pelo site: o gatilho fica no próprio armazenamento.
+--   * Remover a foto ou o fundo não conta como troca. A equipe e as rotinas do servidor (sem login) não são limitadas.
+--   * Quem passa do limite recebe um erro com o tempo que falta (o site mostra isso em português).
+-- Para mudar os números, edite só a função media_limits() logo abaixo e rode o script de novo.
+create table if not exists public.media_changes (
+  id         bigint generated always as identity primary key,
+  user_id    uuid        not null references auth.users (id) on delete cascade,
+  kind       text        not null,
+  created_at timestamptz not null default now()
+);
+alter table public.media_changes drop constraint if exists media_changes_kind;
+alter table public.media_changes  add constraint media_changes_kind check (kind in ('avatar', 'background'));
+create index if not exists media_changes_user_idx on public.media_changes (user_id, created_at desc);
+
+-- Só as funções abaixo (que rodam com a permissão do banco) leem e escrevem aqui: ninguém acessa a tabela direto.
+alter table public.media_changes enable row level security;
+revoke all on public.media_changes from anon, authenticated;
+
+-- Os números dos limites num lugar só.
+create or replace function public.media_limits()
+returns table (cooldown_s integer, daily_limit integer)
+language sql
+immutable
+set search_path = ''
+as $$ select 30, 10 $$;
+
+-- Quanto tempo falta (em segundos) para a pessoa poder trocar a foto ('avatar') ou o fundo ('background') e por quê:
+-- 'cooldown' (espera entre trocas) ou 'diario' (limite das últimas 24 horas). 0 segundos = pode trocar agora.
+create or replace function public.media_wait(p_user uuid, p_kind text)
+returns table (wait_s integer, reason text)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_cool    integer;
+  v_daily   integer;
+  v_now     timestamptz := clock_timestamp();
+  v_last    timestamptz;
+  v_used    integer;
+  v_edge    timestamptz;
+  v_cool_w  numeric := 0;
+  v_day_w   numeric := 0;
+begin
+  select l.cooldown_s, l.daily_limit into v_cool, v_daily from public.media_limits() l;
+
+  select max(m.created_at) into v_last from public.media_changes m where m.user_id = p_user and m.kind = p_kind;
+  if v_last is not null then
+    v_cool_w := extract(epoch from (v_last + make_interval(secs => v_cool)) - v_now);
+  end if;
+
+  select count(*) into v_used from public.media_changes m where m.user_id = p_user and m.created_at > v_now - interval '24 hours';
+  if v_used >= v_daily then
+    -- libera quando sair da janela de 24 h a troca que fecha o limite (a mais antiga, se estiver exatamente no limite)
+    select m.created_at into v_edge from public.media_changes m
+     where m.user_id = p_user and m.created_at > v_now - interval '24 hours'
+     order by m.created_at asc offset (v_used - v_daily) limit 1;
+    v_day_w := extract(epoch from (v_edge + interval '24 hours') - v_now);
+  end if;
+
+  wait_s := greatest(ceil(greatest(v_cool_w, v_day_w))::integer, 0);
+  reason := case when wait_s = 0 then null when v_day_w >= v_cool_w then 'diario' else 'cooldown' end;
+  return next;
+end;
+$$;
+
+-- A situação de quem está logado: o site usa para mostrar "X de 10 trocas hoje" e para travar o botão durante a espera.
+create or replace function public.my_media_limits()
+returns table (
+  cooldown_s        integer,
+  daily_limit       integer,
+  used_today        integer,
+  avatar_wait       integer,
+  avatar_reason     text,
+  background_wait   integer,
+  background_reason text
+)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_uid uuid := (select auth.uid());
+begin
+  if v_uid is null then
+    raise exception 'Não autenticado.' using errcode = '28000';
+  end if;
+  select l.cooldown_s, l.daily_limit into cooldown_s, daily_limit from public.media_limits() l;
+  select count(*) into used_today from public.media_changes m where m.user_id = v_uid and m.created_at > clock_timestamp() - interval '24 hours';
+  select w.wait_s, w.reason into avatar_wait, avatar_reason from public.media_wait(v_uid, 'avatar') w;
+  select w.wait_s, w.reason into background_wait, background_reason from public.media_wait(v_uid, 'background') w;
+  return next;
+end;
+$$;
+
+-- O gatilho no armazenamento: confere e registra cada troca. Se estiver no limite, recusa o envio com uma mensagem de formato fixo
+-- (KAMYLIST_LIMITE_<COOLDOWN|DIARIO>:<foto|fundo>:<segundos>:<número do limite>) que o site traduz.
+-- Só o INSERT conta: enviar de novo "por cima" da imagem atual também passa por um INSERT (o armazenamento usa "inserir ou substituir"),
+-- e assim nenhuma atualização interna do Supabase (data de acesso, metadados) é confundida com uma troca.
+create or replace function public.limit_media_changes()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_uid  uuid := (select auth.uid());
+  v_kind text;
+  v_wait integer;
+  v_why  text;
+  v_lim  integer;
+begin
+  if v_uid is null then return new; end if;                                   -- rotina do servidor ou painel do Supabase: sem limite
+  v_kind := case new.bucket_id when 'avatars' then 'avatar' when 'backgrounds' then 'background' else null end;
+  if v_kind is null or new.name is distinct from v_uid::text then return new; end if;   -- outro bucket, ou arquivo de outra conta (a política recusa)
+
+  select w.wait_s, w.reason into v_wait, v_why from public.media_wait(v_uid, v_kind) w;
+  if v_wait > 0 then
+    select case when v_why = 'diario' then l.daily_limit else l.cooldown_s end into v_lim from public.media_limits() l;
+    raise exception 'KAMYLIST_LIMITE_%:%:%:%', upper(v_why), case v_kind when 'avatar' then 'foto' else 'fundo' end, v_wait, v_lim
+      using errcode = 'P0001';
+  end if;
+
+  insert into public.media_changes (user_id, kind) values (v_uid, v_kind);
+  delete from public.media_changes where user_id = v_uid and created_at < now() - interval '2 days';   -- só guarda o que ainda conta
+  return new;
+end;
+$$;
+
+revoke all on function public.media_limits()                  from public, anon, authenticated;
+revoke all on function public.media_wait(uuid, text)          from public, anon, authenticated;
+revoke all on function public.my_media_limits()               from public, anon;
+revoke all on function public.limit_media_changes()           from public, anon, authenticated;
+grant execute on function public.my_media_limits()            to authenticated;
+
+-- Liga o gatilho ao armazenamento. Se o Supabase não deixar criar gatilhos ali, o resto do script segue (o aviso aparece no resultado)
+-- e os limites valem só para quem passa pelo site, que também confere antes de enviar.
+do $$
+begin
+  drop trigger if exists limit_media_changes on storage.objects;
+  create trigger limit_media_changes
+    before insert on storage.objects
+    for each row
+    when (new.bucket_id in ('avatars', 'backgrounds'))
+    execute function public.limit_media_changes();
+exception when insufficient_privilege then
+  raise warning 'KamyList: não foi possível criar o gatilho de limites no armazenamento (sem permissão). As trocas de foto e fundo não terão limite no servidor.';
+end $$;

@@ -9,6 +9,7 @@ import { toast } from '../core/toast.js';
 import { checkAvatarFile, prepareAvatar } from '../services/avatarImage.js';
 import { backend, isCloud, setProfile, state } from '../services/session.js';
 import { avatar, avatarSrc } from '../ui/avatar.js';
+import { bindMediaLimits } from '../ui/mediaLimits.js';
 import { openAvatarCropper } from '../ui/avatarCropModal.js';
 import { accessibilityPanelHtml, bindAccessibility } from '../ui/accessibilityPanel.js';
 import { backgroundPanelHtml, bindBackgroundPanel } from '../ui/backgroundPanel.js';
@@ -37,6 +38,7 @@ function photoBlock(p) {
         </div>
         <p class="field-hint">A foto é pública. Ao escolher, você enquadra a imagem dentro de um círculo (arrastando e ampliando) antes de enviar. Só existe uma foto por conta: ao trocar ou remover, a anterior é apagada.</p>
         <p class="field-hint" data-avatar-status aria-live="polite"></p>
+        <p class="field-hint" data-avatar-limit aria-live="off"></p>
     </div>`;
 }
 
@@ -164,14 +166,16 @@ export function mount(root) {
     const pickText = $('[data-pick-text]');
     let busy = false;
     let blobUrl = '';
+    let limits = null;                // limites de troca (espera entre trocas e limite por dia): ver js/ui/mediaLimits.js
 
     const nameNow = () => displayInput.value.trim() || state.profile.displayName || state.profile.username;
     function paintAvatar(src) { setHtml(previewBox, avatar(nameNow(), 112, src)); }
     function setBusy(on_, text = '') {
         busy = on_;
-        fileInput.disabled = on_;
+        const locked = on_ || Boolean(limits?.blocked());
+        fileInput.disabled = locked;
         removeBtn.disabled = on_;
-        $('[data-avatar-pick]').classList.toggle('is-disabled', on_);
+        $('[data-avatar-pick]').classList.toggle('is-disabled', locked);
         previewBox.setAttribute('aria-busy', String(on_));
         setHtml(photoStatus, on_ ? html`${spinner(14)} ${text}` : text);
     }
@@ -188,6 +192,8 @@ export function mount(root) {
         if (!file || busy) return;
         setBusy(true, 'Abrindo a foto...');
         try {
+            const blockedMsg = await limits.check();     // espera entre trocas / limite por dia: avisa antes de a pessoa enquadrar a foto à toa
+            if (blockedMsg) { setBusy(false, ''); toast(blockedMsg, { type: 'error' }); return; }
             checkAvatarFile(file);                       // tipo e tamanho, antes de abrir o recorte
             const crop = await openAvatarCropper(file);  // a pessoa enquadra a foto no círculo
             if (!crop) { setBusy(false, ''); return; }   // cancelou: nada muda
@@ -200,10 +206,12 @@ export function mount(root) {
             paintAvatar(blobUrl);
             afterPhotoChange(updated);
             setBusy(false, '');
+            limits.refresh();
             toast('Foto atualizada!', { type: 'success' });
         } catch (err) {
             console.error(err);
             setBusy(false, '');
+            limits.refresh();
             toast(messageOf(err, 'Não foi possível trocar a foto.'), { type: 'error' });
         }
     }));
@@ -224,6 +232,17 @@ export function mount(root) {
             toast(messageOf(err, 'Não foi possível remover a foto.'), { type: 'error' });
         }
     }));
+
+    limits = bindMediaLimits(be, {
+        kind: 'avatar',
+        hint: $('[data-avatar-limit]'),
+        onChange: (blocked) => {                         // trava o botão durante a espera (e não destrava no meio de um envio)
+            const locked = busy || blocked;
+            fileInput.disabled = locked;
+            $('[data-avatar-pick]').classList.toggle('is-disabled', locked);
+        },
+    });
+    offs.push(() => limits.destroy());
 
     // --- nome, bio e usuário ------------------------------------------------------------------
     const check = debounce(async (value) => {

@@ -1,6 +1,7 @@
 /* =========================================================
-   FUNDO DO PERFIL (js/ui/profileBackground.js, js/ui/backgroundPanel.js)
-   A imagem fica numa camada fixa atrás da página do perfil. Um "véu" na cor do tema fica entre a imagem e os cards:
+   FUNDO DO PERFIL (js/core/siteBackground.js, js/ui/backgroundPanel.js)
+   A imagem escolhida vale no SITE TODO enquanto a pessoa está logada (como as cores); ao abrir o perfil de outra pessoa, vale a dela.
+   Ela fica numa camada fixa (.site-bg) atrás de tudo e o <body> recebe data-bg="blur|solid". Um "véu" na cor do tema fica entre a imagem e os cards:
    ele aproxima qualquer imagem (clara, escura, colorida) dos tons do site, para o texto dos cards ser sempre legível.
    Duas opções (atributo data-bg):
      blur  = cards semitransparentes com desfoque da imagem atrás deles;
@@ -9,9 +10,9 @@
    O alto contraste (css/contrast.css) esconde o fundo e mantém os cards opacos.
    ========================================================= */
 
-/* --- a imagem e o véu (página do perfil e prévia da Personalização) --- */
+/* --- a imagem e o véu (site todo e prévia da Personalização) --- */
 .bg-art { position: relative; overflow: hidden; isolation: isolate; }
-.profile-bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+.site-bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
 .bg-art-img {
     position: absolute; inset: 0; width: 100%; height: 100%; max-width: none;
     object-fit: cover; object-position: center;
@@ -44,8 +45,18 @@
     :root:not([data-contrast="high"]) [data-bg="blur"] { --card-bg: var(--bg-solid); --blur-card: 0px; }
 }
 
-/* Textos que ficariam direto sobre a imagem ganham um painel (como os cards) */
-[data-bg] .fav-head, [data-bg] .notice-box {
+/* Textos que ficariam direto sobre a imagem ganham um painel (como os cards): o título da página (com o subtítulo e os botões de ação), a barra de busca/filtro do painel e as chamadas soltas */
+:root:not([data-contrast="high"]) [data-bg] .page-head,
+:root:not([data-contrast="high"]) [data-bg] .admin-bar {
+    padding: 14px 18px;
+    background-color: var(--card-bg);
+    border: 2px solid var(--card-border);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    backdrop-filter: blur(var(--blur-card));
+    -webkit-backdrop-filter: blur(var(--blur-card));
+}
+:root:not([data-contrast="high"]) [data-bg] .fav-head, :root:not([data-contrast="high"]) [data-bg] .notice-box {
     padding: 8px 14px;
     background-color: var(--card-bg);
     border: 2px solid var(--card-border);
@@ -53,24 +64,24 @@
     backdrop-filter: blur(var(--blur-card));
     -webkit-backdrop-filter: blur(var(--blur-card));
 }
-[data-bg] .notice-box { background-image: linear-gradient(var(--notice-bg), var(--notice-bg)); }
+:root:not([data-contrast="high"]) [data-bg] .notice-box { background-image: linear-gradient(var(--notice-bg), var(--notice-bg)); }
 /* Peças pequenas com fundo em tinta (etiquetas, tags, botão secundário) ganham uma base opaca: o contraste delas não depende da imagem */
-[data-bg="blur"] .badge {
+:root:not([data-contrast="high"]) [data-bg="blur"] .badge {
     background-color: var(--bg-solid);
     background-image: linear-gradient(color-mix(in srgb, var(--badge-color, var(--primary-color)) 14%, transparent), color-mix(in srgb, var(--badge-color, var(--primary-color)) 14%, transparent));
 }
-[data-bg="blur"] .chip, [data-bg="blur"] .button-secondary {
+:root:not([data-contrast="high"]) [data-bg] .chip, :root:not([data-contrast="high"]) [data-bg] .button-secondary {
     background-color: var(--bg-solid);
     background-image: linear-gradient(var(--notice-bg), var(--notice-bg));
 }
 /* o card marcado nos números do topo trocava o fundo por uma tinta quase transparente: mantém o card por baixo */
-[data-bg] .stat-tile[aria-pressed="true"] { background-color: var(--card-bg); background-image: linear-gradient(var(--notice-bg), var(--notice-bg)); }
-/* menu, rodapé e barra de baixo (fora da tela do perfil) também ficam sobre a imagem: um pouco mais firmes que o normal */
-.profile-bg[data-bg="blur"] ~ .site-nav, .profile-bg[data-bg="blur"] ~ .site-footer, .profile-bg[data-bg="blur"] ~ .tab-bar { background-color: color-mix(in srgb, color-mix(in srgb, var(--modal-bg) 50%, Canvas) 92%, transparent); }
-.profile-bg[data-bg="solid"] ~ .site-nav, .profile-bg[data-bg="solid"] ~ .site-footer, .profile-bg[data-bg="solid"] ~ .tab-bar { background-color: color-mix(in srgb, var(--modal-bg) 50%, Canvas); }
+:root:not([data-contrast="high"]) [data-bg] .stat-tile[aria-pressed="true"] { background-color: var(--card-bg); background-image: linear-gradient(var(--notice-bg), var(--notice-bg)); }
+/* menu, rodapé e barra de baixo também ficam sobre a imagem: um pouco mais firmes que o normal */
+:root:not([data-contrast="high"]) .site-bg[data-bg="blur"] ~ .site-nav, :root:not([data-contrast="high"]) .site-bg[data-bg="blur"] ~ .site-footer, :root:not([data-contrast="high"]) .site-bg[data-bg="blur"] ~ .tab-bar { background-color: color-mix(in srgb, color-mix(in srgb, var(--modal-bg) 50%, Canvas) 92%, transparent); }
+:root:not([data-contrast="high"]) .site-bg[data-bg="solid"] ~ .site-nav, :root:not([data-contrast="high"]) .site-bg[data-bg="solid"] ~ .site-footer, :root:not([data-contrast="high"]) .site-bg[data-bg="solid"] ~ .tab-bar { background-color: color-mix(in srgb, var(--modal-bg) 50%, Canvas); }
 
 /* Alto contraste: sem imagem, sem transparência */
-:root[data-contrast="high"] .profile-bg { display: none; }
+:root[data-contrast="high"] .site-bg { display: none; }
 :root[data-contrast="high"] .bg-preview .bg-art-img, :root[data-contrast="high"] .bg-preview .bg-art-veil { display: none; }
 
 /* --- prévia na Personalização --- */

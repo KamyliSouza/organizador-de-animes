@@ -5,6 +5,7 @@ import { config } from '../config.js';
 import { AppError } from '../core/errors.js';
 import { safeUrl } from '../core/dom.js';
 import { SECTION_KEYS, normalizeEntry, normalizeSections } from '../domain/entry.js';
+import { limitMessage, parseLimitError } from '../domain/mediaLimits.js';
 import { normalizeRole } from '../domain/roles.js';
 
 const PAGE = 1000;   // limite de linhas por requisição do Supabase
@@ -17,6 +18,9 @@ function friendly(error, fallback) {
     const code = String(error?.code || '');
     const has = (s) => msg.toLowerCase().includes(s.toLowerCase());
 
+    // limite de troca de foto/fundo (o banco recusa com uma mensagem de formato fixo)
+    const limit = parseLimitError(msg);
+    if (limit) return limitMessage(limit);
     if (has('Invalid login credentials')) return 'E-mail ou senha incorretos.';
     if (has('Email not confirmed')) return 'Confirme seu e-mail antes de entrar (veja a caixa de entrada e o spam).';
     if (has('User already registered')) return 'Este e-mail já está cadastrado. Tente entrar ou recuperar a senha.';
@@ -140,6 +144,37 @@ export async function createSupabaseBackend() {
         return uid;
     };
 
+    /** Limites de troca de foto/fundo de quem está logado (função my_media_limits). null se o banco ainda não tem a v12 ou não deu para consultar. */
+    async function readMediaLimits() {
+        try {
+            const { data, error } = await sb.rpc('my_media_limits');
+            if (error) return null;
+            const r = Array.isArray(data) ? data[0] : data;
+            if (!r) return null;
+            const part = (wait, reason) => ({ wait: Math.max(0, Number(wait) || 0), reason: reason || null });
+            return {
+                cooldown: Number(r.cooldown_s) || 0,
+                dailyLimit: Number(r.daily_limit) || 0,
+                used: Number(r.used_today) || 0,
+                avatar: part(r.avatar_wait, r.avatar_reason),
+                background: part(r.background_wait, r.background_reason),
+            };
+        } catch { return null; }
+    }
+
+    /**
+     * Erro de envio de foto/fundo. Se o banco recusou por causa do limite, a mensagem já vem traduzida (friendly).
+     * O Storage às vezes devolve a recusa do banco como um erro genérico: nesse caso confere os limites antes de culpar a rede.
+     */
+    async function uploadFail(error, kind, fallback) {
+        const e = fail(error, fallback);
+        if (e.message !== fallback) return e;
+        const info = await readMediaLimits();
+        const w = info?.[kind];
+        if (w && w.wait > 0) return new AppError(limitMessage({ kind, reason: w.reason, wait: w.wait, limit: info.dailyLimit }), error);
+        return e;
+    }
+
     // Preferências privadas (alto contraste), na tabela user_prefs. Ficam em memória para voltarem junto com o perfil
     // quando outra coisa muda (foto, nome...). Sem a tabela (banco antigo) a opção simplesmente vem desligada.
     let prefsCache = null;   // { uid, highContrast }
@@ -236,6 +271,10 @@ export async function createSupabaseBackend() {
                     const uid = await currentUid();
                     if (uid) await sb.storage.from(AVATAR_BUCKET).remove([uid]);
                 } catch { /* melhor esforço */ }
+                try {   // o fundo também fica no Storage e é público: não pode sobrar depois que a conta some
+                    const uid = await currentUid();
+                    if (uid) await sb.storage.from(BACKGROUND_BUCKET).remove([uid]);
+                } catch { /* melhor esforço */ }
                 await ok(sb.rpc('delete_my_account'), 'Não foi possível excluir a conta. Rode o sql/schema.sql de novo no Supabase.');
                 // A sessão local ainda existe, mas o usuário não: limpa só o navegador (sem chamar o servidor).
                 try { await sb.auth.signOut({ scope: 'local' }); } catch { /* já foi apagada */ }
@@ -309,14 +348,17 @@ export async function createSupabaseBackend() {
                 let res;
                 try {
                     res = await sb.storage.from(AVATAR_BUCKET).upload(uid, blob, { upsert: true, contentType: blob.type, cacheControl: '31536000' });
-                } catch (e) { throw fail(e, 'Não foi possível enviar a foto.'); }
-                if (res.error) throw fail(res.error, 'Não foi possível enviar a foto.');
+                } catch (e) { throw await uploadFail(e, 'avatar', 'Não foi possível enviar a foto.'); }
+                if (res.error) throw await uploadFail(res.error, 'avatar', 'Não foi possível enviar a foto.');
                 // versão = segundos desde 1970 (nunca menor que a anterior + 1): muda a cada troca, mesmo por outro aparelho
                 const cur = await ok(sb.from('profiles').select('avatar_v').eq('id', uid).maybeSingle(), 'Não foi possível carregar seu perfil.');
                 const version = Math.max(Math.floor(Date.now() / 1000), (Number(cur?.avatar_v) || 0) + 1);
                 const row = await ok(sb.from('profiles').update({ avatar_v: version }).eq('id', uid).select().single(), 'A foto foi enviada, mas não deu para salvar no perfil.');
                 return mineOf(row, await loadPrefs(uid));
             },
+
+            /** Situação dos limites de troca de foto e fundo (ver sql/schema.sql, seção 7). null = banco sem a v12. */
+            mediaLimits: () => readMediaLimits(),
 
             /** Remove a foto: apaga o arquivo do Storage e zera a versão no perfil. */
             async removeAvatar() {
@@ -337,8 +379,8 @@ export async function createSupabaseBackend() {
                 let res;
                 try {
                     res = await sb.storage.from(BACKGROUND_BUCKET).upload(uid, blob, { upsert: true, contentType: blob.type, cacheControl: '31536000' });
-                } catch (e) { throw fail(e, 'Não foi possível enviar o fundo.'); }
-                if (res.error) throw fail(res.error, 'Não foi possível enviar o fundo.');
+                } catch (e) { throw await uploadFail(e, 'background', 'Não foi possível enviar o fundo.'); }
+                if (res.error) throw await uploadFail(res.error, 'background', 'Não foi possível enviar o fundo.');
                 const cur = await ok(sb.from('profiles').select('bg_v').eq('id', uid).maybeSingle(), 'Não foi possível carregar seu perfil.');
                 const version = Math.max(Math.floor(Date.now() / 1000), (Number(cur?.bg_v) || 0) + 1);
                 const row = await ok(sb.from('profiles').update({ bg_v: version }).eq('id', uid).select().single(), 'O fundo foi enviado, mas não deu para salvar no perfil.');

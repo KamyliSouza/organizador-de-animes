@@ -79,7 +79,8 @@ Sem esse passo, estas coisas não funcionam (o site mostra um aviso amarelo na b
 - as **abas visíveis no perfil** e as contagens por tipo no Explorar (a versão do banco passa a ser a **8**);
 - as **notas com meia estrela** (o SQL passa as notas de 1–5 para a escala de 0–10, **uma única vez**: 4 estrelas viram 8 pontos, que continuam aparecendo como 4 estrelas — a versão do banco passa a ser a **9**). Rodar o SQL de novo depois disso não muda mais as notas;
 - o **alto contraste** como opção de acessibilidade guardada na conta (o SQL cria a tabela privada `user_prefs` e passa para ela quem usava a cor "Alto contraste" — a versão do banco passa a ser a **10**; veja "Acessibilidade: alto contraste");
-- o **fundo do perfil** (o SQL cria as colunas `bg_v` e `bg_blur`, o armazenamento `backgrounds` e libera "Imagem de fundo" no Restaurar da equipe — a versão do banco passa a ser a **11**; veja "Fundo do perfil");
+- o **fundo do perfil**, que vale no site todo (o SQL cria as colunas `bg_v` e `bg_blur`, o armazenamento `backgrounds` e libera "Imagem de fundo" no Restaurar da equipe — a versão do banco passa a ser a **11**; veja "Fundo do perfil");
+- os **limites para trocar a foto e o fundo** (o SQL cria a tabela privada `media_changes`, as funções dos limites e um gatilho no armazenamento — a versão do banco passa a ser a **12**; veja "Limites para trocar a foto e o fundo");
 - o botão **Excluir minha conta**.
 
 ---
@@ -122,21 +123,34 @@ Em **Perfil** (menu do topo) a conta tem duas abas, cada uma com o próprio bot�
 | Redimensionar imagens no servidor | não incluído no plano gratuito | por isso a redução é feita no navegador |
 | Projeto sem uso | pausa após ~1 semana sem atividade | basta abrir o site/Supabase para retomar |
 
-Se você apagar usuários direto no painel do Supabase (*Authentication → Users*), a foto da pessoa **não** é removida sozinha (o banco não consegue apagar arquivos do Storage): apague em **Storage → avatars**. Pelo botão "Excluir minha conta" do próprio site isso é feito automaticamente.
+Se você apagar usuários direto no painel do Supabase (*Authentication → Users*), a foto da pessoa **não** é removida sozinha (o banco não consegue apagar arquivos do Storage): apague em **Storage → avatars** (e **backgrounds**). Pelo botão "Excluir minha conta" do próprio site isso é feito automaticamente.
 
 ## Fundo do perfil
 
-Em **Personalização → Fundo do perfil** a pessoa escolhe uma imagem que aparece **atrás da página pública do seu perfil** (`#/u/seu-nome`). Ela só aparece nessa página: o resto do site (biblioteca, feed, configurações...) continua com o visual normal. Quem abre o perfil vê o fundo da pessoa visitada; a dona vê o próprio fundo na prévia.
+Em **Personalização → Fundo do perfil** a pessoa escolhe uma imagem que aparece **atrás do site inteiro** (biblioteca, feed, Explorar, configurações, painel...) **enquanto ela estiver com login**, exatamente como as cores. Ao abrir o perfil de **outra pessoa** (`#/u/nome`), a página usa o fundo dela enquanto você estiver ali (se ela não tem fundo, a página fica sem imagem); ao sair do perfil, volta o seu. Sem login, o visitante só vê imagem de fundo dentro de um perfil que tenha. Ao sair da conta, a imagem some na hora. O fundo é uma camada única do site (`js/core/siteBackground.js`) e a chave "Desfoque" muda o site todo na hora, antes mesmo de salvar.
 
 - **Envio:** JPG, PNG, WebP ou GIF de até **20 MB**. O **navegador** reduz a imagem (no máximo **1600 px** no lado maior, sem ampliar) e a converte para **WebP** antes de enviar (JPEG nos navegadores sem suporte a WebP), geralmente com **60 a 200 KB**. Se a imagem não couber em 360 KB, o site baixa a qualidade e, se for preciso, as dimensões. O servidor ainda recusa qualquer arquivo acima de **384 KB** ou que não seja WebP/JPEG. Depois do envio, a tela mostra o tamanho final e o da imagem original.
 - **Uma imagem por conta:** o arquivo (bucket público `backgrounds`) se chama como o ID da conta, então trocar **sobrescreve** a anterior. **Remover fundo** apaga o arquivo. O número da versão (`bg_v`) vai no endereço da imagem, então um fundo trocado aparece na hora.
 - **Chave "Desfoque nos cards"** (salva na hora, ligada por padrão):
   - **Ligada:** os cards ficam **semitransparentes** com desfoque (`backdrop-filter`) da imagem que está atrás deles.
   - **Desligada:** os cards ficam **opacos** e a imagem fica com **50% do brilho** (`brightness(.5)`).
-- **Contraste:** as cores dos cards vêm do tema (claro ou escuro) e da combinação de cores em uso, e um "véu" na cor do tema fica entre a imagem e os cards. O resultado foi medido com imagens de pior caso (toda branca, toda preta e uma foto colorida) nas 8 combinações de cores, nos dois temas e nos dois modos: todo texto fica com **pelo menos 4,5:1**. Textos que ficariam direto sobre a imagem (o título "Favoritos" e o aviso "Prévia do seu perfil") ganham um painel. Menu, rodapé e barra de baixo ficam um pouco mais firmes sobre a imagem. Quem usa **Alto contraste** (opção de quem está olhando) não vê a imagem, e quem pede "reduzir transparência" no sistema vê os cards opacos.
+- **Contraste:** as cores dos cards vêm do tema (claro ou escuro) e da combinação de cores em uso, e um "véu" na cor do tema fica entre a imagem e os cards. O resultado foi medido com imagens de pior caso (toda branca, toda preta e uma foto colorida) nas 8 combinações de cores, nos dois temas e nos dois modos: todo texto fica com **pelo menos 4,5:1**. Textos que ficariam direto sobre a imagem (o título de cada página com o subtítulo e os botões, a barra de filtros do painel, o título "Favoritos" e os avisos) ganham um painel. A medição cobriu a biblioteca, o Explorar, o feed, os pedidos, as duas abas de configurações, o perfil e o painel da equipe. Menu, rodapé e barra de baixo ficam um pouco mais firmes sobre a imagem. Quem usa **Alto contraste** (opção de quem está olhando) não vê a imagem, e quem pede "reduzir transparência" no sistema vê os cards opacos.
 - **Público como a foto de perfil:** o fundo aparece até em perfil privado ainda trancado (é só visual, não revela a biblioteca). Conta suspensa: some para os outros.
 - **Moderação:** em **Gerenciar → Restaurar dados do perfil** a equipe marca **Imagem de fundo do perfil** e o fundo some na hora (o arquivo também é apagado; se o Supabase recusar, apague em **Storage → backgrounds**). A ação vai para o registro como "restaurou o fundo do perfil de". Ao denunciar, o motivo "Foto" agora é **"Foto ou fundo impróprio"**.
-- Se a imagem não carregar (arquivo apagado, sem internet), a página volta ao visual normal sozinha.
+- Se a imagem não carregar (arquivo apagado, sem internet), o site volta ao visual normal sozinho e não fica tentando de novo a cada tela.
+- **Excluir a conta** apaga a foto **e** o fundo do armazenamento (antes da versão 1.15 só a foto era apagada). Se você apagar usuários direto no painel do Supabase, remova o arquivo em **Storage → backgrounds** também.
+
+## Limites para trocar a foto e o fundo
+
+Para ninguém ficar trocando a foto ou o fundo sem parar (para fugir de denúncias ou só para gastar armazenamento), o **banco** aplica dois limites (seção 7 do `sql/schema.sql`):
+
+- **Espera de 30 segundos** entre uma troca e outra. A foto e o fundo têm cada um a sua espera: trocar a foto não trava o botão do fundo.
+- **No máximo 10 trocas nas últimas 24 horas**, somando foto e fundo (janela móvel: a vaga volta 24 h depois da troca).
+- **Remover** a foto ou o fundo não conta como troca. Uma tentativa recusada também não gasta troca.
+- Como o limite fica no próprio armazenamento (gatilho em `storage.objects`), vale também para quem tentar enviar direto à API, sem passar pelo site. Trocas feitas pelo painel do Supabase ou por rotinas do servidor (sem login) não são limitadas.
+- Na tela (Personalização), cada painel mostra "Trocas de foto e fundo nas últimas 24 horas: X de 10". Durante a espera o botão fica travado com a contagem regressiva ("Espere 17 s para trocar a foto de novo") e libera sozinho; no limite do dia a mensagem diz em quanto tempo libera. O site também confere **antes** de abrir o recorte ou converter a imagem, para você não perder tempo preparando algo que seria recusado.
+- **Mudar os números:** edite a função `media_limits()` no fim do `sql/schema.sql` (hoje `select 30, 10`: segundos de espera e trocas por dia) e rode o SQL de novo. O site lê os números do banco.
+- Se o Supabase não deixar o SQL Editor criar o gatilho no armazenamento, o script **não para**: aparece o aviso "não foi possível criar o gatilho de limites no armazenamento" no resultado e os limites deixam de valer para envios diretos à API (o resto do site funciona). Nesse caso, avise para ver outra forma de ligar o gatilho.
 
 ## Perfis e privacidade
 
@@ -360,18 +374,18 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.14`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.15`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
 
 ## Como o código está organizado
 
 ```
 index.html              página única (carrega CSS e js/main.js)
-css/                    tokens (cores), palettes.css (combinações de cores, gerado), base, componentes, telas, profile-bg.css (fundo do perfil) e contrast.css (alto contraste)
+css/                    tokens (cores), palettes.css (combinações de cores, gerado), base, componentes, telas, profile-bg.css (fundo escolhido, no site todo) e contrast.css (alto contraste)
 js/
   main.js               inicia tudo e define as rotas
   config.js             o único arquivo que você precisa editar
-  core/                 DOM seguro, roteador, modal, toasts, tema, ícones (inclui a logo 菫)
-  domain/               regras puras: obras, temporadas, estatísticas, backup, cargos, histórico de novidades (changelog.js)
+  core/                 DOM seguro, roteador, modal, toasts, tema, cores, alto contraste, fundo do site (siteBackground.js), ícones (inclui a logo 菫)
+  domain/               regras puras: obras, temporadas, estatísticas, backup, cargos, limites de troca de foto/fundo, histórico de novidades (changelog.js)
   services/             backends (local e Supabase), sessão, busca (Jikan, AniList, TMDB)
   ui/                   componentes: cards, filtros, modais, cartão de compartilhar, avatar, abas da conta, abas Anime/Mangá/Light Novel, progresso de leitura
   views/                telas: início, biblioteca, login, perfil, explorar, feed (atividade e pedidos), personalização, configurações, painel da equipe (admin.js)
@@ -410,6 +424,7 @@ Os dois backends (`local-backend.js` e `supabase-backend.js`) têm a mesma inter
 | "A Dona do site não pode excluir a conta" | Passe o cargo de Dona para outra pessoa antes (veja "Passar o cargo de Dona") |
 | "O armazenamento de fotos ainda não existe" ou "A foto ficou grande demais" | O `sql/schema.sql` novo não foi executado (cria o bucket `avatars` com o limite de 64 KB e, na versão 11, o `backgrounds` com 384 KB; o mesmo aviso aparece ao enviar o fundo do perfil) |
 | O fundo do perfil não envia, ou a chave "Desfoque nos cards" não salva | O `sql/schema.sql` da versão 11 ainda não foi executado (cria as colunas `bg_v` e `bg_blur` e o armazenamento `backgrounds`) |
+| "Espere N s para trocar a foto de novo" ou "Você já fez 10 trocas de foto e fundo nas últimas 24 horas" | É o limite de trocas funcionando (veja "Limites para trocar a foto e o fundo"). Sem a versão 12 do banco essas mensagens e os contadores não aparecem e não há limite |
 | MAL mostra "Muitas buscas seguidas" ou "Serviço indisponível" | O Jikan limitou ou está lento: espere alguns segundos ou use o AniList |
 | E-mail de confirmação não chega | Veja o spam; o plano gratuito limita e-mails por hora. Para grupos pequenos, desligue **Confirm email** |
 | Link do e-mail leva a uma página errada | **Site URL** / **Redirect URLs** não batem com o endereço do GitHub Pages |

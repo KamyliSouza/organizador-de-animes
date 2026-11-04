@@ -1,9 +1,20 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.14';
+export const SITE_VERSION = '1.15';
 
 export const CHANGELOG = [
+    {
+        version: '1.15',
+        title: 'Fundo no site todo e limites para trocar foto e fundo',
+        items: [
+            'O fundo que você escolhe agora aparece no site inteiro enquanto você estiver com login, como as cores. Ao abrir o perfil de outra pessoa, você vê o fundo dela; ao sair, volta o seu. Se a pessoa não tem fundo, a página fica sem imagem.',
+            'Para o texto continuar fácil de ler sobre qualquer imagem, os títulos das páginas e a barra de filtros do painel ganharam um painel por trás. O Alto contraste continua escondendo o fundo e sem transparência.',
+            'Limites para trocar a foto e o fundo: espere 30 segundos entre uma troca e outra (a foto e o fundo têm a sua própria espera) e faça no máximo 10 trocas por dia, somando foto e fundo. Remover não conta. Na tela aparece quantas trocas você já fez e, quando precisa esperar, o tempo que falta.',
+            'Correção: ao excluir a conta, a imagem de fundo também é apagada do armazenamento (antes só a foto era).',
+            'Correção: no Alto contraste, a bolinha das chaves (Alto contraste, Desfoque, Perfil público...) ficava torta e encostada na borda. Agora fica centralizada, ligada e desligada.',
+        ],
+    },
     {
         version: '1.14',
         title: 'Fundo personalizado no perfil',

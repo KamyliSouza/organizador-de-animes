@@ -143,7 +143,7 @@ const reportCard = (r, role) => html`
 function mountReports(box, { be, role, onCount }) {
     setHtml(box, html`
         <div class="admin-bar">
-            <div class="field" style="min-width:200px">
+            <div class="field" style="min-width:min(200px, 100%)">
                 <label for="rp-filter">Mostrar</label>
                 <select id="rp-filter" class="select" data-filter>
                     <option value="open">Em aberto</option>

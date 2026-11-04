@@ -3,6 +3,7 @@
 import { hasSupabase } from '../config.js';
 import { clearHighContrast, setHighContrast } from '../core/contrast.js';
 import { clearOwnPalette, setOwnPalette } from '../core/palette.js';
+import { clearOwnBackground, setOwnBackground } from '../core/siteBackground.js';
 
 const NO_ACCESS = { role: 'member', suspended: false, reason: '' };
 const OPEN_SITE = { signupsOpen: true, announcement: '' };
@@ -14,11 +15,14 @@ const listeners = new Set();
 // reason: 'local' (mudança feita por esta aba) ou 'external' (outra aba, expiração de sessão...)
 const emit = (reason = 'local') => { syncPalette(); listeners.forEach((fn) => { try { fn(state, reason); } catch (e) { console.error(e); } }); };
 
-/** O preset de cores da conta vale no site todo para quem está logado. Sem conta (ou sem login): padrão. No modo local fica só o que está neste navegador. */
+/**
+ * O preset de cores e a imagem de fundo da conta valem no site todo para quem está logado. Sem conta (ou sem login): padrão e sem imagem.
+ * No modo local fica só o que está neste navegador (e não há imagem de fundo).
+ */
 function syncPalette() {
     if (state.backend?.mode !== 'cloud') return;
-    if (!state.user) clearOwnPalette();
-    else if (state.profile) setOwnPalette(state.profile.palette);
+    if (!state.user) { clearOwnPalette(); clearOwnBackground(); }
+    else if (state.profile) { setOwnPalette(state.profile.palette); setOwnBackground(state.profile); }
     syncContrast();
 }
 
