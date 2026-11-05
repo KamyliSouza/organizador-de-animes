@@ -1,6 +1,7 @@
 // Modelo de dados de uma obra (anime, filme, série, mangá ou light novel) e regras de progresso.
 // Nada aqui mexe em tela ou em rede: só dados.
 import { safeUrl, toInt } from '../core/dom.js';
+import { cleanUnicode } from './textSafety.js';
 
 export const STATUSES = {
     watching: { label: 'Assistindo', icon: 'play' },
@@ -111,7 +112,9 @@ export const MAX_EPISODES = 5000;
 export const MAX_CHAPTERS = 99999;
 export const MAX_VOLUMES = 9999;
 
-const cleanText = (v, max) => String(v ?? '').trim().slice(0, max);
+// Todo texto de obra passa pela limpeza de js/domain/textSafety.js (sem caracteres invisíveis, letras empilhadas etc.).
+// `multiline`: anotações, análise e sinopse mantêm as quebras de linha; o resto vira uma linha só.
+const cleanText = (v, max, multiline = false) => cleanUnicode(v, { multiline, max });
 
 /** Código da obra na fonte de busca, ex.: "mal:52991", "anilist:154587", "tmdb:tv-1399", "malmanga:2" (mangá/novel têm prefixo próprio porque o MAL repete os números). */
 const REF_RX = /^[a-z]{2,10}:[a-z0-9_-]{1,30}$/;
@@ -161,16 +164,16 @@ export function normalizeEntry(e) {
         rating: toInt(e?.rating, 0, MAX_RATING, 0),
         tags: cleanList(e?.tags, 20, 30),
         airDay: DAYS.includes(e?.airDay) ? e.airDay : '',
-        notes: cleanText(e?.notes, MAX_NOTES),
+        notes: cleanText(e?.notes, MAX_NOTES, true),
         coverImage: safeUrl(e?.coverImage),
-        description: cleanText(e?.description, 10000),
+        description: cleanText(e?.description, 10000, true),
         genres: cleanList(e?.genres, 20, 40),
         seasons: reading ? [] : (seasons.length ? seasons : [defaultSeason()]),
         chaptersRead, chaptersTotal, volumesRead, volumesTotal,
         origin: reading && ORIGIN_RX.test(String(e?.origin ?? '')) ? String(e.origin) : '',
         favorite: e?.favorite === true,
         sourceRef: cleanRef(e?.sourceRef),
-        review: cleanText(e?.review, MAX_REVIEW),
+        review: cleanText(e?.review, MAX_REVIEW, true),
         reviewSpoiler: e?.reviewSpoiler === true,
         createdAt: typeof e?.createdAt === 'string' ? e.createdAt : '',
     };

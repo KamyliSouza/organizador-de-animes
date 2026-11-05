@@ -4,6 +4,7 @@
 import { config } from '../config.js';
 import { AppError } from '../core/errors.js';
 import { safeUrl } from '../core/dom.js';
+import { cleanUnicode } from '../domain/textSafety.js';
 import { SECTION_KEYS, normalizeEntry, normalizeSections } from '../domain/entry.js';
 import { limitMessage, parseLimitError } from '../domain/mediaLimits.js';
 import { normalizeRole } from '../domain/roles.js';
@@ -100,8 +101,8 @@ const fromRow = (r) => normalizeEntry({
 const fromProfile = (r) => (r ? {
     id: r.id,
     username: r.username,
-    displayName: r.display_name || r.username,
-    bio: r.bio || '',
+    displayName: cleanUnicode(r.display_name) || r.username,
+    bio: cleanUnicode(r.bio, { multiline: true }),
     isPublic: Boolean(r.is_public),
     showNotes: Boolean(r.show_notes),
     avatarV: Number(r.avatar_v) || 0,
@@ -117,7 +118,7 @@ const mineOf = (row, prefs) => (row ? { ...fromProfile(row), highContrast: Boole
 const personOf = (r) => ({
     id: r.id,
     username: r.username,
-    displayName: r.display_name || r.username,
+    displayName: cleanUnicode(r.display_name) || r.username,
     avatarV: Number(r.avatar_v) || 0,
     role: normalizeRole(r.role),
 });
@@ -320,8 +321,8 @@ export async function createSupabaseBackend() {
                 const uid = await requireUid();
                 const clean = {};
                 if (patch.username !== undefined) clean.username = String(patch.username).trim().toLowerCase();
-                if (patch.displayName !== undefined) clean.display_name = String(patch.displayName).trim().slice(0, 40);
-                if (patch.bio !== undefined) clean.bio = String(patch.bio).trim().slice(0, 200);
+                if (patch.displayName !== undefined) clean.display_name = cleanUnicode(patch.displayName, { max: 40 });
+                if (patch.bio !== undefined) clean.bio = cleanUnicode(patch.bio, { multiline: true, max: 200 });
                 if (patch.isPublic !== undefined) clean.is_public = Boolean(patch.isPublic);
                 if (patch.showNotes !== undefined) clean.show_notes = Boolean(patch.showNotes);
                 if (patch.palette !== undefined) clean.palette = String(patch.palette).trim().toLowerCase().slice(0, 24);
@@ -425,8 +426,8 @@ export async function createSupabaseBackend() {
                     id: r.id,
                     avatarV: Number(r.avatar_v) || 0,
                     username: r.username,
-                    displayName: r.display_name || r.username,
-                    bio: r.bio || '',
+                    displayName: cleanUnicode(r.display_name) || r.username,
+                    bio: cleanUnicode(r.bio, { multiline: true }),
                     role: normalizeRole(r.role),
                     total: Number(r.total) || 0,
                     watching: Number(r.watching) || 0,
@@ -495,7 +496,7 @@ export async function createSupabaseBackend() {
                     const { data, error } = await sb.rpc('my_access');
                     if (error) return { role: 'member', suspended: false, reason: '' };
                     const r = Array.isArray(data) ? data[0] : data;
-                    return { role: normalizeRole(r?.role), suspended: r?.suspended === true, reason: r?.reason || '' };
+                    return { role: normalizeRole(r?.role), suspended: r?.suspended === true, reason: cleanUnicode(r?.reason, { multiline: true }) };
                 } catch { return { role: 'member', suspended: false, reason: '' }; }
             },
             async siteSettings() {
@@ -503,7 +504,7 @@ export async function createSupabaseBackend() {
                     const { data, error } = await sb.rpc('get_public_settings');
                     if (error) return { signupsOpen: true, announcement: '' };
                     const r = Array.isArray(data) ? data[0] : data;
-                    return { signupsOpen: r?.signups_open !== false, announcement: String(r?.announcement || '') };
+                    return { signupsOpen: r?.signups_open !== false, announcement: cleanUnicode(r?.announcement, { multiline: true }) };
                 } catch { return { signupsOpen: true, announcement: '' }; }
             },
         },
@@ -518,12 +519,12 @@ export async function createSupabaseBackend() {
                 return (rows || []).map((r) => ({
                     id: r.id,
                     username: r.username,
-                    displayName: r.display_name || r.username,
-                    bio: r.bio || '',
+                    displayName: cleanUnicode(r.display_name) || r.username,
+                    bio: cleanUnicode(r.bio, { multiline: true }),
                     avatarV: Number(r.avatar_v) || 0,
                     role: normalizeRole(r.role),
                     suspended: r.suspended === true,
-                    suspensionReason: r.suspension_reason || '',
+                    suspensionReason: cleanUnicode(r.suspension_reason, { multiline: true }),
                     isPublic: r.is_public === true,
                     totalEntries: Number(r.total_entries) || 0,
                     openReports: Number(r.open_reports) || 0,
@@ -551,12 +552,12 @@ export async function createSupabaseBackend() {
                     createdAt: r.created_at,
                     status: r.status,
                     reason: r.reason,
-                    details: r.details || '',
+                    details: cleanUnicode(r.details, { multiline: true }),
                     reporter: r.reporter_username || '',
                     target: {
                         id: r.target_id,
                         username: r.target_username,
-                        displayName: r.target_display_name || r.target_username,
+                        displayName: cleanUnicode(r.target_display_name) || r.target_username,
                         avatarV: Number(r.target_avatar_v) || 0,
                         role: normalizeRole(r.target_role),
                         suspended: r.target_suspended === true,
@@ -579,7 +580,7 @@ export async function createSupabaseBackend() {
             async settings() {
                 const rows = await ok(sb.rpc('admin_get_settings'), 'Não foi possível carregar as configurações.');
                 const r = Array.isArray(rows) ? rows[0] : rows;
-                return { signupsOpen: r?.signups_open !== false, announcement: String(r?.announcement || ''), blockedNames: Array.isArray(r?.blocked_names) ? r.blocked_names : [] };
+                return { signupsOpen: r?.signups_open !== false, announcement: cleanUnicode(r?.announcement, { multiline: true }), blockedNames: Array.isArray(r?.blocked_names) ? r.blocked_names : [], allowedLinkHosts: Array.isArray(r?.allowed_link_hosts) ? r.allowed_link_hosts : [] };
             },
             async setSetting(key, value) {
                 await ok(sb.rpc('admin_set_setting', { p_key: key, p_value: value }), 'Não foi possível salvar a configuração.');

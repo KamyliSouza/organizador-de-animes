@@ -251,7 +251,7 @@ O site tem quatro cargos. O cargo aparece como um selo ao lado do nome (perfil, 
 | Cargo | Selo | O que pode |
 |---|---|---|
 | **Dona** | Dona | Tudo. É a única que abre e fecha os cadastros e a única que cria ou remove administradores. Só existe uma. |
-| **Administração** | Admin | Tudo o que a moderação faz, mais o **aviso do site** e a **lista de nomes proibidos**. Define quem é moderação ou membro. Não mexe na Dona nem em outra administração. |
+| **Administração** | Admin | Tudo o que a moderação faz, mais o **aviso do site**, a **lista de palavras proibidas** e a **lista de sites permitidos**. Define quem é moderação ou membro. Não mexe na Dona nem em outra administração. |
 | **Moderação** | Mod | Buscar membros, restaurar nome, bio, foto e @, **renomear**, **suspender** e reativar contas, tratar denúncias e ver o registro. Não mexe em cargos nem nas configurações do site. |
 | **Membro** | — | Nível padrão. Pode **denunciar** perfis. |
 
@@ -286,7 +286,7 @@ Só aparece para quem tem cargo (quem não tem é mandado de volta ao início; m
 - **Membros:** busca por nome ou @usuário e o botão **Gerenciar** (restaurar dados, renomear, suspender e cargo). A moderação não vê e-mails nem bibliotecas privadas.
 - **Denúncias:** a fila de denúncias em aberto, com o motivo, o detalhe e quem denunciou. Dá para **resolver**, **descartar** ou **reabrir**, e gerenciar a pessoa ali mesmo. A equipe só vê denúncias contra quem tem cargo menor que o seu (ninguém vê denúncias contra a Dona).
 - **Registro:** toda ação da equipe (quem fez, quando, em quem e o antes e depois). O registro só cresce: nem a Dona edita pelo site. Os nomes ficam gravados como texto, então continuam legíveis mesmo se a conta for excluída.
-- **Site** (administração e Dona): **cadastros** (só a Dona), **aviso do site** (até 280 caracteres, aparece no topo para todo mundo) e **nomes proibidos**.
+- **Site** (administração e Dona): **cadastros** (só a Dona), **aviso do site** (até 280 caracteres, aparece no topo para todo mundo), **palavras proibidas** e **sites permitidos nos textos**.
 
 ### Denunciar
 
@@ -298,8 +298,12 @@ Em qualquer perfil que não seja o seu aparece **Denunciar**: a pessoa escolhe o
 - **Renomear:** troca só o nome de exibição (1 a 40 caracteres), mesmo que contenha uma palavra da lista de nomes proibidos.
 - **Suspender:** o perfil some para as outras pessoas (Explorar, link do perfil, seguidores, feed). Quem é suspensa continua vendo a própria biblioteca e vê um aviso no topo com o motivo, mas não consegue seguir nem denunciar, e perde os poderes de equipe enquanto durar. **Reativar** devolve tudo.
 
-### Nomes proibidos e cadastros fechados
+### Segurança dos textos, palavras proibidas e cadastros fechados
 
+- **Limpeza dos textos:** nome de exibição, bio, título, tags, gêneros, sinopse, anotações e análise passam por uma limpeza antes de serem salvas (no navegador e, de novo, no banco) e também antes de serem mostradas, então textos antigos aparecem limpos sem precisar apagar nada. Saem os caracteres de controle e os "invisíveis" (largura zero, setas de direção de texto, preenchimentos em branco), as letras empilhadas sem fim (no máximo 2 marcas por letra), repetições do mesmo caractere acima de 10 e espaços e linhas em branco demais. O "junta-letras" só fica entre emojis. Nome, título e tags viram uma linha só; anotações, análise, bio e sinopse mantêm as quebras de linha (no máximo uma linha em branco seguida).
+- **Palavras proibidas nos textos:** a mesma lista dos nomes vale para a **bio**, o **título digitado à mão** (obra sem código de fonte), as **tags**, as **anotações** e a **análise**. Aqui a palavra precisa aparecer **inteira** (por exemplo, "ban" não pega "banana"); acento, maiúscula, número no lugar de letra (0 1 3 4 5 7 @ $) e letra repetida ("p4l4vr4", "paaalavra") não escondem a palavra. Palavras com **6 letras ou mais** também pegam a escrita separada ("p a l a v r a") ou colada em outra ("palavrazinha"). A lista **não** é enviada ao navegador: quem a vê é só a equipe, no painel. Só o que mudou é conferido (editar o progresso de uma obra antiga nunca é recusado por um texto antigo); a sinopse não é conferida porque em geral vem da fonte de busca.
+- **Sites permitidos:** nesses mesmos campos (e no nome de exibição) só podem aparecer endereços de sites da lista de **sites permitidos** (aba **Site** do painel; começa com myanimelist.net, anilist.co, themoviedb.org, imdb.com e mangadex.org) e dos subdomínios deles. Conta como endereço o que começa com `http://`, `https://` ou `www.`, e nomes como `exemplo.net` ou `exemplo[.]net`; finais que também são palavras do dia a dia (`.com`, `.me`, `.to`, `.in`, `.it`, `.us`, `.de`, `.pt`, `.es`, `.co`) só contam quando seguidos de `/`, `?` ou `#` (para não recusar "muito.com certeza"). Os endereços continuam sendo só texto, nunca viram link clicável.
+- **Se o banco recusar:** o aviso diz o campo ("Anotações", "Análise"...). Na importação de backup, a obra que causou o problema aparece no aviso e a importação inteira daquele lote é desfeita.
 - **Nomes proibidos:** a lista vale para nomes de usuário e nomes de exibição **que contêm** a palavra (sem diferenciar maiúsculas nem acentos). Cuidado com palavras curtas: elas valem também dentro de outras palavras. Vale para contas novas e para quem editar o nome; quem já tinha um nome assim só é barrado ao tentar mudá-lo, e a equipe pode renomear.
 - **Cadastros fechados:** o banco recusa qualquer conta nova, **inclusive** a criada manualmente em *Authentication → Users → Add user* do Supabase. Quem já tem conta continua entrando normalmente. A página "Criar conta" avisa antes de a pessoa preencher tudo. Para criar contas à mão, reabra os cadastros no painel.
 
@@ -376,7 +380,7 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.16`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.17`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
 
 ## Como o código está organizado
 
@@ -388,6 +392,7 @@ js/
   config.js             o único arquivo que você precisa editar
   core/                 DOM seguro, roteador, modal, toasts, tema, cores, alto contraste, fundo do site (siteBackground.js), ícones (inclui a logo 菫)
   domain/               regras puras: obras, temporadas, estatísticas, backup, cargos, limites de troca de foto/fundo, histórico de novidades (changelog.js)
+  domain/textSafety.js  limpeza de textos, palavras proibidas e sites permitidos (as mesmas regras existem no banco)
   services/             backends (local e Supabase), sessão, busca (Jikan, AniList, TMDB)
   ui/                   componentes: cards, filtros, modais, cartão de compartilhar, avatar, menu da conta (accountMenu.js), abas da conta, abas Anime/Mangá/Light Novel, progresso de leitura
   views/                telas: início, biblioteca, login, perfil, explorar, feed (atividade e pedidos), personalização, configurações, painel da equipe (admin.js)
@@ -400,7 +405,7 @@ Os dois backends (`local-backend.js` e `supabase-backend.js`) têm a mesma inter
 ## Segurança em resumo
 
 - **Regras no banco (RLS):** cada pessoa só lê e altera as próprias obras; perfis públicos só são lidos por funções que respeitam as opções de privacidade.
-- **Sem XSS:** todo texto vindo de usuários ou de APIs é escapado antes de ir para a tela; capas só aceitam `https`.
+- **Sem XSS:** todo texto vindo de usuários ou de APIs é escapado antes de ir para a tela; capas só aceitam `https`. Os textos também passam por uma limpeza (veja "Segurança dos textos") e endereços de sites só passam se estiverem na lista de sites permitidos; nada vira link clicável.
 - **CSP:** o `index.html` só permite scripts do próprio site e do jsDelivr (onde fica a biblioteca do Supabase) e só conversa com as APIs usadas.
 - **Seguir e feed:** a tabela de seguidores não pode ser lida nem escrita direto (só por funções do banco que conferem quem está com a sessão iniciada). Um perfil privado só entrega as obras a quem a pessoa dona do perfil aceitou, e o feed só devolve atividade de quem você segue com vínculo aceito. As anotações privadas nunca saem no feed.
 - **Fotos e fundos:** bucket `avatars` com limite de 64 KB e bucket `backgrounds` com limite de 384 KB, os dois só WebP/JPEG; cada pessoa só envia/troca/apaga o arquivo que tem o próprio ID como nome. O site só monta o endereço da imagem com ID (UUID) e versão numérica válidos, e só aceita endereços `https`.

@@ -7,6 +7,7 @@ import { messageOf } from '../core/errors.js';
 import { icon, spinner } from '../core/icons.js';
 import { timeAgo } from '../core/time.js';
 import { toast } from '../core/toast.js';
+import { parseHostList } from '../domain/textSafety.js';
 import { ROLES, actionLabel, canAct, canEditSetting, describeDetails, isStaff, motiveLabel, rankOf } from '../domain/roles.js';
 import { backend, isCloud, myRole, refreshAccess, state } from '../services/session.js';
 import { avatar, avatarSrc } from '../ui/avatar.js';
@@ -297,15 +298,27 @@ function mountSettings(box, { be, role }) {
             </section>
 
             <section class="panel glass-panel" aria-labelledby="ad-names">
-                <h2 id="ad-names">${icon('ban')} Nomes proibidos</h2>
+                <h2 id="ad-names">${icon('ban')} Palavras proibidas</h2>
                 <form data-form="names" class="stack" novalidate>
                     <div class="field">
                         <label for="ad-blocked">Uma palavra por linha</label>
                         <textarea id="ad-blocked" class="textarea" rows="6" autocapitalize="none" spellcheck="false" ${canText ? '' : 'disabled'}>${s.blockedNames.join('\n')}</textarea>
-                        <span class="field-hint">Nomes de usuário e de exibição que <strong>contêm</strong> alguma dessas palavras são recusados (sem diferenciar maiúsculas nem acentos). Cuidado com palavras curtas: elas valem dentro de outras palavras.</span>
+                        <span class="field-hint">Vale para <strong>nomes</strong> (de usuário e de exibição) e para os <strong>textos</strong> (bio, título digitado à mão, tags, anotações e análise), sem diferenciar maiúsculas nem acentos. Nos nomes, basta <strong>conter</strong> a palavra: cuidado com palavras curtas, que valem dentro de outras palavras. Nos textos, a palavra precisa aparecer <strong>inteira</strong> (número no lugar de letra e letra repetida não escondem); palavras com 6 letras ou mais também pegam a escrita separada ("p a l a v r a") ou colada em outra.</span>
                     </div>
                     <p class="field-error" data-error role="alert" hidden></p>
                     <div><button type="submit" class="button button-primary" ${canText ? '' : 'disabled'}>Salvar lista</button></div>
+                </form>
+            </section>
+
+            <section class="panel glass-panel" aria-labelledby="ad-links">
+                <h2 id="ad-links">${icon('link')} Sites permitidos nos textos</h2>
+                <form data-form="links" class="stack" novalidate>
+                    <div class="field">
+                        <label for="ad-link-hosts">Um site por linha (por exemplo, myanimelist.net)</label>
+                        <textarea id="ad-link-hosts" class="textarea" rows="6" autocapitalize="none" spellcheck="false" ${canText ? '' : 'disabled'}>${s.allowedLinkHosts.join('\n')}</textarea>
+                        <span class="field-hint">Bio, título digitado à mão, tags, anotações e análise só podem citar endereços destes sites (e dos seus subdomínios). Qualquer outro endereço faz o texto ser recusado, com um aviso. Os endereços continuam sendo só texto: não viram link clicável. Pode colar o endereço inteiro; só o site é guardado.</span>
+                    </div>
+                    <div><button type="submit" class="button button-primary" ${canText ? '' : 'disabled'}>Salvar sites</button></div>
                 </form>
             </section>
         </div>`);
@@ -342,6 +355,9 @@ function mountSettings(box, { be, role }) {
             const btn = form.querySelector('button[type="submit"]');
             if (form.dataset.form === 'announcement') {
                 save(btn, () => be.moderation.setSetting('announcement', text.value.trim()), text.value.trim() ? 'Aviso publicado.' : 'Aviso removido.');
+            } else if (form.dataset.form === 'links') {
+                const hosts = parseHostList(box.querySelector('#ad-link-hosts').value);
+                save(btn, async () => { await be.moderation.setSetting('allowed_link_hosts', hosts); box.querySelector('#ad-link-hosts').value = hosts.join('\n'); }, `Lista salva (${hosts.length} ${hosts.length === 1 ? 'site' : 'sites'}).`);
             } else {
                 const words = parseWords(box.querySelector('#ad-blocked').value);
                 save(btn, () => be.moderation.setSetting('blocked_names', words), `Lista salva (${words.length} ${words.length === 1 ? 'palavra' : 'palavras'}).`);

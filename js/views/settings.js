@@ -3,6 +3,7 @@
 import { config } from '../config.js';
 import { debounce, html, on, setHtml } from '../core/dom.js';
 import { messageOf } from '../core/errors.js';
+import { cleanUnicode } from '../domain/textSafety.js';
 import { icon, spinner } from '../core/icons.js';
 import { ownPalette, setOwnPalette } from '../core/palette.js';
 import { toast } from '../core/toast.js';
@@ -276,7 +277,7 @@ export function mount(root) {
         try {
             const updated = await be.profiles.updateMine({
                 username,
-                displayName: displayInput.value.trim() || username,
+                displayName: cleanUnicode(displayInput.value, { max: 40 }) || username,
                 bio: bio.value,
             });
             setProfile(updated);

@@ -261,18 +261,24 @@ create table if not exists public.profile_reports (
 create unique index if not exists profile_reports_one_open on public.profile_reports (reporter_id, target_id) where status = 'open';
 create index if not exists profile_reports_status_idx on public.profile_reports (status, id desc);
 
--- Configurações do site: signups_open (true/false), announcement (aviso no topo) e blocked_names (lista de nomes proibidos).
+-- Configurações do site: signups_open (true/false), announcement (aviso no topo), blocked_names (lista de palavras proibidas)
+-- e allowed_link_hosts (sites que podem ser citados nos textos).
 create table if not exists public.site_settings (
   key        text primary key,
   value      jsonb not null,
   updated_by uuid references public.profiles (id) on delete set null,
   updated_at timestamptz not null default now(),
-  constraint site_settings_key check (key in ('signups_open', 'announcement', 'blocked_names'))
+  constraint site_settings_key check (key in ('signups_open', 'announcement', 'blocked_names', 'allowed_link_hosts'))
 );
+-- Quem já tinha a tabela: aceita a chave nova (seguro rodar sempre).
+alter table public.site_settings drop constraint if exists site_settings_key;
+alter table public.site_settings add  constraint site_settings_key
+  check (key in ('signups_open', 'announcement', 'blocked_names', 'allowed_link_hosts'));
 insert into public.site_settings (key, value) values
   ('signups_open',  'true'::jsonb),
   ('announcement',  '""'::jsonb),
-  ('blocked_names', '[]'::jsonb)
+  ('blocked_names', '[]'::jsonb),
+  ('allowed_link_hosts', '["myanimelist.net", "anilist.co", "themoviedb.org", "imdb.com", "mangadex.org"]'::jsonb)
 on conflict (key) do nothing;
 
 alter table public.user_roles      enable row level security;
@@ -357,6 +363,192 @@ as $$
   )
 $$;
 
+-- ---------------------------------------------------------------------
+-- 2e. Segurança dos textos (Patch 17). Espelha js/domain/textSafety.js: o banco é quem decide.
+-- ---------------------------------------------------------------------
+
+-- Limpa um texto: normaliza (NFC), tira caracteres de controle e "invisíveis" (largura zero, setas de direção de texto),
+-- limita letras empilhadas (zalgo) a 2 e repetições do mesmo caractere a 10, e arruma espaços e linhas.
+-- p_multiline = false: tudo numa linha só. true: mantém quebras (no máximo uma linha em branco).
+create or replace function public.clean_text(p_text text, p_multiline boolean default false)
+returns text
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare
+  s text := coalesce(p_text, '');
+begin
+  s := normalize(s, NFC);
+  s := replace(replace(s, E'\r\n', E'\n'), E'\r', E'\n');
+  s := regexp_replace(s, '[\u2028\u2029]', E'\n', 'g');
+  s := regexp_replace(s, '[\u00a0\u1680\u2000-\u200a\u202f\u205f\u3000\t]', ' ', 'g');
+  s := regexp_replace(s, '[\u0001-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u00ad\u034f\u061c\u115f\u1160\u17b4\u17b5\u180b-\u180f\u200b\u200c\u200e\u200f\u202a-\u202e\u2060-\u206f\u2800\u3164\ufe00-\ufe0e\ufeff\uffa0\ufff9-\ufffb\U0001d173-\U0001d17a\U000e0000-\U000e007f\U000e0100-\U000e01ef]', '', 'g');
+  -- o "junta-letras" (U+200D) só fica ligando dois emojis
+  s := regexp_replace(s, '(?<![\u2190-\u2bff\U0001f000-\U0001faff\ufe0f])\u200d|\u200d(?![\u2190-\u2bff\U0001f000-\U0001faff\ufe0f])', '', 'g');
+  s := regexp_replace(s, '([\u0300-\u036f\u1ab0-\u1aff\u1dc0-\u1dff\u20d0-\u20ff\ufe20-\ufe2f])([\u0300-\u036f\u1ab0-\u1aff\u1dc0-\u1dff\u20d0-\u20ff\ufe20-\ufe2f])[\u0300-\u036f\u1ab0-\u1aff\u1dc0-\u1dff\u20d0-\u20ff\ufe20-\ufe2f]+', '\1\2', 'g');
+  s := regexp_replace(s, '([^\n])\1{10,}', '\1\1\1\1\1\1\1\1\1\1', 'g');
+  s := regexp_replace(s, ' {2,}', ' ', 'g');
+  if p_multiline then
+    s := regexp_replace(s, ' ?\n ?', E'\n', 'g');
+    s := regexp_replace(s, '\n{3,}', E'\n\n', 'g');
+  else
+    s := regexp_replace(s, '\n+', ' ', 'g');
+    s := regexp_replace(s, ' {2,}', ' ', 'g');
+  end if;
+  return regexp_replace(s, '^[ \n]+|[ \n]+$', '', 'g');
+end;
+$$;
+
+-- Forma "solta" para comparar palavras: minúsculas, sem acento, 0 1 3 4 5 7 @ $ viram o, i, e, a, s, t, a, s,
+-- só letras e espaços, letras repetidas viram uma ("paaalavra" = "palavra").
+create or replace function public.norm_loose(p_text text)
+returns text
+language sql
+immutable
+set search_path = ''
+as $$
+  select btrim(
+    regexp_replace(
+      regexp_replace(
+        regexp_replace(
+          translate(
+            lower(translate(coalesce(p_text, ''),
+              'áàâãäå' || 'éèêë' || 'íìîï' || 'óòôõöø' || 'úùûü' || 'ýÿ' || 'çñ' || 'ÁÀÂÃÄÅ' || 'ÉÈÊË' || 'ÍÌÎÏ' || 'ÓÒÔÕÖØ' || 'ÚÙÛÜ' || 'ÝŸ' || 'ÇÑ',
+              'aaaaaa' || 'eeee' || 'iiii' || 'oooooo' || 'uuuu' || 'yy' || 'cn' || 'aaaaaa' || 'eeee' || 'iiii' || 'oooooo' || 'uuuu' || 'yy' || 'cn')),
+            '013457@$', 'oieastas'),
+          '[\u0001-\u002f\u003a-\u0040\u005b-\u0060\u007b-\u00bf\u2000-\u2bff\u3000-\u303f\ufe00-\ufe6f\uff00-\uff0f\U0001f000-\U0001faff]+', ' ', 'g'),
+        '([a-z])\1+', '\1', 'g'),
+      ' {2,}', ' ', 'g'),
+    ' ')
+$$;
+
+-- O texto usa alguma palavra da lista de palavras proibidas (a mesma dos nomes)? Duas conferências:
+--   1) a palavra (ou frase) aparece inteira, entre espaços e pontuação, com acento, número no lugar de letra ou letra repetida;
+--   2) para palavras com 6 letras ou mais, também vale escrita separada ou colada em outra ("p a l a v r a", "palavrazinha").
+create or replace function public.text_has_blocked_term(p_text text)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  norm     text := public.norm_loose(p_text);
+  padded   text;
+  squashed text;
+  t        text;
+  tight    text;
+begin
+  if norm = '' then return false; end if;
+  padded := ' ' || norm || ' ';
+  squashed := replace(norm, ' ', '');
+  for t in
+    select public.norm_loose(term)
+    from public.site_settings s, jsonb_array_elements_text(s.value) as term
+    where s.key = 'blocked_names' and jsonb_typeof(s.value) = 'array'
+  loop
+    if t = '' then continue; end if;
+    if strpos(padded, ' ' || t || ' ') > 0 then return true; end if;
+    tight := replace(t, ' ', '');
+    if char_length(tight) >= 6 and strpos(squashed, tight) > 0 then return true; end if;
+  end loop;
+  return false;
+end;
+$$;
+
+-- "Exemplo.COM/abc", "https://www.exemplo.com:80/x" → "exemplo.com". Vazio se não parece um endereço.
+create or replace function public.normalize_host(p_value text)
+returns text
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare
+  h text := regexp_replace(lower(coalesce(p_value, '')), '^\s+|\s+$', '', 'g');
+begin
+  h := regexp_replace(h, '^[a-z]+://', '');
+  h := regexp_replace(h, '^[^/?#]*@', '');
+  h := regexp_replace(h, '[/?#].*$', '');
+  h := regexp_replace(h, ':[0-9]*$', '');
+  h := regexp_replace(h, '[.,;:!?)\]}]+$', '');
+  h := regexp_replace(h, '^www\.', '');
+  if h ~ '^[a-z0-9-]+(\.[a-z0-9-]+)+$' then return h; end if;
+  return '';
+end;
+$$;
+
+-- Todos os sites citados no texto (sem repetir, em ordem alfabética). Com "http://", "https://" ou "www." qualquer final conta;
+-- sem isso só contam finais como .net, .gg, .br; os que também são palavras ("muito.com certeza") só com / ? ou # depois.
+create or replace function public.link_hosts(p_text text)
+returns text[]
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare
+  s     text := lower(coalesce(p_text, ''));
+  lbl   text := '(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+';
+  pats  text[];
+  pat   text;
+  m     text[];
+  h     text;
+  found text[] := '{}';
+begin
+  s := replace(replace(replace(replace(replace(s, '[.]', '.'), '(.)', '.'), '{.}', '.'), '。', '.'), '．', '.');
+  pats := array[
+    '(?:(?:https?|ftp)://(?:[^\s/?#@]*@)?|(?<![a-z0-9])www\.)([^\s/?#:]+)',
+    '(?<![a-z0-9_.-])(' || lbl || '(?:net|org|edu|gov|info|biz|io|gg|tv|ly|cc|ws|xyz|top|site|online|app|dev|link|club|shop|store|fun|live|br|ru|cn|jp|uk|fr|mx|pl|tk|ml|ga|cf|gq|ink|pro|world|today|bio|lol|ai|sh|im|vip|wiki|blog|page|click|zip))(?![a-z0-9_-])',
+    '(?<![a-z0-9_.-])(' || lbl || '(?:com|co|me|to|in|it|us|de|pt|es))(?=[/?#])'
+  ];
+  foreach pat in array pats loop
+    for m in select regexp_matches(s, pat, 'g') loop
+      h := public.normalize_host(m[1]);
+      if h <> '' and not (h = any (found)) then found := found || h; end if;
+    end loop;
+  end loop;
+  return coalesce((select array_agg(x order by x) from unnest(found) x), '{}');
+end;
+$$;
+
+-- O texto cita algum site que NÃO está na lista de sites permitidos (nem é subdomínio de um deles)?
+create or replace function public.text_has_bad_link(p_text text)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  allowed text[];
+  h       text;
+begin
+  select coalesce(array_agg(public.normalize_host(x)), '{}') into allowed
+  from public.site_settings s, jsonb_array_elements_text(s.value) x
+  where s.key = 'allowed_link_hosts' and jsonb_typeof(s.value) = 'array';
+  foreach h in array public.link_hosts(p_text) loop
+    if not exists (select 1 from unnest(allowed) a where a <> '' and (h = a or h like '%.' || a)) then
+      return true;
+    end if;
+  end loop;
+  return false;
+end;
+$$;
+
+-- 'blocked' (palavra proibida), 'link' (site fora da lista) ou null (tudo certo).
+create or replace function public.text_problem(p_text text)
+returns text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select case when public.text_has_blocked_term(p_text) then 'blocked'
+              when public.text_has_bad_link(p_text) then 'link'
+              else null end
+$$;
+
+
 revoke all on function public.rank_of_role(text)   from public, anon, authenticated;
 revoke all on function public.rank_of(uuid)        from public, anon, authenticated;
 revoke all on function public.is_suspended(uuid)   from public, anon, authenticated;
@@ -364,6 +556,13 @@ revoke all on function public.my_rank()            from public, anon, authentica
 revoke all on function public.category_section(text) from public, anon, authenticated;
 revoke all on function public.norm_text(text)      from public, anon, authenticated;
 revoke all on function public.name_is_blocked(text) from public, anon, authenticated;
+revoke all on function public.clean_text(text, boolean)       from public, anon, authenticated;
+revoke all on function public.norm_loose(text)                from public, anon, authenticated;
+revoke all on function public.text_has_blocked_term(text)     from public, anon, authenticated;
+revoke all on function public.normalize_host(text)            from public, anon, authenticated;
+revoke all on function public.link_hosts(text)                from public, anon, authenticated;
+revoke all on function public.text_has_bad_link(text)         from public, anon, authenticated;
+revoke all on function public.text_problem(text)              from public, anon, authenticated;
 
 
 -- ---------------------------------------------------------------------
@@ -437,34 +636,144 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- 3b2. Nome de usuário e nome de exibição não podem conter palavras da lista de nomes proibidos.
+-- 3b2. Nome de usuário, nome de exibição e bio.
+--      * Nome de usuário e de exibição não podem conter palavras da lista de palavras proibidas.
+--      * Nome de exibição e bio passam pela limpeza (clean_text: sem caracteres invisíveis, letras empilhadas etc.).
+--      * Nome de exibição e bio não podem ter palavra proibida (conferência por palavra inteira, veja text_has_blocked_term)
+--        nem citar site fora da lista de sites permitidos.
 --      Vale para quem edita o próprio perfil. As funções da equipe (seção 5b) passam por cima, porque
---      só colocam nomes neutros ou escolhidos por quem tem cargo.
+--      só colocam nomes neutros ou escolhidos por quem tem cargo. Só confere o que mudou: editar outra coisa
+--      (cor, privacidade...) nunca é recusado por texto antigo.
 create or replace function public.profiles_check_names()
 returns trigger
 language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  user_changed boolean := tg_op = 'INSERT';
+  name_changed boolean := tg_op = 'INSERT';
+  bio_changed  boolean := tg_op = 'INSERT';
+  clean_name   text;
 begin
   if coalesce(current_setting('kamylist.staff_edit', true), '') = '1' then
     return new;
   end if;
-  if tg_op = 'INSERT'
-     or new.username is distinct from old.username
-     or new.display_name is distinct from old.display_name then
+
+  -- o que mudou é decidido antes da limpeza
+  if tg_op = 'UPDATE' then
+    user_changed := new.username     is distinct from old.username;
+    name_changed := new.display_name is distinct from old.display_name;
+    bio_changed  := new.bio          is distinct from old.bio;
+  end if;
+
+  if name_changed then
+    clean_name := public.clean_text(new.display_name, false);
+    if clean_name = '' and btrim(coalesce(new.display_name, '')) <> '' then
+      raise exception 'Esse nome não é permitido. Escolha outro.' using errcode = 'check_violation';
+    end if;
+    new.display_name := clean_name;
+  end if;
+  if bio_changed then
+    new.bio := public.clean_text(new.bio, true);
+  end if;
+
+  if user_changed or name_changed then
     if public.name_is_blocked(new.username) or public.name_is_blocked(new.display_name) then
       raise exception 'Esse nome não é permitido. Escolha outro.' using errcode = 'check_violation';
     end if;
+  end if;
+  if name_changed then
+    case public.text_problem(new.display_name)
+      when 'blocked' then raise exception 'Esse nome não é permitido. Escolha outro.' using errcode = 'check_violation';
+      when 'link' then raise exception 'O nome de exibição não pode ter endereço de site que não esteja na lista de sites permitidos.' using errcode = 'check_violation';
+      else null;
+    end case;
+  end if;
+  if bio_changed and new.bio <> '' then
+    case public.text_problem(new.bio)
+      when 'blocked' then raise exception 'Sua bio tem uma palavra que não é permitida aqui. Reescreva o trecho e tente de novo.' using errcode = 'check_violation';
+      when 'link' then raise exception 'Sua bio tem um endereço de site que não está na lista de sites permitidos. Tire o endereço e tente de novo.' using errcode = 'check_violation';
+      else null;
+    end case;
   end if;
   return new;
 end;
 $$;
 
 drop trigger if exists profiles_check_names on public.profiles;
-create trigger profiles_check_names before insert or update of username, display_name on public.profiles
+create trigger profiles_check_names before insert or update of username, display_name, bio on public.profiles
   for each row execute function public.profiles_check_names();
 revoke all on function public.profiles_check_names() from public, anon, authenticated;
+
+-- 3b3. Textos das obras (Patch 17). Antes de gravar, o título, as tags, os gêneros, a sinopse, as anotações e a análise passam
+--      pela limpeza (clean_text). Título digitado à mão (obra sem código de fonte), tags, anotações e análise ainda não podem
+--      ter palavra proibida nem site fora da lista de sites permitidos. Só confere o que mudou (obras antigas continuam
+--      abrindo e editando normalmente). A sinopse não é conferida porque, em geral, vem da fonte de busca.
+create or replace function public.entries_check_text()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  title_changed  boolean := tg_op = 'INSERT';
+  notes_changed  boolean := tg_op = 'INSERT';
+  review_changed boolean := tg_op = 'INSERT';
+  tags_changed   boolean := tg_op = 'INSERT';
+  problem text;
+  field   text;
+begin
+  -- o que mudou é decidido antes da limpeza (obra antiga com sujeira não é recusada por causa da limpeza)
+  if tg_op = 'UPDATE' then
+    title_changed  := new.title  is distinct from old.title;
+    notes_changed  := new.notes  is distinct from old.notes;
+    review_changed := new.review is distinct from old.review;
+    tags_changed   := new.tags   is distinct from old.tags;
+  end if;
+
+  new.title := public.clean_text(new.title, false);
+  if new.title = '' then
+    raise exception 'Dê um título para a obra (com letras ou números visíveis).' using errcode = 'check_violation';
+  end if;
+  if new.notes is not null then new.notes := nullif(public.clean_text(new.notes, true), ''); end if;
+  if new.review is not null then new.review := nullif(public.clean_text(new.review, true), ''); end if;
+  if new.description is not null then new.description := nullif(public.clean_text(new.description, true), ''); end if;
+  new.tags := coalesce(array(
+    select q.c from (select public.clean_text(t.v, false) as c, t.i from unnest(new.tags) with ordinality as t(v, i)) q
+    where q.c <> '' order by q.i), '{}');
+  new.genres := coalesce(array(
+    select q.c from (select public.clean_text(t.v, false) as c, t.i from unnest(new.genres) with ordinality as t(v, i)) q
+    where q.c <> '' order by q.i), '{}');
+
+  if new.source_ref is null and title_changed then
+    problem := public.text_problem(new.title); field := 'Título';
+  end if;
+  if problem is null and new.notes is not null and notes_changed then
+    problem := public.text_problem(new.notes); field := 'Anotações';
+  end if;
+  if problem is null and new.review is not null and review_changed then
+    problem := public.text_problem(new.review); field := 'Análise';
+  end if;
+  if problem is null and cardinality(new.tags) > 0 and tags_changed then
+    problem := public.text_problem(array_to_string(new.tags, E'\n')); field := 'Tags';
+  end if;
+
+  if problem = 'blocked' then
+    raise exception 'Não foi possível salvar “%”: há uma palavra que não é permitida no campo “%”. Reescreva o trecho e tente de novo.', left(new.title, 40), field
+      using errcode = 'check_violation';
+  elsif problem = 'link' then
+    raise exception 'Não foi possível salvar “%”: há um endereço de site que não está na lista de sites permitidos no campo “%”. Tire o endereço e tente de novo.', left(new.title, 40), field
+      using errcode = 'check_violation';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists entries_check_text on public.entries;
+create trigger entries_check_text before insert or update on public.entries
+  for each row execute function public.entries_check_text();
+revoke all on function public.entries_check_text() from public, anon, authenticated;
 
 -- 3c. Limite de obras por conta (proteção contra abuso do plano gratuito)
 create or replace function public.enforce_entry_limit()
@@ -1200,7 +1509,7 @@ begin
     raise exception 'Você já tem várias denúncias em análise. Aguarde a resposta da equipe.' using errcode = 'check_violation';
   end if;
   insert into public.profile_reports (reporter_id, target_id, reason, details)
-  values (me, target, p_reason, left(btrim(coalesce(p_details, '')), 300));
+  values (me, target, p_reason, left(public.clean_text(p_details, true), 300));
 end;
 $$;
 
@@ -1346,7 +1655,7 @@ security definer
 set search_path = ''
 as $$
 declare
-  why text := left(btrim(coalesce(p_reason, '')), 300);
+  why text := left(public.clean_text(p_reason, true), 300);
 begin
   perform public.require_outranks(p_user);
   if p_suspended then
@@ -1502,8 +1811,10 @@ end;
 $$;
 
 -- Todas as configurações (administração e Dona).
+-- (O formato da resposta ganhou allowed_link_hosts: a função antiga é derrubada antes de recriar.)
+drop function if exists public.admin_get_settings();
 create or replace function public.admin_get_settings()
-returns table (signups_open boolean, announcement text, blocked_names text[])
+returns table (signups_open boolean, announcement text, blocked_names text[], allowed_link_hosts text[])
 language plpgsql
 stable
 security definer
@@ -1515,7 +1826,9 @@ begin
   select not exists (select 1 from public.site_settings s where s.key = 'signups_open' and s.value = 'false'::jsonb),
          coalesce((select s.value #>> '{}' from public.site_settings s where s.key = 'announcement'), ''),
          coalesce((select array(select jsonb_array_elements_text(s.value) order by 1)
-                   from public.site_settings s where s.key = 'blocked_names' and jsonb_typeof(s.value) = 'array'), '{}'::text[]);
+                   from public.site_settings s where s.key = 'blocked_names' and jsonb_typeof(s.value) = 'array'), '{}'::text[]),
+         coalesce((select array(select jsonb_array_elements_text(s.value) order by 1)
+                   from public.site_settings s where s.key = 'allowed_link_hosts' and jsonb_typeof(s.value) = 'array'), '{}'::text[]);
 end;
 $$;
 
@@ -1523,6 +1836,7 @@ $$;
 --   signups_open   (true/false)            só a Dona
 --   announcement   (texto de até 280)      administração e Dona
 --   blocked_names  (lista de palavras)     administração e Dona
+--   allowed_link_hosts (lista de sites)    administração e Dona
 create or replace function public.admin_set_setting(p_key text, p_value jsonb)
 returns void
 language plpgsql
@@ -1544,7 +1858,16 @@ begin
     if p_value is null or jsonb_typeof(p_value) <> 'string' or char_length(p_value #>> '{}') > 280 then
       raise exception 'O aviso pode ter até 280 caracteres.' using errcode = '22023';
     end if;
-    cleaned := to_jsonb(btrim(p_value #>> '{}'));
+    cleaned := to_jsonb(public.clean_text(p_value #>> '{}', true));
+  elsif p_key = 'allowed_link_hosts' then
+    perform public.require_staff(2);
+    if p_value is null or jsonb_typeof(p_value) <> 'array' or jsonb_array_length(p_value) > 100
+       or exists (select 1 from jsonb_array_elements(p_value) x where jsonb_typeof(x) <> 'string') then
+      raise exception 'A lista de sites permitidos aceita até 100 endereços.' using errcode = '22023';
+    end if;
+    select coalesce(jsonb_agg(distinct h order by h), '[]'::jsonb) into cleaned
+    from (select public.normalize_host(x) as h from jsonb_array_elements_text(p_value) x) q
+    where h <> '';
   elsif p_key = 'blocked_names' then
     perform public.require_staff(2);
     if p_value is null or jsonb_typeof(p_value) <> 'array' or jsonb_array_length(p_value) > 200
@@ -1566,6 +1889,7 @@ begin
   perform public.log_action('setting_' || p_key, null,
     case p_key
       when 'blocked_names' then jsonb_build_object('total', jsonb_array_length(cleaned))
+      when 'allowed_link_hosts' then jsonb_build_object('total', jsonb_array_length(cleaned))
       else jsonb_build_object('antes', prev, 'depois', cleaned)
     end);
 end;
@@ -1616,12 +1940,14 @@ grant execute on function public.admin_set_setting(text, jsonb)    to authentica
 --   11 = fundo do perfil (colunas bg_v e bg_blur, armazenamento "backgrounds") e restauração do fundo pela equipe
 --   12 = limites para trocar a foto e o fundo (tabela media_changes, funções my_media_limits e media_limits, gatilho no armazenamento)
 --   13 = quem tem cargo (Dona, Administração, Moderação) fica fora dos limites de troca de foto e fundo (função media_exempt)
+--   14 = segurança dos textos: limpeza de caracteres invisíveis/zalgo, palavras proibidas também em bio, tags, título digitado,
+--        anotações e análise, e lista de sites permitidos (configuração allowed_link_hosts)
 create or replace function public.schema_version()
 returns integer
 language sql
 immutable
 set search_path = ''
-as $$ select 13 $$;
+as $$ select 14 $$;
 
 -- Só quem precisa pode executar cada função.
 revoke all on function public.get_public_entries(text)            from public;

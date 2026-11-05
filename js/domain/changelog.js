@@ -1,9 +1,19 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.16';
+export const SITE_VERSION = '1.17';
 
 export const CHANGELOG = [
+    {
+        version: '1.17',
+        title: 'Textos mais seguros',
+        items: [
+            'Os textos que você escreve (nome, bio, título, tags, anotações e análise) agora são limpos antes de salvar e antes de aparecer: caracteres invisíveis, letras empilhadas sem fim e repetições enormes ("aaaaaaaaaaaaaaaa") são cortados. Textos antigos também aparecem limpos.',
+            'Bio, tags, anotações, análise e título digitado à mão não aceitam palavras da lista de palavras proibidas da equipe (a lista dos nomes agora vale para eles também). Se algo for recusado, o aviso diz qual campo mexer. Obras que vêm da busca (com título da fonte) não passam por essa conferência no título.',
+            'Endereços de sites nesses textos só são aceitos se o site estiver na lista de sites permitidos, que a administração edita no painel (aba Site). Os endereços continuam sendo só texto, sem link clicável.',
+            'Painel da equipe: a lista "Nomes proibidos" virou "Palavras proibidas", e há um novo quadro "Sites permitidos nos textos".',
+        ],
+    },
     {
         version: '1.16',
         title: 'Menu do avatar e equipe sem limite de troca',

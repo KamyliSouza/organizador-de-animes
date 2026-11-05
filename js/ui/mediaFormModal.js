@@ -7,6 +7,7 @@ import { openTextEditor } from './textEditorModal.js';
 import { bindStarRating, starRatingHtml } from './starRating.js';
 import { messageOf } from '../core/errors.js';
 import { toast } from '../core/toast.js';
+import { cleanUnicode } from '../domain/textSafety.js';
 import { DAYS, DAY_LABELS, MAX_CHAPTERS, MAX_EPISODES, MAX_NOTES, MAX_RATING, MAX_REVIEW, MAX_VOLUMES, SEASON_TYPES, categoriesFor, cloneEntry, emptyEntryFor, findDuplicate, isReading, isReadingSection, markAllWatched, normalizeSection, normalizeSeason, originLabel, progressOf, readSummary, sectionOf, statusLabel, statusesOf, titleKey } from '../domain/entry.js';
 import { DEFAULT_SOURCE, READ_SOURCES, SOURCES, searchReadings, searchSeasons, searchWorks, sourceAvailable } from '../services/search/index.js';
 
@@ -483,7 +484,7 @@ export function openMediaForm({ entry = null, section = 'anime', onSave, existin
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const title = fields.title.value.trim();
+        const title = cleanUnicode(fields.title.value, { max: 200 });   // título só de invisíveis conta como vazio
         if (!title) { toast('Informe o título da obra.', { type: 'error' }); fields.title.focus(); return; }
 
         // obra repetida: avisa e deixa a pessoa decidir (nunca bloqueia)

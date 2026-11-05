@@ -30,7 +30,7 @@ export function grantableRoles(actor) {
 }
 
 /** O que cada cargo pode mexer nas configurações do site. */
-export const SETTING_RANK = { signups_open: 3, announcement: 2, blocked_names: 2 };
+export const SETTING_RANK = { signups_open: 3, announcement: 2, blocked_names: 2, allowed_link_hosts: 2 };
 export const canEditSetting = (role, key) => rankOf(role) >= (SETTING_RANK[key] ?? 99);
 
 export const MOTIVES = [
@@ -58,7 +58,8 @@ const ACTIONS = {
     report_open: 'reabriu uma denúncia contra',
     setting_signups_open: 'mudou os cadastros',
     setting_announcement: 'mudou o aviso do site',
-    setting_blocked_names: 'mudou a lista de nomes proibidos',
+    setting_blocked_names: 'mudou a lista de palavras proibidas',
+    setting_allowed_link_hosts: 'mudou a lista de sites permitidos',
 };
 export const actionLabel = (action) => ACTIONS[action] || action;
 
@@ -88,6 +89,8 @@ export function describeDetails(action, details) {
             return `${quoted(d.antes)} → ${quoted(d.depois)}`;
         case 'setting_blocked_names':
             return Number.isFinite(Number(d.total)) ? `${Number(d.total)} ${Number(d.total) === 1 ? 'palavra' : 'palavras'} na lista` : '';
+        case 'setting_allowed_link_hosts':
+            return Number.isFinite(Number(d.total)) ? `${Number(d.total)} ${Number(d.total) === 1 ? 'site' : 'sites'} na lista` : '';
         case 'report_resolved':
         case 'report_dismissed':
         case 'report_open':
