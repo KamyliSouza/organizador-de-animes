@@ -158,6 +158,7 @@ export async function createSupabaseBackend() {
                 used: Number(r.used_today) || 0,
                 avatar: part(r.avatar_wait, r.avatar_reason),
                 background: part(r.background_wait, r.background_reason),
+                exempt: Boolean(r.exempt),   // tem cargo (Dona, Administração ou Moderação): fora dos limites
             };
         } catch { return null; }
     }

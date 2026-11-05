@@ -1,9 +1,18 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.15';
+export const SITE_VERSION = '1.16';
 
 export const CHANGELOG = [
+    {
+        version: '1.16',
+        title: 'Menu do avatar e equipe sem limite de troca',
+        items: [
+            'Seu avatar agora fica no canto superior direito, em todas as telas, inclusive no celular. Clique nele para abrir o menu da conta: Meu perfil, Personalização, Configurações, Painel da equipe (só para a equipe) e Sair da conta.',
+            'O botão Perfil saiu da barra inferior do celular, porque o menu do avatar já leva para os mesmos lugares. O menu também abre pelo teclado (Enter, Espaço ou seta para baixo), anda com as setas e fecha com Esc.',
+            'Dona, Administração e Moderação não têm mais espera nem limite por dia para trocar a foto e o fundo. Quem perder o cargo volta a ter os limites normais.',
+        ],
+    },
     {
         version: '1.15',
         title: 'Fundo no site todo e limites para trocar foto e fundo',

@@ -1615,12 +1615,13 @@ grant execute on function public.admin_set_setting(text, jsonb)    to authentica
 --   10 = preferências privadas da conta (tabela user_prefs: alto contraste); a cor de perfil "Alto contraste" virou essa opção
 --   11 = fundo do perfil (colunas bg_v e bg_blur, armazenamento "backgrounds") e restauração do fundo pela equipe
 --   12 = limites para trocar a foto e o fundo (tabela media_changes, funções my_media_limits e media_limits, gatilho no armazenamento)
+--   13 = quem tem cargo (Dona, Administração, Moderação) fica fora dos limites de troca de foto e fundo (função media_exempt)
 create or replace function public.schema_version()
 returns integer
 language sql
 immutable
 set search_path = ''
-as $$ select 12 $$;
+as $$ select 13 $$;
 
 -- Só quem precisa pode executar cada função.
 revoke all on function public.get_public_entries(text)            from public;
@@ -1735,7 +1736,8 @@ create policy "backgrounds_delete_own" on storage.objects
 --   * Espera entre trocas: 30 segundos, separadamente para a foto e para o fundo.
 --   * Limite por dia: 10 trocas nas últimas 24 horas, somando foto E fundo.
 --   * Vale também para quem tentar enviar direto ao Storage, sem passar pelo site: o gatilho fica no próprio armazenamento.
---   * Remover a foto ou o fundo não conta como troca. A equipe e as rotinas do servidor (sem login) não são limitadas.
+--   * Remover a foto ou o fundo não conta como troca.
+--   * Quem tem cargo (Dona, Administração e Moderação) e as rotinas do servidor (sem login) não são limitados: nada é recusado nem registrado.
 --   * Quem passa do limite recebe um erro com o tempo que falta (o site mostra isso em português).
 -- Para mudar os números, edite só a função media_limits() logo abaixo e rode o script de novo.
 create table if not exists public.media_changes (
@@ -1760,6 +1762,15 @@ immutable
 set search_path = ''
 as $$ select 30, 10 $$;
 
+-- Quem tem cargo (Dona, Administração ou Moderação) fica fora dos limites. Perder o cargo faz os limites valerem de novo na hora.
+create or replace function public.media_exempt(p_user uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$ select exists (select 1 from public.user_roles r where r.user_id = p_user) $$;
+
 -- Quanto tempo falta (em segundos) para a pessoa poder trocar a foto ('avatar') ou o fundo ('background') e por quê:
 -- 'cooldown' (espera entre trocas) ou 'diario' (limite das últimas 24 horas). 0 segundos = pode trocar agora.
 create or replace function public.media_wait(p_user uuid, p_kind text)
@@ -1778,6 +1789,13 @@ declare
   v_cool_w  numeric := 0;
   v_day_w   numeric := 0;
 begin
+  if public.media_exempt(p_user) then
+    wait_s := 0;
+    reason := null;
+    return next;
+    return;
+  end if;
+
   select l.cooldown_s, l.daily_limit into v_cool, v_daily from public.media_limits() l;
 
   select max(m.created_at) into v_last from public.media_changes m where m.user_id = p_user and m.kind = p_kind;
@@ -1801,6 +1819,9 @@ end;
 $$;
 
 -- A situação de quem está logado: o site usa para mostrar "X de 10 trocas hoje" e para travar o botão durante a espera.
+-- (exempt: a pessoa tem cargo e está fora dos limites.)
+-- (drop antes: o resultado ganhou a coluna "exempt")
+drop function if exists public.my_media_limits();
 create or replace function public.my_media_limits()
 returns table (
   cooldown_s        integer,
@@ -1809,7 +1830,8 @@ returns table (
   avatar_wait       integer,
   avatar_reason     text,
   background_wait   integer,
-  background_reason text
+  background_reason text,
+  exempt            boolean
 )
 language plpgsql
 security definer
@@ -1825,6 +1847,7 @@ begin
   select count(*) into used_today from public.media_changes m where m.user_id = v_uid and m.created_at > clock_timestamp() - interval '24 hours';
   select w.wait_s, w.reason into avatar_wait, avatar_reason from public.media_wait(v_uid, 'avatar') w;
   select w.wait_s, w.reason into background_wait, background_reason from public.media_wait(v_uid, 'background') w;
+  exempt := public.media_exempt(v_uid);
   return next;
 end;
 $$;
@@ -1849,6 +1872,7 @@ begin
   if v_uid is null then return new; end if;                                   -- rotina do servidor ou painel do Supabase: sem limite
   v_kind := case new.bucket_id when 'avatars' then 'avatar' when 'backgrounds' then 'background' else null end;
   if v_kind is null or new.name is distinct from v_uid::text then return new; end if;   -- outro bucket, ou arquivo de outra conta (a política recusa)
+  if public.media_exempt(v_uid) then return new; end if;                      -- equipe (Dona, Administração, Moderação): sem limite e sem registro
 
   select w.wait_s, w.reason into v_wait, v_why from public.media_wait(v_uid, v_kind) w;
   if v_wait > 0 then
@@ -1864,6 +1888,7 @@ end;
 $$;
 
 revoke all on function public.media_limits()                  from public, anon, authenticated;
+revoke all on function public.media_exempt(uuid)              from public, anon, authenticated;
 revoke all on function public.media_wait(uuid, text)          from public, anon, authenticated;
 revoke all on function public.my_media_limits()               from public, anon;
 revoke all on function public.limit_media_changes()           from public, anon, authenticated;

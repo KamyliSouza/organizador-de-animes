@@ -59,7 +59,7 @@ Em **Authentication → Sign In / Providers → Email** você escolhe:
 2. No GitHub: **Settings → Pages → Build and deployment → Source: Deploy from a branch**, escolha `main` e a pasta `/ (root)`.
 3. Em um ou dois minutos o site estará em `https://SEU_USUARIO.github.io/NOME_DO_REPO/`.
 
-Pronto: crie sua conta, abra **Perfil e configurações**, ative **Perfil público** e mande o link para quem quiser.
+Pronto: crie sua conta, clique no seu avatar (canto superior direito) e abra **Configurações**, ative **Perfil público** e mande o link para quem quiser.
 
 ---
 
@@ -81,6 +81,7 @@ Sem esse passo, estas coisas não funcionam (o site mostra um aviso amarelo na b
 - o **alto contraste** como opção de acessibilidade guardada na conta (o SQL cria a tabela privada `user_prefs` e passa para ela quem usava a cor "Alto contraste" — a versão do banco passa a ser a **10**; veja "Acessibilidade: alto contraste");
 - o **fundo do perfil**, que vale no site todo (o SQL cria as colunas `bg_v` e `bg_blur`, o armazenamento `backgrounds` e libera "Imagem de fundo" no Restaurar da equipe — a versão do banco passa a ser a **11**; veja "Fundo do perfil");
 - os **limites para trocar a foto e o fundo** (o SQL cria a tabela privada `media_changes`, as funções dos limites e um gatilho no armazenamento — a versão do banco passa a ser a **12**; veja "Limites para trocar a foto e o fundo");
+- a **isenção da equipe nos limites de troca** (Dona, Administração e Moderação não têm espera nem limite por dia — a versão do banco passa a ser a **13**; veja "Limites para trocar a foto e o fundo");
 - o botão **Excluir minha conta**.
 
 ---
@@ -99,7 +100,7 @@ python3 -m http.server 8000
 
 ## Conta: Personalização e Configurações
 
-Em **Perfil** (menu do topo) a conta tem duas abas, cada uma com o próprio botão de salvar (o que foi digitado numa aba não é salvo pela outra, e o site avisa antes de descartar alterações ao trocar de aba):
+Clicando no **seu avatar**, no canto superior direito (em qualquer tamanho de tela), abre o **menu da conta**: **Meu perfil** (a sua página pública), **Personalização**, **Configurações**, **Painel da equipe** (só para quem tem cargo) e **Sair da conta**. Ele abre com Enter, Espaço ou seta para baixo, anda com as setas e fecha com Esc. A barra inferior do celular não tem mais o botão Perfil (sem login, ou no modo sem conta, ela continua com **Entrar** / **Ajustes**). A conta tem duas abas, cada uma com o próprio botão de salvar (o que foi digitado numa aba não é salvo pela outra, e o site avisa antes de descartar alterações ao trocar de aba):
 
 - **Personalização** (`#/configuracoes`): o quadro **Seu perfil** (foto de perfil à esquerda; nome de exibição, nome de usuário e "sobre você" à direita) e, logo abaixo, os quadros **Cores** (veja "Cores do perfil") e **Acessibilidade** (veja "Acessibilidade: alto contraste"). No celular e em telas estreitas tudo vira uma coluna só.
 - **Configurações** (`#/configuracoes/conta`): privacidade (perfil público, mostrar anotações), e-mail e senha, sair da conta, backup e a zona de perigo (excluir a conta).
@@ -148,6 +149,7 @@ Para ninguém ficar trocando a foto ou o fundo sem parar (para fugir de denúnci
 - **No máximo 10 trocas nas últimas 24 horas**, somando foto e fundo (janela móvel: a vaga volta 24 h depois da troca).
 - **Remover** a foto ou o fundo não conta como troca. Uma tentativa recusada também não gasta troca.
 - Como o limite fica no próprio armazenamento (gatilho em `storage.objects`), vale também para quem tentar enviar direto à API, sem passar pelo site. Trocas feitas pelo painel do Supabase ou por rotinas do servidor (sem login) não são limitadas.
+- **Quem tem cargo não tem limite:** Dona, Administração e Moderação trocam foto e fundo sem espera e sem teto por dia, e essas trocas nem são registradas. Ao perder o cargo, os limites passam a valer na hora. No painel Foto/Fundo da Personalização aparece o aviso "Seu cargo na equipe não tem limite de trocas de foto e fundo". (Função `media_exempt()` no `sql/schema.sql`; exige a versão 13 do banco.)
 - Na tela (Personalização), cada painel mostra "Trocas de foto e fundo nas últimas 24 horas: X de 10". Durante a espera o botão fica travado com a contagem regressiva ("Espere 17 s para trocar a foto de novo") e libera sozinho; no limite do dia a mensagem diz em quanto tempo libera. O site também confere **antes** de abrir o recorte ou converter a imagem, para você não perder tempo preparando algo que seria recusado.
 - **Mudar os números:** edite a função `media_limits()` no fim do `sql/schema.sql` (hoje `select 30, 10`: segundos de espera e trocas por dia) e rode o SQL de novo. O site lê os números do banco.
 - Se o Supabase não deixar o SQL Editor criar o gatilho no armazenamento, o script **não para**: aparece o aviso "não foi possível criar o gatilho de limites no armazenamento" no resultado e os limites deixam de valer para envios diretos à API (o resto do site funciona). Nesse caso, avise para ver outra forma de ligar o gatilho.
@@ -265,7 +267,7 @@ select id, 'owner' from auth.users where email = 'SEU_EMAIL@exemplo.com'
 on conflict (user_id) do update set role = 'owner';
 ```
 
-Recarregue o site: aparece **Painel** no menu (no celular, em **Perfil e configurações → Painel da equipe**).
+Recarregue o site: aparece **Painel** no menu (no celular, no menu do avatar, no canto superior direito → **Painel da equipe**).
 
 **Passar o cargo de Dona para outra pessoa** (só pode haver uma): rode os dois comandos juntos. A conta nova precisa existir antes. A Dona não consegue excluir a própria conta pelo site; passe o cargo antes.
 
@@ -351,7 +353,7 @@ Se mesmo assim a capa não puder entrar, o cartão sai sem ela e mostra um aviso
 
 ## Trazer a lista da versão antiga
 
-- **Do mesmo navegador:** ao entrar pela primeira vez, a biblioteca avisa se encontrar obras salvas da versão antiga e oferece **Importar**. Também fica em **Perfil e configurações → Seus dados**.
+- **Do mesmo navegador:** ao entrar pela primeira vez, a biblioteca avisa se encontrar obras salvas da versão antiga e oferece **Importar**. Também fica em **Seus dados**, na tela de configurações da conta (avatar no canto superior direito → **Configurações**).
 - **De outro navegador/computador:** na versão antiga, exporte o backup; aqui use **Importar backup** e escolha **Adicionar** (mantém o que você já tem) ou **Substituir tudo**.
 - **Exportar** gera um arquivo `.json` com toda a sua lista, bom para guardar uma cópia. Backups antigos entram normalmente (as notas de 1 a 5 são convertidas para a escala nova).
 
@@ -374,7 +376,7 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.15`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.16`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
 
 ## Como o código está organizado
 
@@ -387,7 +389,7 @@ js/
   core/                 DOM seguro, roteador, modal, toasts, tema, cores, alto contraste, fundo do site (siteBackground.js), ícones (inclui a logo 菫)
   domain/               regras puras: obras, temporadas, estatísticas, backup, cargos, limites de troca de foto/fundo, histórico de novidades (changelog.js)
   services/             backends (local e Supabase), sessão, busca (Jikan, AniList, TMDB)
-  ui/                   componentes: cards, filtros, modais, cartão de compartilhar, avatar, abas da conta, abas Anime/Mangá/Light Novel, progresso de leitura
+  ui/                   componentes: cards, filtros, modais, cartão de compartilhar, avatar, menu da conta (accountMenu.js), abas da conta, abas Anime/Mangá/Light Novel, progresso de leitura
   views/                telas: início, biblioteca, login, perfil, explorar, feed (atividade e pedidos), personalização, configurações, painel da equipe (admin.js)
 tools/palettes.mjs      gera css/palettes.css e as cores de css/contrast.css e confere o contraste (node tools/palettes.mjs --check)
 sql/schema.sql          tabelas, regras de segurança e funções do Supabase (pode rodar de novo a qualquer momento)

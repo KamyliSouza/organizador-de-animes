@@ -210,27 +210,86 @@ html:not(.js) .skip-link { display: none; }
 
 .nav-spacer { flex: 1 1 auto; min-width: 0; }
 .nav-actions { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.nav-name { max-width: 130px; }
 
-/* Tablets: menu mais compacto para caber nome da conta + "Sair" sem passar da tela */
+/* Tablets: menu mais compacto para caber os atalhos sem passar da tela */
 @media (max-width: 60em) {      /* 960px com o texto no tamanho normal; cresce junto se a pessoa aumentar o texto do navegador */
     .nav-links { margin-left: 2px; }
     .nav-link { padding: 9px 11px; gap: 6px; }
-    .nav-name { max-width: 84px; }
-}
-@media (max-width: 60em) {
-    .nav-account .nav-label { display: none; }     /* "Sair" vira só o ícone (continua com nome acessível e dica) */
 }
 @media (max-width: 60em) and (min-width: 45.0625em) {
-    .nav-name { max-width: 72px; }
     /* Equipe: o atalho do painel vira só o ícone (nome na dica e no aria-label) para o menu caber nesta faixa */
     .nav-link-admin .nav-text { display: none; }
     .nav-link-admin { padding-inline: 10px; }
-    .site-nav-inner:has(.nav-link-admin) .nav-name { max-width: 52px; }
 }
-@media (max-width: 48em) and (min-width: 45.0625em) {
-    .site-nav-inner:has(.nav-link-admin) .nav-name { max-width: 28px; }
-    .site-nav-inner:has(.nav-link-admin) .nav-links { gap: 2px; }
+
+/* ---------------------------------------------------------
+   Menu da conta (avatar no canto superior direito; js/ui/accountMenu.js)
+   --------------------------------------------------------- */
+.account-menu { position: relative; flex: none; }
+.account-trigger {
+    display: inline-flex; align-items: center; gap: 8px;
+    min-height: 44px; padding: 4px 10px 4px 4px;
+    color: var(--text-color); background: transparent;
+    font: inherit; font-weight: 800; font-size: .95rem;
+    border: 2px solid transparent; border-radius: var(--radius-pill);
+    cursor: pointer;
+    transition: background-color .18s ease, border-color .18s ease, color .18s ease;
+}
+.account-trigger:hover { background: var(--notice-bg); color: var(--primary-text); }
+.account-trigger.is-current { background: var(--notice-bg); color: var(--primary-text); }
+.account-trigger[aria-expanded="true"] { background: var(--notice-bg); border-color: var(--card-border-strong); }
+.account-name { display: none; max-width: 130px; }
+.account-caret { flex: none; transition: transform .18s ease; }
+.account-trigger[aria-expanded="true"] .account-caret { transform: rotate(180deg); }
+@media (min-width: 60.0625em) { .account-name { display: inline; } }      /* o nome só aparece onde sobra espaço; no resto é só o avatar */
+@media (max-width: 26em) {      /* celular: só o avatar (sem a setinha) para sobrar espaço no topo */
+    .account-caret { display: none; }
+    .account-trigger { padding-right: 4px; }
+}
+@media (max-width: 18.5em) {      /* telas minúsculas (≈296px ou menos) */
+    .brand-text { display: none; }      /* fica só a logo; o link da marca continua com nome (aria-label) */
+}
+
+.account-panel {
+    position: absolute; right: 0; top: calc(100% + 8px);
+    display: flex; flex-direction: column;
+    width: min(280px, calc(100vw - 32px));
+    max-height: calc(100vh - var(--nav-height) - 16px);
+    max-height: calc(100dvh - var(--nav-height) - 16px);
+    overflow-y: auto;
+    padding: 8px;
+    color: var(--text-color);
+    background: var(--modal-bg);
+    border: 2px solid var(--card-border-strong);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+}
+.account-head {
+    display: flex; align-items: center; gap: 12px; min-width: 0;
+    margin-bottom: 6px; padding: 8px 10px 12px;
+    border-bottom: 1px solid var(--card-border);
+}
+.account-who { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+.account-who strong { max-width: 100%; font-size: 1rem; line-height: 1.25; }
+.account-user { max-width: 100%; font-size: .84rem; color: var(--subtitle-color); }
+.account-who .role-badge { margin-top: 4px; }
+.account-list { display: flex; flex-direction: column; gap: 2px; }
+.account-item {
+    display: flex; align-items: center; gap: 12px;
+    width: 100%; min-height: 44px; padding: 10px 12px;
+    color: var(--text-color); background: transparent; text-align: left;
+    font: inherit; font-weight: 800; font-size: .95rem; text-decoration: none;
+    border: 0; border-radius: var(--radius-small);
+    cursor: pointer;
+}
+.account-item .icon { flex: none; color: var(--primary-text); }
+.account-item > span { min-width: 0; overflow-wrap: anywhere; }   /* com texto muito grande numa tela minúscula, "Personalização" quebra em vez de vazar do botão */
+.account-item:hover, .account-item:focus-visible { background: var(--notice-bg); color: var(--primary-text); }
+.account-item[aria-current="page"] { background: var(--notice-bg); box-shadow: inset 4px 0 0 var(--primary-color); }   /* a barra marca a tela atual sem depender só da cor */
+.account-sep { height: 1px; margin: 6px 4px; background: var(--card-border); }
+@media (max-width: 18.5em) {      /* telas minúsculas: aproveita a largura, para "Personalização" caber inteira numa linha mesmo com texto grande */
+    .account-panel { width: calc(100vw - 20px); padding: 6px; }
+    .account-item { gap: 8px; padding-inline: 8px; }
 }
 
 /* ---------------------------------------------------------

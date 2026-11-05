@@ -9,7 +9,7 @@ import { messageOf } from '../core/errors.js';
 import { SITE_VERSION } from '../domain/changelog.js';
 import { isStaff } from '../domain/roles.js';
 import { state, isCloud, myRole, onSessionChange, refreshSession } from '../services/session.js';
-import { avatar, avatarSrc } from './avatar.js';
+import { accountMenuHtml, bindAccountMenu, captureAccountFocus, closeAccountMenu } from './accountMenu.js';
 import { openPatchNotesModal } from './patchNotesModal.js';
 
 const isActive = (path, ...prefixes) => prefixes.some((p) => (p === '/' ? path === '/' : path === p || path.startsWith(p + '/')));
@@ -24,13 +24,13 @@ function navModel() {
     ];
     if (cloud && user) items.push({ href: '#/feed', label: 'Feed', icon: 'activity', active: isActive(path, '/feed'), badge: state.requests });
     if (cloud) items.push({ href: '#/explorar', label: 'Explorar', icon: 'compass', active: isActive(path, '/explorar', '/u') });
-    // Equipe (moderação, administração e Dona): atalho para o painel. No celular o atalho fica em Perfil e configurações.
+    // Equipe (moderação, administração e Dona): atalho para o painel. No celular o atalho fica no menu do avatar.
     if (cloud && user && isStaff(myRole())) items.push({ href: '#/admin', label: 'Painel', icon: 'shield', active: isActive(path, '/admin'), desktopOnly: true, admin: true });
 
-    let account;
+    // Quem está logada acessa perfil e configurações pelo avatar no topo (accountMenu.js); sem login ou sem conta, o atalho fica na barra inferior.
+    let account = null;
     if (!cloud) account = { href: '#/configuracoes', label: 'Ajustes', icon: 'sliders', active: isActive(path, '/configuracoes') };
-    else if (user) account = { href: '#/configuracoes', label: 'Perfil', icon: 'user', active: isActive(path, '/configuracoes') };
-    else account = { href: '#/entrar', label: 'Entrar', icon: 'logIn', active: isActive(path, '/entrar', '/criar-conta', '/recuperar', '/nova-senha') };
+    else if (!user) account = { href: '#/entrar', label: 'Entrar', icon: 'logIn', active: isActive(path, '/entrar', '/criar-conta', '/recuperar', '/nova-senha') };
 
     return { items, account, cloud, user };
 }
@@ -41,9 +41,9 @@ const badge = (item) => (item.badge > 0
     : '');
 
 function renderNav(nav) {
-    const { items, account, cloud, user } = navModel();
+    const { items, cloud, user } = navModel();
     const dark = currentTheme() === 'dark';
-    const name = state.profile?.displayName || state.profile?.username || user?.email || '';
+    if (!(cloud && user)) closeAccountMenu();   // saiu da conta: não deixa um "aberto" esquecido para a próxima pessoa que entrar
 
     setHtml(nav, html`
         <div class="site-nav-inner">
@@ -57,24 +57,22 @@ function renderNav(nav) {
             <span class="nav-spacer"></span>
             <div class="nav-actions">
                 <button type="button" class="icon-button" data-theme-toggle aria-label="${dark ? 'Usar tema claro' : 'Usar tema escuro'}" title="${dark ? 'Tema claro' : 'Tema escuro'}">${icon(dark ? 'sun' : 'moon', { size: 20 })}</button>
-                <span class="nav-account row" style="gap:8px;flex-wrap:nowrap">
-                    ${!cloud
-                        ? html`<a class="button button-secondary button-sm" href="#/configuracoes">${icon('sliders', { size: 16 })}Ajustes</a>`
-                        : user
-                            ? html`
-                                <a class="nav-link" href="#/configuracoes" ${isActive(currentPath(), '/configuracoes') ? html`aria-current="page"` : ''} title="Meu perfil e configurações">${avatar(name, 28, avatarSrc(state.profile))}<span class="truncate nav-name">${name}</span></a>
-                                <button type="button" class="button button-ghost button-sm" data-logout aria-label="Sair da conta" title="Sair da conta">${icon('logOut', { size: 16 })}<span class="nav-label">Sair</span></button>`
+                ${cloud && user
+                    ? accountMenuHtml({ profile: state.profile, user, role: myRole(), path: currentPath() })
+                    : html`<span class="nav-account row" style="gap:8px;flex-wrap:nowrap">
+                        ${!cloud
+                            ? html`<a class="button button-secondary button-sm" href="#/configuracoes">${icon('sliders', { size: 16 })}Ajustes</a>`
                             : html`
                                 <a class="button button-ghost button-sm" href="#/entrar">Entrar</a>
                                 <a class="button button-primary button-sm" href="#/criar-conta">Criar conta</a>`}
-                </span>
+                    </span>`}
             </div>
         </div>`);
 }
 
 function renderTabBar(bar) {
     const { items, account } = navModel();
-    const all = [...items.filter((i) => !i.desktopOnly), account];
+    const all = [...items.filter((i) => !i.desktopOnly), account].filter(Boolean);
     setHtml(bar, html`${all.map((i) => html`
         <a class="tab-link" href="${i.href}" ${i.active ? html`aria-current="page"` : ''}>${icon(i.icon, { size: 20 })}<span>${i.label}</span>${badge(i)}</a>`)}`);
 }
@@ -105,15 +103,22 @@ function renderNotice(region) {
 }
 
 export function mountChrome({ nav, tabBar, footer, notice }) {
-    const paint = () => { renderNav(nav); renderTabBar(tabBar); renderNotice(notice); };
+    const paint = () => { const restoreFocus = captureAccountFocus(nav); renderNav(nav); renderTabBar(tabBar); renderNotice(notice); restoreFocus(); };
     paint();
     renderFooter(footer);
     on(footer, 'click', '[data-patch-notes]', () => openPatchNotesModal());
 
-    onRouteChange(paint);
+    // Mudou de tela: o menu da conta fecha. Um aviso de rota para a MESMA tela (acontece no começo, enquanto o site termina de abrir) só redesenha.
+    let lastPath = currentPath();
+    onRouteChange(() => {
+        const now = currentPath();
+        if (now !== lastPath) { lastPath = now; closeAccountMenu(); }
+        paint();
+    });
     onSessionChange(paint);
     onThemeChange(paint);
 
+    bindAccountMenu(nav);
     on(nav, 'click', '[data-theme-toggle]', () => toggleTheme());
     on(nav, 'click', '[data-logout]', async (ev, btn) => {
         btn.disabled = true;

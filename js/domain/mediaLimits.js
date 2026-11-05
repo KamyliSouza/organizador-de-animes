@@ -40,11 +40,12 @@ export function limitMessage({ kind, reason, wait, limit }) {
 }
 
 /**
- * Linha de apoio da tela. `info` vem do banco: { cooldown, dailyLimit, used, avatar: { wait, reason }, background: { wait, reason } }.
+ * Linha de apoio da tela. `info` vem do banco: { cooldown, dailyLimit, used, exempt, avatar: { wait, reason }, background: { wait, reason } }.
  * `waitLeft` é o que ainda falta (em segundos) para o tipo em questão, já descontado o tempo que passou desde a consulta.
  */
 export function limitHint(info, kind, waitLeft, reason) {
     if (!info) return '';
+    if (info.exempt) return 'Seu cargo na equipe não tem limite de trocas de foto e fundo.';
     const k = MEDIA_KINDS[kind] || MEDIA_KINDS.avatar;
     if (waitLeft > 0) return limitMessage({ kind, reason, wait: waitLeft, limit: info.dailyLimit });
     return `Trocas de foto e fundo nas últimas 24 horas: ${info.used} de ${info.dailyLimit}. Entre duas trocas ${k.article === 'a' ? 'da' : 'do'} ${k.noun}, é preciso esperar ${info.cooldown} s.`;
