@@ -260,6 +260,13 @@ create table if not exists public.profile_reports (
 );
 create unique index if not exists profile_reports_one_open on public.profile_reports (reporter_id, target_id) where status = 'open';
 create index if not exists profile_reports_status_idx on public.profile_reports (status, id desc);
+--   * snapshot (Patch 18): cópia do que a pessoa denunciada mostrava NA HORA da denúncia (nome, @, bio, versões da foto e do fundo
+--     e os textos das obras que quem denunciou conseguia ver). Assim a equipe vê a prova mesmo que a pessoa edite tudo depois.
+--     Só a equipe lê (admin_list_reports). Os arquivos de imagem não são copiados: só a versão (avatar_v / bg_v).
+alter table public.profile_reports add column if not exists snapshot jsonb not null default '{}'::jsonb;
+alter table public.profile_reports drop constraint if exists profile_reports_snapshot;
+alter table public.profile_reports add  constraint profile_reports_snapshot
+  check (jsonb_typeof(snapshot) = 'object' and octet_length(snapshot::text) <= 120000);
 
 -- Configurações do site: signups_open (true/false), announcement (aviso no topo), blocked_names (lista de palavras proibidas)
 -- e allowed_link_hosts (sites que podem ser citados nos textos).
@@ -746,6 +753,11 @@ begin
     select q.c from (select public.clean_text(t.v, false) as c, t.i from unnest(new.genres) with ordinality as t(v, i)) q
     where q.c <> '' order by q.i), '{}');
 
+  -- Ação da equipe (remoção de conteúdo, seção 5b): só limpa, não confere palavras nem sites.
+  if coalesce(current_setting('kamylist.staff_edit', true), '') = '1' then
+    return new;
+  end if;
+
   if new.source_ref is null and title_changed then
     problem := public.text_problem(new.title); field := 'Título';
   end if;
@@ -813,6 +825,10 @@ begin
       new.activity_at   := now();
       new.activity_kind := case when coalesce(btrim(new.review), '') <> '' then 'review' else 'added' end;
     end if;
+  elsif coalesce(current_setting('kamylist.staff_edit', true), '') = '1' then
+    -- ação da equipe (remoção de conteúdo): o texto trocado não vira "análise nova" no feed
+    new.activity_at   := old.activity_at;
+    new.activity_kind := old.activity_kind;
   elsif coalesce(btrim(new.review), '') <> '' and new.review is distinct from old.review then
     new.activity_at   := now();
     new.activity_kind := 'review';
@@ -1475,7 +1491,65 @@ as $$
          coalesce((select s.value #>> '{}' from public.site_settings s where s.key = 'announcement'), '')
 $$;
 
+-- Snapshot da denúncia (uso interno). Guarda o perfil como ele está agora e, das obras, só os textos que QUEM DENUNCIA
+-- conseguia ver: perfil público ou seguidor aceito, aba ativa, anotações só se a pessoa deixou aparecer. No máximo 10 obras
+-- (as mexidas mais recentemente que têm análise, anotações, tags ou título digitado à mão), com os textos cortados.
+create or replace function public.report_snapshot(p_reporter uuid, p_target uuid)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  p       public.profiles%rowtype;
+  can_see boolean;
+  items   jsonb := '[]'::jsonb;
+begin
+  select * into p from public.profiles where id = p_target;
+  if not found then
+    return '{}'::jsonb;
+  end if;
+  can_see := p.is_public
+             or exists (select 1 from public.follows f
+                        where f.follower_id = p_reporter and f.followee_id = p_target and f.status = 'accepted');
+  if can_see then
+    select coalesce(jsonb_agg(q.j order by q.upd desc, q.id), '[]'::jsonb) into items
+    from (
+      select e.id, e.updated_at as upd,
+             jsonb_build_object(
+               'id', e.id,
+               'title', left(e.title, 120),
+               'category', e.category,
+               'manual', e.source_ref is null,
+               'review', left(e.review, 600),
+               'notes', case when p.show_notes then left(e.notes, 400) end,
+               'tags', to_jsonb(array(select left(t.v, 40) from unnest(e.tags) with ordinality as t(v, i) where t.i <= 10 order by t.i))
+             ) as j
+      from public.entries e
+      where e.user_id = p_target
+        and public.category_section(e.category) = any (p.sections)
+        and (e.review is not null or cardinality(e.tags) > 0 or (p.show_notes and e.notes is not null) or e.source_ref is null)
+      order by e.updated_at desc, e.id
+      limit 10
+    ) q;
+  end if;
+  return jsonb_build_object(
+    'v', 1,
+    'username', p.username,
+    'display_name', p.display_name,
+    'bio', p.bio,
+    'avatar_v', p.avatar_v,
+    'bg_v', p.bg_v,
+    'is_public', p.is_public,
+    'entries_visible', can_see,
+    'entries', items
+  );
+end;
+$$;
+
 -- Denunciar o perfil de alguém (nome, bio ou foto). Repetir enquanto a denúncia está aberta não faz nada.
+-- A denúncia guarda um snapshot do perfil na hora (veja report_snapshot).
 create or replace function public.report_profile(p_username text, p_reason text, p_details text default '')
 returns void
 language plpgsql
@@ -1508,8 +1582,8 @@ begin
   if (select count(*) from public.profile_reports r where r.reporter_id = me and r.status = 'open') >= 10 then
     raise exception 'Você já tem várias denúncias em análise. Aguarde a resposta da equipe.' using errcode = 'check_violation';
   end if;
-  insert into public.profile_reports (reporter_id, target_id, reason, details)
-  values (me, target, p_reason, left(public.clean_text(p_details, true), 300));
+  insert into public.profile_reports (reporter_id, target_id, reason, details, snapshot)
+  values (me, target, p_reason, left(public.clean_text(p_details, true), 300), public.report_snapshot(me, target));
 end;
 $$;
 
@@ -1625,6 +1699,89 @@ begin
 end;
 $$;
 
+-- Remove conteúdo ofensivo CAMPO A CAMPO, trocando o texto por "[Conteúdo removido pela moderação]". Não mexe em progresso,
+-- nota (0 a 10), status, favoritos, temporadas, capa nem datas, e o texto trocado não vira novidade no feed.
+--   p_fields: do perfil 'display_name' e 'bio'; das obras 'title' (só títulos digitados à mão), 'review' (análise),
+--             'notes' (anotações) e 'tags' (as tags ficam vazias).
+--   p_entry:  só essa obra (campos de obra); vazio = todas as obras da pessoa.
+-- Devolve quantas coisas mudaram (0 = já estava tudo removido ou não havia nada para remover).
+create or replace function public.admin_wipe_text(p_user uuid, p_fields text[], p_entry uuid default null)
+returns integer
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  removed_mark constant text := '[Conteúdo removido pela moderação]';
+  fields    text[];
+  f         text;
+  t         public.profiles%rowtype;
+  total     integer := 0;
+  n         integer;
+  one_title text;
+begin
+  perform public.require_outranks(p_user);
+  fields := coalesce(array(select distinct x from unnest(p_fields) x), '{}');
+  if cardinality(fields) = 0 then
+    raise exception 'Escolha o que remover.' using errcode = '22023';
+  end if;
+  if exists (select 1 from unnest(fields) x where x not in ('display_name', 'bio', 'title', 'review', 'notes', 'tags')) then
+    raise exception 'Campo inválido.' using errcode = '22023';
+  end if;
+  if p_entry is not null then
+    select e.title into one_title from public.entries e where e.id = p_entry and e.user_id = p_user;
+    if not found then
+      raise exception 'Obra não encontrada.' using errcode = 'P0002';
+    end if;
+    if exists (select 1 from unnest(fields) x where x in ('display_name', 'bio')) then
+      raise exception 'Nome e bio são do perfil, não de uma obra.' using errcode = '22023';
+    end if;
+  end if;
+  select * into t from public.profiles where id = p_user;
+  perform set_config('kamylist.staff_edit', '1', true);
+
+  foreach f in array fields loop
+    n := 0;
+    if f = 'display_name' then
+      if t.display_name <> removed_mark then
+        update public.profiles set display_name = removed_mark where id = p_user;
+        perform public.log_action('wipe_display_name', p_user, jsonb_build_object('antes', t.display_name));
+        n := 1;
+      end if;
+    elsif f = 'bio' then
+      if t.bio <> '' and t.bio <> removed_mark then
+        update public.profiles set bio = removed_mark where id = p_user;
+        perform public.log_action('wipe_bio', p_user, jsonb_build_object('antes', t.bio));
+        n := 1;
+      end if;
+    elsif f = 'title' then
+      update public.entries set title = removed_mark
+       where user_id = p_user and source_ref is null and title <> removed_mark and (p_entry is null or id = p_entry);
+      get diagnostics n = row_count;
+    elsif f = 'review' then
+      update public.entries set review = removed_mark
+       where user_id = p_user and review is not null and review <> removed_mark and (p_entry is null or id = p_entry);
+      get diagnostics n = row_count;
+    elsif f = 'notes' then
+      update public.entries set notes = removed_mark
+       where user_id = p_user and notes is not null and notes <> removed_mark and (p_entry is null or id = p_entry);
+      get diagnostics n = row_count;
+    elsif f = 'tags' then
+      update public.entries set tags = '{}'
+       where user_id = p_user and cardinality(tags) > 0 and (p_entry is null or id = p_entry);
+      get diagnostics n = row_count;
+    end if;
+    -- campos de obra: o registro guarda só a quantidade (ou o título da obra), nunca o texto (as anotações são privadas)
+    if n > 0 and f not in ('display_name', 'bio') then
+      perform public.log_action('wipe_' || f, p_user,
+        case when p_entry is null then jsonb_build_object('obras', n) else jsonb_build_object('obra', left(one_title, 80)) end);
+    end if;
+    total := total + n;
+  end loop;
+  return total;
+end;
+$$;
+
 -- Dá um novo nome de exibição para alguém.
 create or replace function public.admin_rename_user(p_user uuid, p_display_name text)
 returns void
@@ -1711,7 +1868,9 @@ $$;
 
 -- Fila de denúncias. A equipe só vê denúncias sobre quem tem cargo menor que o seu.
 -- p_status: 'open', 'resolved', 'dismissed' ou 'all'
-create or replace function public.admin_list_reports(p_status text default 'open', p_limit int default 50)
+-- (drop antes: o formato do resultado ganhou colunas: bio e fundo atuais e o snapshot)
+drop function if exists public.admin_list_reports(text, int);
+create function public.admin_list_reports(p_status text default 'open', p_limit int default 50)
 returns table (
   id                  bigint,
   created_at          timestamptz,
@@ -1726,7 +1885,10 @@ returns table (
   target_role         text,
   target_suspended    boolean,
   handled_by_username text,
-  handled_at          timestamptz
+  handled_at          timestamptz,
+  target_bio          text,
+  target_bg_v         bigint,
+  snapshot            jsonb
 )
 language plpgsql
 stable
@@ -1743,7 +1905,9 @@ begin
          tr.role,
          (ts.user_id is not null),
          hb.username,
-         pr.handled_at
+         pr.handled_at,
+         t.bio, t.bg_v,
+         pr.snapshot
   from public.profile_reports pr
   join public.profiles t            on t.id = pr.target_id
   left join public.user_roles tr    on tr.user_id = t.id
@@ -1903,6 +2067,8 @@ revoke all on function public.get_public_settings()                from public;
 revoke all on function public.report_profile(text, text, text)    from public, anon;
 revoke all on function public.admin_list_members(text, int, int)   from public, anon;
 revoke all on function public.admin_reset_profile(uuid, text[])    from public, anon;
+revoke all on function public.admin_wipe_text(uuid, text[], uuid)  from public, anon;
+revoke all on function public.report_snapshot(uuid, uuid)          from public, anon, authenticated;
 revoke all on function public.admin_rename_user(uuid, text)        from public, anon;
 revoke all on function public.admin_set_suspended(uuid, boolean, text) from public, anon;
 revoke all on function public.admin_set_role(uuid, text)           from public, anon;
@@ -1917,6 +2083,7 @@ grant execute on function public.get_public_settings()              to anon, aut
 grant execute on function public.report_profile(text, text, text)  to authenticated;
 grant execute on function public.admin_list_members(text, int, int) to authenticated;
 grant execute on function public.admin_reset_profile(uuid, text[]) to authenticated;
+grant execute on function public.admin_wipe_text(uuid, text[], uuid) to authenticated;
 grant execute on function public.admin_rename_user(uuid, text)     to authenticated;
 grant execute on function public.admin_set_suspended(uuid, boolean, text) to authenticated;
 grant execute on function public.admin_set_role(uuid, text)        to authenticated;
@@ -1942,12 +2109,14 @@ grant execute on function public.admin_set_setting(text, jsonb)    to authentica
 --   13 = quem tem cargo (Dona, Administração, Moderação) fica fora dos limites de troca de foto e fundo (função media_exempt)
 --   14 = segurança dos textos: limpeza de caracteres invisíveis/zalgo, palavras proibidas também em bio, tags, título digitado,
 --        anotações e análise, e lista de sites permitidos (configuração allowed_link_hosts)
+--   15 = denúncia com snapshot do perfil (coluna profile_reports.snapshot) e remoção de conteúdo campo a campo pela equipe
+--        (função admin_wipe_text)
 create or replace function public.schema_version()
 returns integer
 language sql
 immutable
 set search_path = ''
-as $$ select 14 $$;
+as $$ select 15 $$;
 
 -- Só quem precisa pode executar cada função.
 revoke all on function public.get_public_entries(text)            from public;

@@ -5,6 +5,7 @@ import { confirmDialog } from '../core/dialogs.js';
 import { messageOf } from '../core/errors.js';
 import { openModal } from '../core/modal.js';
 import { toast } from '../core/toast.js';
+import { WIPE_FIELDS, REMOVED_MARK } from '../domain/reportSnapshot.js';
 import { ROLES, canAct, grantableRoles, rankOf } from '../domain/roles.js';
 import { avatar, avatarSrc } from './avatar.js';
 import { roleBadge } from './roleBadge.js';
@@ -17,6 +18,7 @@ const RESET_FIELDS = [
     ['username', 'Nome de usuário (@)', 'vira "user_" + código; o link antigo do perfil deixa de funcionar'],
 ];
 const FIELD_NAMES = Object.fromEntries(RESET_FIELDS.map(([k, label]) => [k, label.toLowerCase()]));
+const WIPE_NAMES = Object.fromEntries(WIPE_FIELDS.map((f) => [f.key, f.label.toLowerCase()]));
 
 /**
  * @param {object} opts
@@ -48,9 +50,20 @@ export function openMemberModal({ member, actorRole, moderation, onChanged }) {
             <section class="manage-section" aria-labelledby="mm-reset">
                 <h3 id="mm-reset">Restaurar dados do perfil</h3>
                 <p class="field-hint">Use quando o nome, a bio, a foto ou o fundo forem impróprios. A pessoa pode editar de novo depois.</p>
+                <div class="manage-quick">
+                    <button type="button" class="button button-secondary" data-do="media">Zerar foto e fundo de uma vez</button>
+                </div>
                 ${RESET_FIELDS.map(([key, label, effect]) => html`
                     <label class="check-row"><input type="checkbox" data-reset="${key}"><span>${label} <span class="muted small">(${effect})</span></span></label>`)}
                 <div><button type="button" class="button button-secondary" data-do="reset" disabled>Restaurar o que marquei</button></div>
+            </section>
+
+            <section class="manage-section" aria-labelledby="mm-wipe">
+                <h3 id="mm-wipe">Remover conteúdo</h3>
+                <p class="field-hint">Troca o texto marcado por “${REMOVED_MARK}” em todas as obras da pessoa (nas tags, o campo fica vazio). Progresso, notas, status, favoritos e capas não mudam. Para tirar de uma obra só, abra a denúncia e use os botões ao lado de cada texto.</p>
+                ${WIPE_FIELDS.map((f) => html`
+                    <label class="check-row"><input type="checkbox" data-wipe-field="${f.key}"><span>${f.label} <span class="muted small">(${f.effect})</span></span></label>`)}
+                <div><button type="button" class="button button-secondary" data-do="wipe" disabled>Remover o que marquei</button></div>
             </section>
 
             <section class="manage-section" aria-labelledby="mm-rename">
@@ -100,7 +113,7 @@ export function openMemberModal({ member, actorRole, moderation, onChanged }) {
         content.querySelectorAll('button').forEach((b) => { b.dataset.wasDisabled = b.disabled ? '1' : ''; b.disabled = true; });
         try {
             await task();
-            toast(okMessage, { type: 'success' });
+            toast(typeof okMessage === 'function' ? okMessage() : okMessage, { type: 'success' });
             modal.close();
             onChanged?.();
         } catch (err) {
@@ -112,9 +125,13 @@ export function openMemberModal({ member, actorRole, moderation, onChanged }) {
     }
 
     const resetBtn = content.querySelector('[data-do="reset"]');
+    const wipeBtn = content.querySelector('[data-do="wipe"]');
     const checked = () => [...content.querySelectorAll('[data-reset]:checked')].map((c) => c.dataset.reset);
+    const checkedWipe = () => [...content.querySelectorAll('[data-wipe-field]:checked')].map((c) => c.dataset.wipeField);
     content.addEventListener('change', (e) => {
-        if (e.target instanceof Element && e.target.matches('[data-reset]')) resetBtn.disabled = checked().length === 0;
+        if (!(e.target instanceof Element)) return;
+        if (e.target.matches('[data-reset]')) resetBtn.disabled = checked().length === 0;
+        if (e.target.matches('[data-wipe-field]')) wipeBtn.disabled = checkedWipe().length === 0;
     });
 
     content.addEventListener('click', async (e) => {
@@ -130,6 +147,29 @@ export function openMemberModal({ member, actorRole, moderation, onChanged }) {
                     confirmLabel: 'Restaurar', danger: true,
                 });
                 if (yes) await act(() => moderation.resetProfile(member.id, fields), 'Perfil restaurado.');
+                break;
+            }
+            case 'media': {
+                const yes = await confirmDialog({
+                    title: 'Zerar foto e fundo',
+                    message: `Tirar a foto de perfil e a imagem de fundo de @${member.username}? Isso não tem como desfazer, mas fica no registro de ações. A pessoa pode colocar outras depois.`,
+                    confirmLabel: 'Zerar', danger: true,
+                });
+                if (yes) await act(() => moderation.resetProfile(member.id, ['avatar', 'background']), 'Foto e fundo zerados.');
+                break;
+            }
+            case 'wipe': {
+                const fields = checkedWipe();
+                if (!fields.length) return;
+                const yes = await confirmDialog({
+                    title: 'Remover conteúdo',
+                    message: `Remover ${fields.map((f) => WIPE_NAMES[f]).join(', ')} de @${member.username}? O texto vira “${REMOVED_MARK}” (tags ficam vazias). Progresso, notas e status não mudam. Isso não tem como desfazer, mas fica no registro de ações.`,
+                    confirmLabel: 'Remover', danger: true,
+                });
+                if (!yes) break;
+                let changed = 0;
+                await act(async () => { changed = await moderation.wipeText(member.id, fields); },
+                    () => (changed > 0 ? 'Conteúdo removido.' : 'Nada para remover: já estava removido ou vazio.'));
                 break;
             }
             case 'suspend': {

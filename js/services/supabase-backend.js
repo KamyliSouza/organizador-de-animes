@@ -7,6 +7,7 @@ import { safeUrl } from '../core/dom.js';
 import { cleanUnicode } from '../domain/textSafety.js';
 import { SECTION_KEYS, normalizeEntry, normalizeSections } from '../domain/entry.js';
 import { limitMessage, parseLimitError } from '../domain/mediaLimits.js';
+import { normalizeSnapshot } from '../domain/reportSnapshot.js';
 import { normalizeRole } from '../domain/roles.js';
 
 const PAGE = 1000;   // limite de linhas por requisição do Supabase
@@ -535,6 +536,17 @@ export async function createSupabaseBackend() {
             async resetProfile(userId, fields) {
                 await ok(sb.rpc('admin_reset_profile', { p_user: userId, p_fields: fields }), 'Não foi possível restaurar o perfil.');
             },
+            /**
+             * Troca o texto dos campos marcados por "[Conteúdo removido pela moderação]" (tags ficam vazias), sem mexer em progresso.
+             * fields: 'display_name' | 'bio' | 'title' | 'review' | 'notes' | 'tags'. entryId: só essa obra (vazio = todas da pessoa).
+             * Devolve quantas coisas mudaram (0 = já estava tudo removido).
+             */
+            async wipeText(userId, fields, entryId = null) {
+                const args = { p_user: userId, p_fields: fields };
+                if (entryId) args.p_entry = entryId;
+                const n = await ok(sb.rpc('admin_wipe_text', args), 'Não foi possível remover o conteúdo.');
+                return Number(n) || 0;
+            },
             async rename(userId, displayName) {
                 await ok(sb.rpc('admin_rename_user', { p_user: userId, p_display_name: displayName }), 'Não foi possível renomear.');
             },
@@ -559,9 +571,12 @@ export async function createSupabaseBackend() {
                         username: r.target_username,
                         displayName: cleanUnicode(r.target_display_name) || r.target_username,
                         avatarV: Number(r.target_avatar_v) || 0,
+                        bgV: Number(r.target_bg_v) || 0,
+                        bio: cleanUnicode(r.target_bio, { multiline: true }),
                         role: normalizeRole(r.target_role),
                         suspended: r.target_suspended === true,
                     },
+                    snapshot: normalizeSnapshot(r.snapshot),
                     handledBy: r.handled_by_username || '',
                     handledAt: r.handled_at,
                 }));

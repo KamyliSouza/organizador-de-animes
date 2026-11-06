@@ -1,9 +1,18 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.17';
+export const SITE_VERSION = '1.18';
 
 export const CHANGELOG = [
+    {
+        version: '1.18',
+        title: 'Denúncias com cópia e remoção por campo',
+        items: [
+            'Quando um perfil é denunciado, a equipe passa a guardar uma cópia do que ele mostrava na hora (nome, bio, foto, fundo e os textos das obras que dava para ver). Assim a análise não depende de a pessoa não editar depois.',
+            'A equipe agora consegue remover só o texto ofensivo (nome, bio, título digitado, análise, anotações ou tags). Ele vira "[Conteúdo removido pela moderação]". Progresso, nota, status e favoritos não mudam, e o texto removido não aparece como novidade no feed.',
+            'A equipe também pode zerar a foto e o fundo de um perfil de uma vez só.',
+        ],
+    },
     {
         version: '1.17',
         title: 'Textos mais seguros',

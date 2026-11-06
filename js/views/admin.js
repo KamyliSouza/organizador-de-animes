@@ -7,10 +7,13 @@ import { messageOf } from '../core/errors.js';
 import { icon, spinner } from '../core/icons.js';
 import { timeAgo } from '../core/time.js';
 import { toast } from '../core/toast.js';
+import { REMOVED_MARK, mediaState, removableFields, wipeField } from '../domain/reportSnapshot.js';
 import { parseHostList } from '../domain/textSafety.js';
 import { ROLES, actionLabel, canAct, canEditSetting, describeDetails, isStaff, motiveLabel, rankOf } from '../domain/roles.js';
 import { backend, isCloud, myRole, refreshAccess, state } from '../services/session.js';
+import { confirmDialog } from '../core/dialogs.js';
 import { avatar, avatarSrc } from '../ui/avatar.js';
+import { backgroundSrc } from '../ui/profileBackground.js';
 import { openMemberModal } from '../ui/memberModal.js';
 import { roleBadge } from '../ui/roleBadge.js';
 
@@ -113,7 +116,63 @@ function mountMembers(box, { be, role }) {
 // ---------------------------------------------------------------------------------------
 const STATUS_LABEL = { open: 'Em aberto', resolved: 'Resolvida', dismissed: 'Descartada' };
 
-const reportCard = (r, role) => html`
+// Cópia do perfil na hora da denúncia (snapshot) e o que mudou depois. As imagens antigas não são guardadas: só a versão.
+const MEDIA_NOTE = {
+    none: 'Não tinha.',
+    same: 'Continua a mesma imagem.',
+    gone: 'Tinha; já foi removida.',
+    changed: 'Tinha; foi trocada depois (a imagem antiga não é guardada).',
+    added: 'Não tinha; colocou uma depois.',
+};
+
+const wipeButton = (r, key, entryId = '') => html`<button type="button" class="button button-ghost button-sm" data-wipe="${key}" data-report="${r.id}" ${entryId ? html`data-entry="${entryId}"` : ''}>${icon('trash', { size: 14 })} Remover ${wipeField(key)?.short || key}</button>`;
+
+function snapshotBlock(r, mayAct, isOpen) {
+    const s = r.snapshot;
+    if (!s) return html`<p class="report-meta">Esta denúncia é de antes do snapshot: não há cópia do que a pessoa mostrava na hora.</p>`;
+    const t = r.target;
+    const nameNow = t.displayName;
+    const nameThen = s.displayName || s.username;
+    const photo = mediaState(s.avatarV, t.avatarV);
+    const bg = mediaState(s.bgV, t.bgV);
+    const changed = (flag) => (flag ? html` <span class="badge badge-muted">mudou depois</span>` : '');
+    return html`
+        <details class="report-snapshot" data-snap="${r.id}" ${isOpen ? 'open' : ''}>
+            <summary>Como estava na hora da denúncia</summary>
+            <dl class="snap-list">
+                <div class="snap-row"><dt>Nome</dt><dd>
+                    <span class="snap-text">${nameThen}</span>${changed(nameThen !== nameNow)}
+                    ${mayAct && nameNow !== REMOVED_MARK ? wipeButton(r, 'display_name') : ''}</dd></div>
+                <div class="snap-row"><dt>@usuário</dt><dd><span class="snap-text">@${s.username}</span>${changed(s.username !== t.username)}</dd></div>
+                <div class="snap-row"><dt>Bio</dt><dd>
+                    <span class="snap-text">${s.bio || '(vazia)'}</span>${changed(s.bio !== t.bio)}
+                    ${mayAct && s.bio !== '' && t.bio !== '' && t.bio !== REMOVED_MARK ? wipeButton(r, 'bio') : ''}</dd></div>
+                <div class="snap-row"><dt>Foto</dt><dd>
+                    ${photo === 'same' ? html`<span class="snap-media">${avatar(nameThen, 56, avatarSrc(t))}</span>` : ''}
+                    <span class="snap-text">${MEDIA_NOTE[photo]}</span></dd></div>
+                <div class="snap-row"><dt>Fundo</dt><dd>
+                    ${bg === 'same' && backgroundSrc(t) ? html`<img class="snap-bg" src="${backgroundSrc(t)}" alt="" width="160" height="90" loading="lazy" referrerpolicy="no-referrer">` : ''}
+                    <span class="snap-text">${MEDIA_NOTE[bg]}</span></dd></div>
+            </dl>
+            <h4 class="snap-title">Obras que quem denunciou conseguia ver</h4>
+            ${!s.entriesVisible ? html`<p class="field-hint">O perfil era privado para quem denunciou: nenhum texto de obra foi copiado.</p>`
+                : !s.entries.length ? html`<p class="field-hint">Nenhuma obra com título digitado, análise, anotações ou tags.</p>`
+                : html`<ul class="snap-entries">${s.entries.map((e) => {
+                    const todo = removableFields(e);
+                    return html`
+                    <li class="snap-entry" data-snap-entry="${e.id}">
+                        <b class="snap-entry-title">${e.title}</b> <span class="muted small">${e.category}${e.manual ? ' · título digitado' : ''}</span>
+                        ${e.review ? html`<p class="snap-text"><span class="muted small">Análise:</span> ${e.review}</p>` : ''}
+                        ${e.notes ? html`<p class="snap-text"><span class="muted small">Anotações:</span> ${e.notes}</p>` : ''}
+                        ${e.tags.length ? html`<p class="snap-text"><span class="muted small">Tags:</span> ${e.tags.join(', ')}</p>` : ''}
+                        ${mayAct && todo.length ? html`<div class="report-actions">${todo.map((k) => wipeButton(r, k, e.id))}</div>` : ''}
+                    </li>`;
+                })}</ul>`}
+            <p class="field-hint">Os botões "Remover" valem para o texto de hoje. A cópia acima continua guardada na denúncia.</p>
+        </details>`;
+}
+
+const reportCard = (r, role, openSnaps = new Set()) => html`
     <article class="report-card glass-panel" data-report="${r.id}">
         <header class="report-head">
             <div class="admin-who">
@@ -130,10 +189,12 @@ const reportCard = (r, role) => html`
             </span>
         </header>
         ${r.details ? html`<p class="report-details">${r.details}</p>` : ''}
+        ${snapshotBlock(r, canAct(role, r.target.role), openSnaps.has(r.id))}
         <p class="report-meta">Denunciado por ${r.reporter ? `@${r.reporter}` : 'uma conta excluída'} · ${timeAgo(r.createdAt)}${r.handledBy ? html` · tratada por @${r.handledBy} ${timeAgo(r.handledAt)}` : ''}</p>
         <div class="report-actions">
             <a class="button button-ghost button-sm" href="#/u/${r.target.username}">Ver perfil</a>
-            ${canAct(role, r.target.role) ? html`<button type="button" class="button button-secondary button-sm" data-manage="${r.id}">${icon('shield', { size: 15 })} Gerenciar</button>` : ''}
+            ${canAct(role, r.target.role) ? html`<button type="button" class="button button-secondary button-sm" data-manage="${r.id}">${icon('shield', { size: 15 })} Gerenciar</button>
+            <button type="button" class="button button-secondary button-sm" data-reset-media="${r.id}">${icon('image', { size: 15 })} Zerar foto e fundo</button>` : ''}
             ${r.status === 'open' ? html`
                 <button type="button" class="button button-primary button-sm" data-close-report="resolved" data-id="${r.id}">${icon('check', { size: 15 })} Resolver</button>
                 <button type="button" class="button button-ghost button-sm" data-close-report="dismissed" data-id="${r.id}">Descartar</button>` : html`
@@ -159,6 +220,7 @@ function mountReports(box, { be, role, onCount }) {
     const filter = box.querySelector('[data-filter]');
     let token = 0;
     let reports = [];
+    const openSnaps = new Set();   // cópias abertas: continuam abertas depois de remover algo e recarregar a lista
 
     async function load() {
         const mine = ++token;
@@ -169,7 +231,7 @@ function mountReports(box, { be, role, onCount }) {
             reports = rows;
             if (filter.value === 'open') onCount(rows.length);
             setHtml(list, rows.length
-                ? html`<div class="report-list">${rows.map((r) => reportCard(r, role))}</div>`
+                ? html`<div class="report-list">${rows.map((r) => reportCard(r, role, openSnaps))}</div>`
                 : empty('checkCircle', filter.value === 'open' ? 'Nenhuma denúncia em aberto' : 'Nada por aqui', filter.value === 'open' ? 'Tudo em dia.' : 'Nenhuma denúncia com essa situação.'));
         } catch (err) {
             if (mine !== token) return;
@@ -180,6 +242,9 @@ function mountReports(box, { be, role, onCount }) {
 
     filter.addEventListener('change', load);
     const offs = [
+        // "toggle" e "error" não sobem na árvore: ouvintes em fase de captura
+        on(list, 'toggle', 'details[data-snap]', (_, d) => { const id = Number(d.dataset.snap); if (d.open) openSnaps.add(id); else openSnaps.delete(id); }, true),
+        on(list, 'error', 'img.snap-bg', (_, img) => img.remove(), true),
         on(list, 'click', '[data-close-report]', async (_, btn) => {
             btn.disabled = true;
             try {
@@ -196,6 +261,49 @@ function mountReports(box, { be, role, onCount }) {
         on(list, 'click', '[data-manage]', (_, btn) => {
             const r = reports.find((x) => String(x.id) === btn.dataset.manage);
             if (r) openMemberModal({ member: { ...r.target, suspensionReason: '' }, actorRole: role, moderation: be.moderation, onChanged: () => load() });
+        }),
+        on(list, 'click', '[data-reset-media]', async (_, btn) => {
+            const r = reports.find((x) => String(x.id) === btn.dataset.resetMedia);
+            if (!r) return;
+            const yes = await confirmDialog({
+                title: 'Zerar foto e fundo',
+                message: `Tirar a foto de perfil e a imagem de fundo de @${r.target.username}? Isso não tem como desfazer, mas fica no registro de ações. A pessoa pode colocar outras depois.`,
+                confirmLabel: 'Zerar', danger: true,
+            });
+            if (!yes) return;
+            btn.disabled = true;
+            try {
+                await be.moderation.resetProfile(r.target.id, ['avatar', 'background']);
+                toast('Foto e fundo zerados.', { type: 'success' });
+                await load();
+            } catch (err) {
+                console.error(err);
+                btn.disabled = false;
+                toast(messageOf(err, 'Não foi possível zerar a foto e o fundo.'), { type: 'error' });
+            }
+        }),
+        on(list, 'click', '[data-wipe]', async (_, btn) => {
+            const r = reports.find((x) => String(x.id) === btn.dataset.report);
+            const key = btn.dataset.wipe;
+            const field = wipeField(key);
+            if (!r || !field) return;
+            const entryId = btn.dataset.entry || null;
+            const yes = await confirmDialog({
+                title: 'Remover conteúdo',
+                message: `Remover ${field.label.toLowerCase()} ${entryId ? 'desta obra' : ''} de @${r.target.username}? O texto vira “${REMOVED_MARK}” (tags ficam vazias). Progresso, nota e status não mudam. Isso não tem como desfazer, mas fica no registro de ações, e a denúncia continua guardando a cópia.`,
+                confirmLabel: 'Remover', danger: true,
+            });
+            if (!yes) return;
+            btn.disabled = true;
+            try {
+                const n = await be.moderation.wipeText(r.target.id, [key], entryId);
+                toast(n > 0 ? 'Conteúdo removido.' : 'Nada para remover: já estava removido ou vazio.', { type: n > 0 ? 'success' : 'info' });
+                await load();
+            } catch (err) {
+                console.error(err);
+                btn.disabled = false;
+                toast(messageOf(err, 'Não foi possível remover o conteúdo.'), { type: 'error' });
+            }
         }),
     ];
     load();

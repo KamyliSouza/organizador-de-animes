@@ -279,6 +279,24 @@
 .report-details { margin: 0; padding: 10px 12px; border-radius: var(--radius-small); background: var(--notice-bg); border: 1px solid var(--card-border); white-space: pre-line; overflow-wrap: anywhere; font-size: .92rem; }
 .report-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
+/* Cópia do perfil na hora da denúncia (Patch 18) */
+.report-snapshot { border: 1px solid var(--card-border); border-radius: var(--radius-small); padding: 0 12px; min-width: 0; }
+.report-snapshot[open] { padding-bottom: 12px; }
+.report-snapshot > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 700; font-size: .92rem; }
+.snap-list { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.snap-row { display: flex; gap: 4px 12px; flex-wrap: wrap; align-items: flex-start; min-width: 0; }
+.snap-row dt { flex: 0 0 76px; color: var(--muted-color); font-size: .84rem; padding-top: 2px; }
+.snap-row dd { margin: 0; flex: 1 1 200px; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.snap-text { margin: 0; overflow-wrap: anywhere; white-space: pre-line; font-size: .92rem; min-width: 0; }
+.snap-bg { max-width: 100%; height: auto; border-radius: var(--radius-small); border: 1px solid var(--card-border); }
+.snap-title { margin: 14px 0 8px; font-size: .92rem; }
+.snap-entries { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.snap-entry { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: var(--radius-small); background: var(--notice-bg); min-width: 0; }
+.snap-entry-title { overflow-wrap: anywhere; }
+.snap-list, .snap-entries, .snap-entry, .snap-row dd { min-width: 0; max-width: 100%; }
+.report-actions .button-sm, .report-snapshot .button-sm { white-space: normal; min-width: 0; max-width: 100%; text-align: center; overflow-wrap: anywhere; }   /* telas muito estreitas: o texto do botão quebra em vez de estourar o cartão */
+.manage-quick { display: flex; }
+
 .log-list { list-style: none; margin: 0; padding: 4px 16px; display: flex; flex-direction: column; }
 .log-row { display: flex; gap: 6px 14px; flex-wrap: wrap; padding: 10px 0; font-size: .92rem; overflow-wrap: anywhere; min-width: 0; }
 .log-row + .log-row { border-top: 1px solid var(--card-border); }
@@ -298,5 +316,9 @@
 @media (max-width: 30em) {
     .admin-list, .log-list { padding-inline: 12px; }
     .admin-row .button, .report-actions .button { flex: 1 1 auto; }
+    .report-snapshot .button-sm { min-height: 44px; padding-inline: 8px; gap: 4px; }   /* remover conteúdo é ação sem volta: alvo de toque confortável */
+    .report-snapshot .button-sm .icon { display: none; }   /* o texto já diz "Remover ...": sem o ícone, palavras longas cabem inteiras em telas muito estreitas */
+    .report-snapshot { padding-inline: 8px; }
+    .snap-entry { padding: 8px; }
     .log-time { flex-basis: 100%; }
 }

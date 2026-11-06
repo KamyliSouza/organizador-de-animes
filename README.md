@@ -82,6 +82,7 @@ Sem esse passo, estas coisas não funcionam (o site mostra um aviso amarelo na b
 - o **fundo do perfil**, que vale no site todo (o SQL cria as colunas `bg_v` e `bg_blur`, o armazenamento `backgrounds` e libera "Imagem de fundo" no Restaurar da equipe — a versão do banco passa a ser a **11**; veja "Fundo do perfil");
 - os **limites para trocar a foto e o fundo** (o SQL cria a tabela privada `media_changes`, as funções dos limites e um gatilho no armazenamento — a versão do banco passa a ser a **12**; veja "Limites para trocar a foto e o fundo");
 - a **isenção da equipe nos limites de troca** (Dona, Administração e Moderação não têm espera nem limite por dia — a versão do banco passa a ser a **13**; veja "Limites para trocar a foto e o fundo");
+- a **denúncia com snapshot** e a **remoção de conteúdo campo a campo** pela equipe (o SQL acrescenta a coluna `snapshot` às denúncias e a função `admin_wipe_text` — a versão do banco passa a ser a **15**; veja "Snapshot da denúncia e remoção de conteúdo");
 - o botão **Excluir minha conta**.
 
 ---
@@ -252,7 +253,7 @@ O site tem quatro cargos. O cargo aparece como um selo ao lado do nome (perfil, 
 |---|---|---|
 | **Dona** | Dona | Tudo. É a única que abre e fecha os cadastros e a única que cria ou remove administradores. Só existe uma. |
 | **Administração** | Admin | Tudo o que a moderação faz, mais o **aviso do site**, a **lista de palavras proibidas** e a **lista de sites permitidos**. Define quem é moderação ou membro. Não mexe na Dona nem em outra administração. |
-| **Moderação** | Mod | Buscar membros, restaurar nome, bio, foto e @, **renomear**, **suspender** e reativar contas, tratar denúncias e ver o registro. Não mexe em cargos nem nas configurações do site. |
+| **Moderação** | Mod | Buscar membros, restaurar nome, bio, foto e @, **remover textos ofensivos** e **zerar foto e fundo**, **renomear**, **suspender** e reativar contas, tratar denúncias e ver o registro. Não mexe em cargos nem nas configurações do site. |
 | **Membro** | — | Nível padrão. Pode **denunciar** perfis. |
 
 **Regra de ouro:** quem age só atinge quem tem um cargo **menor** que o seu, e só concede cargos menores que o seu. Isso é conferido no banco de dados (não só nos botões da tela), e os cargos ficam numa tabela fechada: nenhum usuário consegue editar o próprio cargo, nem pelo site nem pela API.
@@ -284,13 +285,19 @@ select id, 'owner' from auth.users where email = 'NOVA_DONA@exemplo.com';
 Só aparece para quem tem cargo (quem não tem é mandado de volta ao início; mesmo que alguém force a página, o banco recusa tudo). Tem quatro abas:
 
 - **Membros:** busca por nome ou @usuário e o botão **Gerenciar** (restaurar dados, renomear, suspender e cargo). A moderação não vê e-mails nem bibliotecas privadas.
-- **Denúncias:** a fila de denúncias em aberto, com o motivo, o detalhe e quem denunciou. Dá para **resolver**, **descartar** ou **reabrir**, e gerenciar a pessoa ali mesmo. A equipe só vê denúncias contra quem tem cargo menor que o seu (ninguém vê denúncias contra a Dona).
+- **Denúncias:** a fila de denúncias em aberto, com o motivo, o detalhe, quem denunciou e a **cópia do perfil na hora da denúncia** (veja abaixo). Dá para **resolver**, **descartar** ou **reabrir**, **zerar a foto e o fundo**, remover textos e gerenciar a pessoa ali mesmo. A equipe só vê denúncias contra quem tem cargo menor que o seu (ninguém vê denúncias contra a Dona).
 - **Registro:** toda ação da equipe (quem fez, quando, em quem e o antes e depois). O registro só cresce: nem a Dona edita pelo site. Os nomes ficam gravados como texto, então continuam legíveis mesmo se a conta for excluída.
 - **Site** (administração e Dona): **cadastros** (só a Dona), **aviso do site** (até 280 caracteres, aparece no topo para todo mundo), **palavras proibidas** e **sites permitidos nos textos**.
 
 ### Denunciar
 
 Em qualquer perfil que não seja o seu aparece **Denunciar**: a pessoa escolhe o motivo (nome, bio, foto, spam ou outro) e, se quiser, escreve um detalhe de até 300 caracteres. Só a equipe vê, e a pessoa denunciada não sabe quem denunciou. Cada pessoa tem **uma denúncia aberta por perfil** (repetir não duplica) e no máximo **10 em aberto** ao mesmo tempo.
+
+### Snapshot da denúncia e remoção de conteúdo
+
+- **Snapshot:** quando alguém denuncia, o banco guarda junto uma **cópia do que o perfil mostrava naquele momento**: nome, @, bio, a versão da foto e do fundo e, das obras, só os textos que **quem denunciou conseguia ver** (perfil público ou seguidor aceito, aba ativa; anotações só se a pessoa deixou aparecer). No máximo 10 obras (as mexidas mais recentemente que têm análise, anotações, tags ou título digitado à mão), com os textos cortados (análise 600 caracteres, anotações 400, título 120, tags 40). No card da denúncia, **Como estava na hora da denúncia** mostra a cópia e marca **mudou depois** no que a pessoa editou desde então. Só a equipe lê. Denúncias feitas antes deste patch não têm cópia (o card avisa). **As imagens não são copiadas:** o snapshot guarda só a versão da foto e do fundo; se a imagem ainda é a mesma ela aparece, se foi trocada ou removida o card diz isso (o arquivo antigo não existe mais).
+- **Remover conteúdo (campo a campo):** em **Gerenciar → Remover conteúdo** (todas as obras da pessoa) ou nos botões **Remover** ao lado de cada texto da cópia (só aquela obra), a equipe troca o texto por **[Conteúdo removido pela moderação]**: nome de exibição, bio, título digitado à mão (títulos que vieram da busca não mudam), análise, anotações; as **tags** ficam vazias. **Progresso, nota, status, favoritos, temporadas e capa não mudam**, e o texto removido **não aparece como novidade no feed**. O registro de ações guarda o antes do nome e da bio; das obras guarda só a quantidade (ou o título da obra), nunca o texto, porque as anotações são privadas. A cópia da denúncia continua guardada. Quem edita pelo painel não passa pela conferência de palavras e sites (o aviso de remoção não precisa dela).
+- **Zerar foto e fundo:** um botão só (em **Gerenciar** e no card da denúncia) tira a foto de perfil e a imagem de fundo e tenta apagar os arquivos, como o **Restaurar** faz campo a campo.
 
 ### Restaurar, renomear e suspender
 
@@ -380,7 +387,7 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.17`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.18`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
 
 ## Como o código está organizado
 

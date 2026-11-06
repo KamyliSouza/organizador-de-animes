@@ -28,7 +28,9 @@ export function avatarSrc(profile) {
 
 /** Avatar: foto quando existe (`src`), senão a inicial do nome sobre uma cor. */
 export function avatar(name, size = 40, src = '') {
-    const initial = (String(name || '?').trim()[0] || '?');
+    // A inicial é a primeira letra ou número do nome (um nome que começa com símbolo, como o aviso "[Conteúdo removido...]", mostra "C", não "[").
+    const text = String(name || '?').trim();
+    const initial = Array.from(text).find((c) => /[\p{L}\p{N}]/u.test(c)) || Array.from(text)[0] || '?';
     return html`<span class="avatar" style="--size:${size}px;--avatar-bg:${colorFor(name)}" aria-hidden="true">${initial}${src
         ? html`<img class="avatar-img" src="${src}" alt="" width="${size}" height="${size}" decoding="async" loading="lazy" referrerpolicy="no-referrer">` : ''}</span>`;
 }

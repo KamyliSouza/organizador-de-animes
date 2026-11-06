@@ -49,6 +49,12 @@ const ACTIONS = {
     reset_avatar: 'restaurou a foto de',
     reset_background: 'restaurou o fundo do perfil de',
     reset_username: 'restaurou o nome de usuário de',
+    wipe_display_name: 'removeu o nome de exibição de',
+    wipe_bio: 'removeu a bio de',
+    wipe_title: 'removeu títulos digitados à mão de',
+    wipe_review: 'removeu análises de',
+    wipe_notes: 'removeu anotações de',
+    wipe_tags: 'removeu tags de',
     rename: 'renomeou',
     suspend: 'suspendeu',
     unsuspend: 'reativou',
@@ -78,7 +84,17 @@ export function describeDetails(action, details) {
             return `${quoted(d.antes)} → ${quoted(d.depois)}`;
         case 'reset_display_name':
         case 'reset_bio':
+        case 'wipe_display_name':
+        case 'wipe_bio':
             return `Antes: ${quoted(d.antes)}`;
+        case 'wipe_title':
+        case 'wipe_review':
+        case 'wipe_notes':
+        case 'wipe_tags': {
+            if (d.obra) return `Obra: ${quoted(d.obra)}`;
+            const n = Number(d.obras);
+            return Number.isFinite(n) && n > 0 ? `${n} ${n === 1 ? 'obra' : 'obras'}` : '';
+        }
         case 'suspend':
             return d.motivo ? `Motivo: ${clip(d.motivo, 120)}` : '';
         case 'set_role':
