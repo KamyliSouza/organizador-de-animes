@@ -8,6 +8,7 @@ import { cleanUnicode } from '../domain/textSafety.js';
 import { SECTION_KEYS, normalizeEntry, normalizeSections } from '../domain/entry.js';
 import { limitMessage, parseLimitError } from '../domain/mediaLimits.js';
 import { normalizeSnapshot } from '../domain/reportSnapshot.js';
+import { normalizeAccess, safeHttpsUrl } from '../domain/access.js';
 import { normalizeRole } from '../domain/roles.js';
 
 const PAGE = 1000;   // limite de linhas por requisição do Supabase
@@ -495,18 +496,17 @@ export async function createSupabaseBackend() {
             async mine() {
                 try {
                     const { data, error } = await sb.rpc('my_access');
-                    if (error) return { role: 'member', suspended: false, reason: '' };
-                    const r = Array.isArray(data) ? data[0] : data;
-                    return { role: normalizeRole(r?.role), suspended: r?.suspended === true, reason: cleanUnicode(r?.reason, { multiline: true }) };
-                } catch { return { role: 'member', suspended: false, reason: '' }; }
+                    if (error) return normalizeAccess(null);
+                    return normalizeAccess(Array.isArray(data) ? data[0] : data);
+                } catch { return normalizeAccess(null); }
             },
             async siteSettings() {
                 try {
                     const { data, error } = await sb.rpc('get_public_settings');
-                    if (error) return { signupsOpen: true, announcement: '' };
+                    if (error) return { signupsOpen: true, announcement: '', discordUrl: '' };
                     const r = Array.isArray(data) ? data[0] : data;
-                    return { signupsOpen: r?.signups_open !== false, announcement: cleanUnicode(r?.announcement, { multiline: true }) };
-                } catch { return { signupsOpen: true, announcement: '' }; }
+                    return { signupsOpen: r?.signups_open !== false, announcement: cleanUnicode(r?.announcement, { multiline: true }), discordUrl: safeHttpsUrl(r?.discord_url) };
+                } catch { return { signupsOpen: true, announcement: '', discordUrl: '' }; }
             },
         },
 
@@ -531,6 +531,12 @@ export async function createSupabaseBackend() {
                     openReports: Number(r.open_reports) || 0,
                     createdAt: r.created_at,
                     canAct: r.can_act === true,
+                    suspensionKind: r.suspension_kind === 'ban' ? 'ban' : (r.suspended === true ? 'suspension' : ''),
+                    suspensionEnds: r.suspended === true && r.suspension_kind !== 'ban' ? (Number.isNaN(new Date(r.suspension_ends).getTime()) ? '' : new Date(r.suspension_ends).toISOString()) : '',
+                    forcePrivateProfile: r.force_private_profile === true,
+                    forcePrivateNotes: r.force_private_notes === true,
+                    forceReason: cleanUnicode(r.force_reason, { multiline: true }),
+                    activeStrikes: Number(r.active_strikes) || 0,
                 }));
             },
             async resetProfile(userId, fields) {
@@ -550,8 +556,40 @@ export async function createSupabaseBackend() {
             async rename(userId, displayName) {
                 await ok(sb.rpc('admin_rename_user', { p_user: userId, p_display_name: displayName }), 'Não foi possível renomear.');
             },
-            async setSuspended(userId, suspended, reason = '') {
-                await ok(sb.rpc('admin_set_suspended', { p_user: userId, p_suspended: Boolean(suspended), p_reason: reason }), 'Não foi possível mudar a suspensão.');
+            /**
+             * Suspende ou reativa. `days` (1 a 365) dá um prazo; sem `days` a suspensão fica até a equipe reativar; `ban` bane (só Administração e Dona).
+             * Os campos novos só vão quando usados: assim um banco ainda na versão anterior continua aceitando a suspensão simples.
+             */
+            async setSuspended(userId, suspended, reason = '', { days = null, ban = false } = {}) {
+                const args = { p_user: userId, p_suspended: Boolean(suspended), p_reason: reason };
+                if (suspended && days != null) args.p_days = Number(days);
+                if (suspended && ban) args.p_ban = true;
+                await ok(sb.rpc('admin_set_suspended', args), 'Não foi possível mudar a suspensão.');
+            },
+            /** Trava a privacidade de uma conta: perfil e/ou anotações sempre privados. Os dois desligados tiram a trava. */
+            async setLimits(userId, { profile = false, notes = false, reason = '' } = {}) {
+                await ok(sb.rpc('admin_set_account_limits', { p_user: userId, p_private_profile: Boolean(profile), p_private_notes: Boolean(notes), p_reason: reason }), 'Não foi possível mudar a privacidade da conta.');
+            },
+            /** Dá um aviso. Devolve quantos avisos ativos a pessoa tem agora e se isso suspendeu a conta (3º aviso = 7 dias). */
+            async giveStrike(userId, reason) {
+                const rows = await ok(sb.rpc('admin_give_strike', { p_user: userId, p_reason: reason }), 'Não foi possível dar o aviso.');
+                const r = Array.isArray(rows) ? rows[0] : rows;
+                return { activeCount: Number(r?.active_count) || 0, autoSuspended: r?.auto_suspended === true, endsAt: r?.ends_at || '' };
+            },
+            async revokeStrike(strikeId) {
+                await ok(sb.rpc('admin_revoke_strike', { p_strike: Number(strikeId) }), 'Não foi possível retirar o aviso.');
+            },
+            /** Histórico de avisos de uma pessoa (status: 'active' | 'revoked' | 'used'). */
+            async strikes(userId) {
+                const rows = await ok(sb.rpc('admin_list_strikes', { p_user: userId }), 'Não foi possível carregar os avisos.');
+                return (rows || []).map((r) => ({
+                    id: Number(r.id),
+                    reason: cleanUnicode(r.reason, { multiline: true }),
+                    status: ['active', 'revoked', 'used'].includes(r.status) ? r.status : 'used',
+                    givenAt: r.given_at,
+                    givenBy: r.given_by || '',
+                    revokedAt: r.revoked_at || '',
+                }));
             },
             async setRole(userId, role) {
                 await ok(sb.rpc('admin_set_role', { p_user: userId, p_role: role }), 'Não foi possível mudar o cargo.');
@@ -595,7 +633,7 @@ export async function createSupabaseBackend() {
             async settings() {
                 const rows = await ok(sb.rpc('admin_get_settings'), 'Não foi possível carregar as configurações.');
                 const r = Array.isArray(rows) ? rows[0] : rows;
-                return { signupsOpen: r?.signups_open !== false, announcement: cleanUnicode(r?.announcement, { multiline: true }), blockedNames: Array.isArray(r?.blocked_names) ? r.blocked_names : [], allowedLinkHosts: Array.isArray(r?.allowed_link_hosts) ? r.allowed_link_hosts : [] };
+                return { signupsOpen: r?.signups_open !== false, announcement: cleanUnicode(r?.announcement, { multiline: true }), blockedNames: Array.isArray(r?.blocked_names) ? r.blocked_names : [], allowedLinkHosts: Array.isArray(r?.allowed_link_hosts) ? r.allowed_link_hosts : [], discordUrl: safeHttpsUrl(r?.discord_url) };
             },
             async setSetting(key, value) {
                 await ok(sb.rpc('admin_set_setting', { p_key: key, p_value: value }), 'Não foi possível salvar a configuração.');

@@ -4,10 +4,10 @@ import { copyText, html, on, setHtml } from '../core/dom.js';
 import { typedConfirmDialog } from '../core/dialogs.js';
 import { messageOf } from '../core/errors.js';
 import { icon, spinner } from '../core/icons.js';
-import { navigate } from '../core/router.js';
+import { navigate, refresh } from '../core/router.js';
 import { toast } from '../core/toast.js';
 import { SECTIONS, SECTION_KEYS, normalizeSections } from '../domain/entry.js';
-import { backend, isCloud, refreshSession, setProfile, state } from '../services/session.js';
+import { backend, isCloud, refreshAccess, refreshSession, setProfile, state } from '../services/session.js';
 import { bindDataPanel, dataPanelHtml } from '../ui/dataPanel.js';
 import { guardTabs, settingsHeader } from '../ui/settingsShell.js';
 
@@ -15,20 +15,29 @@ const publicLink = (u) => `${location.origin}${location.pathname}#/u/${u}`;
 
 const SECTION_HINTS = { anime: 'Animes, filmes e séries', manga: 'Mangás, manhwas e manhuas', novel: 'Light novels' };
 
-function privacyPanel(p) {
+/** Aviso de trava: a equipe deixou isto sempre privado nesta conta. */
+const lockNote = (id, what, reason) => html`
+    <span class="switch-lock" id="${id}" data-lock-note>${icon('lock', { size: 14 })}
+        <span><strong>Travado pela equipe do site.</strong> ${what}${reason ? html` Motivo: “${reason}”.` : ''} Quando a equipe tirar a trava, a opção volta a ficar com você (ela não liga sozinha).</span></span>`;
+
+function privacyPanel(p, access) {
+    const lockProfile = access.forcePrivateProfile;
+    const lockNotes = access.forcePrivateNotes;
     return html`
     <section class="panel glass-panel" aria-labelledby="st-privacy">
         <h2 id="st-privacy">${icon('globe')} Privacidade</h2>
         <form data-privacy-form novalidate>
-            <label class="switch-row">
-                <input type="checkbox" id="st-public" ${p.isPublic ? 'checked' : ''}>
+            <label class="switch-row ${lockProfile ? 'is-locked' : ''}">
+                <input type="checkbox" id="st-public" ${p.isPublic && !lockProfile ? 'checked' : ''} ${lockProfile ? 'disabled' : ''}>
                 <span><span class="switch-title">Perfil público</span><br>
-                <span class="switch-desc">Qualquer pessoa com o link (ou que use o Explorar) vê sua lista e suas análises. Desligado, só quem você aprovar vê (os pedidos ficam em Feed → Pedidos). Ao ligar, os pedidos pendentes são aprovados.</span></span>
+                <span class="switch-desc">Qualquer pessoa com o link (ou que use o Explorar) vê sua lista e suas análises. Desligado, só quem você aprovar vê (os pedidos ficam em Feed → Pedidos). Ao ligar, os pedidos pendentes são aprovados.</span>
+                ${lockProfile ? lockNote('st-public-lock', 'O seu perfil fica privado.', access.forceReason) : ''}</span>
             </label>
-            <label class="switch-row">
-                <input type="checkbox" id="st-notes" ${p.showNotes ? 'checked' : ''}>
+            <label class="switch-row ${lockNotes ? 'is-locked' : ''}">
+                <input type="checkbox" id="st-notes" ${p.showNotes && !lockNotes ? 'checked' : ''} ${lockNotes ? 'disabled' : ''}>
                 <span><span class="switch-title">Mostrar minhas anotações</span><br>
-                <span class="switch-desc">Por padrão, suas anotações ficam só com você, mesmo com o perfil público. As análises são diferentes: aparecem para quem vê a sua lista.</span></span>
+                <span class="switch-desc">Por padrão, suas anotações ficam só com você, mesmo com o perfil público. As análises são diferentes: aparecem para quem vê a sua lista.</span>
+                ${lockNotes ? lockNote('st-notes-lock', 'As suas anotações ficam só com você.', access.forceReason) : ''}</span>
             </label>
             <div class="sections-group" role="group" aria-labelledby="st-sections-title" aria-describedby="st-sections-desc" data-sections-group>
                 <span class="switch-title" id="st-sections-title">Abas visíveis no seu perfil</span>
@@ -87,7 +96,7 @@ export function mount(root) {
         ${settingsHeader({ profile, active: 'configuracoes' })}
         <div class="settings-grid">
             <div class="stack">
-                ${privacyPanel(profile)}
+                ${privacyPanel(profile, state.access)}
                 ${accountPanel(state.user?.email)}
             </div>
             <div class="stack">
@@ -99,6 +108,9 @@ export function mount(root) {
     const $ = (s) => root.querySelector(s);
     const offs = [bindDataPanel(root, be)];
     const linkBox = $('[data-link-box]');
+    // opções travadas pela equipe: o leitor de tela lê a explicação junto com o campo
+    if (state.access.forcePrivateProfile) $('#st-public')?.setAttribute('aria-describedby', 'st-public-lock');
+    if (state.access.forcePrivateNotes) $('#st-notes')?.setAttribute('aria-describedby', 'st-notes-lock');
 
     const renderLink = (p) => setHtml(linkBox, p.isPublic ? html`
         <div class="field"><span class="field-label">Link do seu perfil</span>
@@ -122,12 +134,21 @@ export function mount(root) {
         btn.disabled = true;
         setHtml(btn, html`${spinner(17)} Salvando...`);
         try {
+            const wantPublic = $('#st-public').checked;
+            const wantNotes = $('#st-notes').checked;
             const updated = await be.profiles.updateMine({
-                isPublic: $('#st-public').checked,
-                showNotes: $('#st-notes').checked,
+                isPublic: wantPublic,
+                showNotes: wantNotes,
                 sections: checkedSections(),
             });
             setProfile(updated);
+            // O banco manda: se a equipe travou algo depois de a tela abrir, o valor volta como "desligado".
+            if ((wantPublic && !updated.isPublic) || (wantNotes && !updated.showNotes)) {
+                await refreshAccess();
+                refresh();
+                toast('A equipe do site deixou isto privado nesta conta. As outras opções foram salvas.', { type: 'info' });
+                return;
+            }
             renderLink(updated);
             toast('Privacidade salva!', { type: 'success' });
         } catch (err) {
@@ -208,8 +229,9 @@ export function mount(root) {
     }));
 
     // --- sair da aba com alterações não salvas -----------------------------------------------
-    const isDirty = () => $('#st-public').checked !== state.profile.isPublic
-        || $('#st-notes').checked !== state.profile.showNotes
+    // (as opções travadas pela equipe ficam de fora: a pessoa não consegue mexer nelas)
+    const isDirty = () => (!state.access.forcePrivateProfile && $('#st-public').checked !== state.profile.isPublic)
+        || (!state.access.forcePrivateNotes && $('#st-notes').checked !== state.profile.showNotes)
         || checkedSections().join() !== normalizeSections(state.profile.sections).join()
         || Boolean($('#st-pass').value || $('#st-pass2').value);
     offs.push(guardTabs(root, isDirty));

@@ -1,0 +1,1652 @@
+diff -ruN a/README.md b/README.md
+--- a/README.md	2026-11-06 16:19:43.727803603 -0300
++++ b/README.md	2026-11-07 17:27:31.494307115 -0300
+@@ -83,6 +83,7 @@
+ - os **limites para trocar a foto e o fundo** (o SQL cria a tabela privada `media_changes`, as funções dos limites e um gatilho no armazenamento — a versão do banco passa a ser a **12**; veja "Limites para trocar a foto e o fundo");
+ - a **isenção da equipe nos limites de troca** (Dona, Administração e Moderação não têm espera nem limite por dia — a versão do banco passa a ser a **13**; veja "Limites para trocar a foto e o fundo");
+ - a **denúncia com snapshot** e a **remoção de conteúdo campo a campo** pela equipe (o SQL acrescenta a coluna `snapshot` às denúncias e a função `admin_wipe_text` — a versão do banco passa a ser a **15**; veja "Snapshot da denúncia e remoção de conteúdo");
++- a **privacidade forçada**, a **suspensão com prazo e o banimento**, os **avisos (strikes)** e o **link do Discord** da tela de conta suspensa (o SQL cria as tabelas fechadas `account_limits` e `strikes`, acrescenta `ends_at` e `kind` às suspensões e a configuração `discord_url` — a versão do banco passa a ser a **16**; veja "Suspensão, banimento, avisos e privacidade forçada");
+ - o botão **Excluir minha conta**.
+ 
+ ---
+@@ -303,7 +304,19 @@
+ 
+ - **Restaurar:** o nome de exibição volta para "Usuário" + 4 caracteres; a bio fica vazia; o @ vira `user_` + um código (o link antigo do perfil deixa de funcionar); a foto some; o fundo do perfil some. A pessoa pode editar de novo depois. Ao restaurar a foto, o site a esconde na hora e tenta apagar o arquivo; se o Supabase recusar, apague em **Storage → avatars** (o perfil já aparece sem foto).
+ - **Renomear:** troca só o nome de exibição (1 a 40 caracteres), mesmo que contenha uma palavra da lista de nomes proibidos.
+-- **Suspender:** o perfil some para as outras pessoas (Explorar, link do perfil, seguidores, feed). Quem é suspensa continua vendo a própria biblioteca e vê um aviso no topo com o motivo, mas não consegue seguir nem denunciar, e perde os poderes de equipe enquanto durar. **Reativar** devolve tudo.
++- **Suspender:** o perfil some para as outras pessoas (Explorar, link do perfil, seguidores, feed) e a pessoa não consegue seguir nem denunciar, e perde os poderes de equipe enquanto durar. **Reativar** devolve tudo. Desde a versão 1.19 a suspensão tem **prazo** e a pessoa vê uma **tela própria** (veja a seção abaixo).
++
++### Suspensão, banimento, avisos e privacidade forçada
++
++Tudo isto fica em **Gerenciar** (Membros ou o botão de uma denúncia) e exige a **versão 16** do banco (rode o `sql/schema.sql` de novo **antes** de subir os arquivos). Cada ação só age em quem tem cargo menor que o seu e fica no **Registro**.
++
++- **Suspensão com prazo:** escolha **1, 3, 7 ou 30 dias** (ou **sem prazo**, que dura até a equipe reativar) e escreva o motivo. Passado o prazo, a conta volta **sozinha** (o banco confere a data a cada uso; não há nada para rodar). Suspensões antigas, de antes da 1.19, continuam valendo como "sem prazo".
++- **Banimento:** só **Administração e Dona** banem. Não tem prazo; só a equipe reativa (**Reativar conta**).
++- **Tela de conta suspensa ou banida:** enquanto vale, a pessoa vê **só esta tela**: o motivo, o prazo ("Até 12/11/2026 às 14:30, faltam 3 dias") e, se você cadastrou, o botão **Falar com a equipe no Discord**. Ela ainda pode **baixar um backup** da biblioteca, **conferir de novo** e **sair da conta**. Quando o prazo acaba, a tela some sozinha. A tela é só a parte visível: quem barra de verdade é o banco (o perfil some, não dá para seguir, denunciar nem agir como equipe). Não há botão de excluir conta nessa tela.
++- **Link do Discord:** painel → aba **Site** → **Link do Discord** (Administração e Dona). Aceita qualquer endereço `https://` (até 200 caracteres), então confira se é o seu servidor; vazio = a tela diz só "fale com a equipe do site".
++- **Avisos (strikes):** **Gerenciar → Avisos → Dar um aviso** (com o motivo). Cada aviso **ativo** aparece para a pessoa num **banner no topo de todas as telas** ("Você tem 2 de 3 avisos da equipe"), que não dá para fechar e some quando a equipe **retira** os avisos. No **3º aviso ativo** a conta é **suspensa por 7 dias** e os 3 avisos viram "usados": o contador recomeça do zero depois. Não há validade automática: um aviso ativo só sai se a equipe o retirar. Conta já suspensa ou banida não recebe aviso.
++- **Privacidade forçada:** **Gerenciar → Privacidade forçada** deixa o **perfil** e/ou as **anotações** sempre privados. Vale na hora (desliga o que estava ligado) e o banco desfaz qualquer tentativa de ligar de novo, até por chamada direta à API. A pessoa continua vendo o próprio conteúdo; em **Configurações → Privacidade** a opção aparece travada, com a explicação e o motivo. **Tirar a trava não liga nada sozinho**: a opção só volta a ficar com a pessoa. A trava das anotações **não** cobre as análises (elas aparecem para quem vê a lista; para tirar uma análise ofensiva use **Remover conteúdo**).
++- **Onde isto mora no banco:** a trava e os avisos ficam em tabelas fechadas (`account_limits`, `strikes`), não em colunas do perfil, porque o perfil pode ser editado pela própria pessoa e lido por qualquer visitante. O gatilho `profiles_force_privacy` mantém `is_public` e `show_notes` desligados enquanto a trava existir.
+ 
+ ### Segurança dos textos, palavras proibidas e cadastros fechados
+ 
+@@ -387,7 +400,7 @@
+ ## Logo e novidades do site
+ 
+ - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
+-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.18`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
++- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.19`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+ 
+ ## Como o código está organizado
+ 
+@@ -438,6 +451,7 @@
+ | "A Dona do site não pode excluir a conta" | Passe o cargo de Dona para outra pessoa antes (veja "Passar o cargo de Dona") |
+ | "O armazenamento de fotos ainda não existe" ou "A foto ficou grande demais" | O `sql/schema.sql` novo não foi executado (cria o bucket `avatars` com o limite de 64 KB e, na versão 11, o `backgrounds` com 384 KB; o mesmo aviso aparece ao enviar o fundo do perfil) |
+ | O fundo do perfil não envia, ou a chave "Desfoque nos cards" não salva | O `sql/schema.sql` da versão 11 ainda não foi executado (cria as colunas `bg_v` e `bg_blur` e o armazenamento `backgrounds`) |
++| "Gerenciar" dá erro ao dar um aviso, travar a privacidade ou suspender com prazo, ou o painel não mostra o campo do Discord | O `sql/schema.sql` da versão 16 ainda não foi executado (cria `account_limits`, `strikes` e o prazo das suspensões). Rode o SQL **antes** de subir os arquivos da 1.19 |
+ | "Espere N s para trocar a foto de novo" ou "Você já fez 10 trocas de foto e fundo nas últimas 24 horas" | É o limite de trocas funcionando (veja "Limites para trocar a foto e o fundo"). Sem a versão 12 do banco essas mensagens e os contadores não aparecem e não há limite |
+ | MAL mostra "Muitas buscas seguidas" ou "Serviço indisponível" | O Jikan limitou ou está lento: espere alguns segundos ou use o AniList |
+ | E-mail de confirmação não chega | Veja o spam; o plano gratuito limita e-mails por hora. Para grupos pequenos, desligue **Confirm email** |
+diff -ruN a/css/views.css b/css/views.css
+--- a/css/views.css	2026-11-06 16:19:43.728352088 -0300
++++ b/css/views.css	2026-11-07 17:27:31.494418420 -0300
+@@ -322,3 +322,54 @@
+     .snap-entry { padding: 8px; }
+     .log-time { flex-basis: 100%; }
+ }
++
++/* ---------------------------------------------------------
++   Conta suspensa ou banida, avisos e travas de privacidade (Patch 19)
++   --------------------------------------------------------- */
++/* Conta suspensa: só a tela de aviso aparece (o resto do site fica escondido; os avisos rápidos e as janelas continuam funcionando) */
++body.is-suspended > *:not(#suspended-screen):not(#toast-region):not(.modal-overlay):not(script) { display: none !important; }
++.suspended-screen[hidden] { display: none; }
++.suspended-screen { min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
++.suspended-card { width: min(560px, 100%); display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 28px 26px; text-align: center; min-width: 0; }
++.suspended-brand { margin: 0; font-weight: 900; letter-spacing: .04em; color: var(--primary-text); overflow-wrap: anywhere; }
++.suspended-icon { display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; border-radius: 50%; background: color-mix(in srgb, var(--st-planned) 16%, transparent); color: var(--st-planned); }
++.suspended-icon.is-ban { background: var(--danger-soft); color: var(--danger); }
++.suspended-card h1 { margin: 0; font-size: clamp(1.4rem, 5vw, 1.9rem); overflow-wrap: anywhere; }
++.suspended-card h1:focus { outline: none; }
++.suspended-lead, .suspended-help { margin: 0; max-width: 46ch; color: var(--subtitle-color); overflow-wrap: anywhere; }
++.suspended-facts { width: 100%; margin: 0; display: flex; flex-direction: column; gap: 10px; text-align: left; }
++.suspended-facts > div { min-width: 0; padding: 10px 14px; background: var(--notice-bg); border-radius: var(--radius-small); }
++.suspended-facts dt { font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted-color); }
++.suspended-facts dd { margin: 2px 0 0; overflow-wrap: anywhere; white-space: pre-line; }
++.suspended-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; width: 100%; }
++.suspended-actions .button { min-width: 0; max-width: 100%; white-space: normal; text-align: center; overflow-wrap: anywhere; }
++
++/* Banner de avisos (fica no topo de todas as telas) */
++.strike-list { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; }
++.strike-list li { overflow-wrap: anywhere; white-space: pre-line; }
++
++/* Configurações → Privacidade: opção travada pela equipe */
++.switch-row.is-locked { border: 1px dashed var(--st-planned); }
++.switch-row.is-locked input[type="checkbox"]:disabled { opacity: .55; cursor: not-allowed; }
++.switch-lock { display: flex; align-items: flex-start; gap: 6px; margin-top: 8px; padding: 8px 10px; font-size: .84rem; color: var(--text-color); background: color-mix(in srgb, var(--st-planned) 10%, transparent); border-radius: var(--radius-small); min-width: 0; }
++.switch-lock .icon { flex: 0 0 auto; margin-top: 2px; color: var(--st-planned); }
++.switch-lock > span { min-width: 0; overflow-wrap: anywhere; }
++
++/* Gerenciar pessoa: avisos, privacidade forçada e suspensão */
++[data-dynamic] > .manage-section:first-of-type { border-top: 1px solid var(--card-border); padding-top: 14px; }
++.strike-history { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
++.strike-item { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 12px; min-width: 0; padding: 8px 10px; background: var(--notice-bg); border-radius: var(--radius-small); }
++.strike-item.is-revoked, .strike-item.is-used { opacity: .72; }
++.strike-main { display: flex; flex: 1 1 180px; flex-direction: column; gap: 2px; min-width: 0; }
++.strike-reason { font-weight: 700; overflow-wrap: anywhere; white-space: pre-line; }
++.strike-item .button { min-width: 0; max-width: 100%; white-space: normal; text-align: center; overflow-wrap: anywhere; }
++
++@media (max-width: 30em) {
++    .suspended-screen { padding: 16px 12px; }
++    .suspended-card { padding: 22px 16px; }
++    .suspended-actions .button { flex: 1 1 100%; }
++    .strike-item .button { flex: 1 1 100%; min-height: 44px; }
++    .switch-lock { padding: 8px; }
++}
++/* Gerenciar pessoa: o cabeçalho (foto e nome) ocupa só a própria altura; "flex: 1 1 220px" vale para a linha da lista, não para a coluna da janela */
++.modal-body .admin-who { flex: 0 0 auto; }
+diff -ruN a/js/domain/access.js b/js/domain/access.js
+--- a/js/domain/access.js	1969-12-31 21:00:00.000000000 -0300
++++ b/js/domain/access.js	2026-11-07 17:27:31.644915733 -0300
+@@ -0,0 +1,136 @@
++// Situação da conta (Patch 19): suspensão com prazo ou banimento, travas de privacidade e avisos (strikes).
++// A regra de verdade mora no banco (sql/schema.sql: my_access, admin_set_suspended, admin_set_account_limits, admin_give_strike).
++// Aqui o site só lê a resposta com cuidado (todo texto passa pela mesma limpeza do resto do site) e monta as frases da tela.
++
++import { cleanUnicode } from './textSafety.js';
++import { normalizeRole } from './roles.js';
++
++/** No 3º aviso ativo a conta é suspensa sozinha (o banco faz isso; aqui é só para escrever o texto). */
++export const STRIKE_LIMIT = 3;
++export const AUTO_SUSPEND_DAYS = 7;
++
++/** Prazos que a equipe escolhe ao suspender. `days: null` = sem prazo (a equipe reativa à mão). Banir é uma escolha à parte. */
++export const SUSPEND_PRESETS = [
++    { key: '1', days: 1, label: '1 dia' },
++    { key: '3', days: 3, label: '3 dias' },
++    { key: '7', days: 7, label: '7 dias' },
++    { key: '30', days: 30, label: '30 dias' },
++    { key: 'open', days: null, label: 'Sem prazo (até a equipe reativar)' },
++];
++export const BAN_KEY = 'ban';
++
++/** Estado de quem não tem conta, não está logado ou está num banco sem a v16. */
++export const NO_ACCESS = Object.freeze({
++    role: 'member', suspended: false, reason: '', kind: '', endsAt: '',
++    forcePrivateProfile: false, forcePrivateNotes: false, forceReason: '', strikes: Object.freeze([]),
++});
++
++const validDate = (v) => {
++    if (!v) return '';
++    const d = new Date(v);
++    return Number.isNaN(d.getTime()) ? '' : d.toISOString();
++};
++
++/** Lê a resposta de my_access. Qualquer coisa fora do formato vira "sem restrição". */
++export function normalizeAccess(raw) {
++    const r = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
++    const suspended = r.suspended === true;
++    const kind = suspended ? (r.suspension_kind === 'ban' ? 'ban' : 'suspension') : '';
++    const strikes = (Array.isArray(r.strikes) ? r.strikes : []).slice(0, 20).map((s) => ({
++        reason: cleanUnicode(s?.reason, { multiline: true }),
++        at: validDate(s?.at),
++    })).filter((s) => s.reason).slice(0, STRIKE_LIMIT);
++    return {
++        role: normalizeRole(r.role),
++        suspended,
++        reason: cleanUnicode(r.reason, { multiline: true }),
++        kind,
++        endsAt: kind === 'suspension' ? validDate(r.suspension_ends) : '',
++        forcePrivateProfile: r.force_private_profile === true,
++        forcePrivateNotes: r.force_private_notes === true,
++        forceReason: cleanUnicode(r.force_reason, { multiline: true }),
++        strikes,
++    };
++}
++
++/**
++ * Só endereços https sem usuário e senha. Vazio quando não serve.
++ * (A equipe grava o link do Discord no painel; mesmo assim a tela confere de novo antes de criar o link.)
++ */
++export function safeHttpsUrl(value) {
++    const text = typeof value === 'string' ? value.trim() : '';
++    if (!text || text.length > 200) return '';
++    try {
++        const u = new URL(text);
++        if (u.protocol !== 'https:' || u.username || u.password || !u.hostname.includes('.')) return '';
++        return u.href;
++    } catch { return ''; }
++}
++
++const pad = (n) => String(n).padStart(2, '0');
++
++/** "12/11/2026 às 14:30", no fuso de quem está vendo. */
++export function formatEnd(iso) {
++    const d = new Date(iso);
++    if (Number.isNaN(d.getTime())) return '';
++    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} às ${pad(d.getHours())}:${pad(d.getMinutes())}`;
++}
++
++/** "menos de 1 hora", "5 horas", "1 dia", "6 dias". */
++export function formatRemaining(ms) {
++    const hours = Math.max(0, ms) / 3_600_000;
++    if (hours < 1) return 'menos de 1 hora';
++    if (hours < 24) { const h = Math.floor(hours); return `${h} ${h === 1 ? 'hora' : 'horas'}`; }
++    const days = Math.ceil(hours / 24 - 0.0001);
++    return `${days} ${days === 1 ? 'dia' : 'dias'}`;
++}
++
++/**
++ * O que a tela de suspensão mostra.
++ * kind: 'ban' | 'suspension'; term: 'permanent' (banimento) | 'open' (sem prazo) | 'until' (com data) | 'checking' (a data já passou aqui, o banco ainda não liberou).
++ */
++export function suspensionView(access, now = Date.now()) {
++    const ban = access.kind === 'ban';
++    const ends = access.endsAt ? new Date(access.endsAt).getTime() : NaN;
++    let term = 'open';
++    if (ban) term = 'permanent';
++    else if (Number.isFinite(ends)) term = ends > now ? 'until' : 'checking';
++    const termText = {
++        permanent: 'Banimento permanente: a conta não volta ao site.',
++        open: 'Sem prazo definido: a conta volta quando a equipe reativar.',
++        until: `Até ${formatEnd(access.endsAt)} (faltam ${formatRemaining(ends - now)}). A conta volta sozinha.`,
++        checking: 'O prazo acabou. Conferindo com o site…',
++    }[term];
++    return {
++        ban,
++        term,
++        title: ban ? 'Sua conta foi banida' : 'Sua conta está suspensa',
++        lead: ban
++            ? 'Esta conta não pode mais ser usada no site. O perfil ficou oculto para as outras pessoas. A sua biblioteca continua sendo sua: você ainda pode baixar um backup.'
++            : 'Enquanto a suspensão durar, o seu perfil fica oculto para as outras pessoas e o resto do site fica indisponível para esta conta. A sua biblioteca continua guardada e é sua: você pode baixar um backup.',
++        reason: access.reason || '',
++        termText,
++    };
++}
++
++/**
++ * Daqui a quantos milissegundos conferir de novo se a suspensão acabou (null = nunca: banimento ou sem prazo).
++ * Passou da data mas o banco ainda diz "suspensa" (relógio diferente): tenta de novo a cada 30 s.
++ * O limite de 24 dias existe porque setTimeout não aceita atrasos maiores.
++ */
++export function nextCheckDelay(access, now = Date.now()) {
++    if (access.kind !== 'suspension' || !access.endsAt) return null;
++    const left = new Date(access.endsAt).getTime() - now;
++    if (!Number.isFinite(left)) return null;
++    if (left <= 0) return 30_000;
++    return Math.min(left + 1500, 2_000_000_000);
++}
++
++/** Frase curta da situação de uma conta para a equipe: "Banida", "Suspensa até 12/11/2026 às 14:30" ou "Suspensa sem prazo". */
++export function suspensionLabel(kind, endsAt) {
++    if (kind === 'ban') return 'Banida';
++    return endsAt ? `Suspensa até ${formatEnd(endsAt)}` : 'Suspensa sem prazo';
++}
++
++/** Texto de "Aviso 2 de 3" para o banner e para a equipe. */
++export const strikeCountText = (n) => `${n} de ${STRIKE_LIMIT}`;
+diff -ruN a/js/domain/changelog.js b/js/domain/changelog.js
+--- a/js/domain/changelog.js	2026-11-06 16:19:43.731356410 -0300
++++ b/js/domain/changelog.js	2026-11-07 17:27:31.644842378 -0300
+@@ -1,10 +1,20 @@
+ // Histórico de novidades do site (aparece no botão de versão do rodapé).
+ // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
+ // Escreva para a comunidade: frases curtas, sem termos técnicos.
+-export const SITE_VERSION = '1.18';
++export const SITE_VERSION = '1.19';
+ 
+ export const CHANGELOG = [
+     {
++        version: '1.19',
++        title: 'Suspensão com prazo, avisos e privacidade travada',
++        items: [
++            'Conta suspensa ou banida agora vê uma tela só dela, com o motivo, até quando vale e um botão para falar com a equipe no Discord. Dá para baixar um backup da biblioteca e sair da conta. Passado o prazo, a conta volta sozinha.',
++            'A equipe escolhe o prazo da suspensão (1, 3, 7 ou 30 dias, ou sem prazo) e a administração também pode banir. O link do Discord é definido no painel (aba Site).',
++            'Novo: avisos da equipe. Cada aviso aparece num banner no topo de todas as telas, com o motivo. No 3º aviso a conta é suspensa por 7 dias e a contagem recomeça. A equipe pode retirar um aviso.',
++            'A equipe agora pode deixar o perfil e/ou as anotações de uma conta sempre privados. Em Configurações, a opção aparece travada com o motivo; você continua vendo o seu conteúdo. Quando a trava sai, a opção volta a ficar com você (ela não liga sozinha).',
++        ],
++    },
++    {
+         version: '1.18',
+         title: 'Denúncias com cópia e remoção por campo',
+         items: [
+diff -ruN a/js/domain/roles.js b/js/domain/roles.js
+--- a/js/domain/roles.js	2026-11-06 16:19:43.731678613 -0300
++++ b/js/domain/roles.js	2026-11-07 17:27:31.644944703 -0300
+@@ -58,6 +58,12 @@
+     rename: 'renomeou',
+     suspend: 'suspendeu',
+     unsuspend: 'reativou',
++    ban: 'baniu',
++    limits_set: 'travou a privacidade de',
++    limits_clear: 'tirou a trava de privacidade de',
++    strike: 'deu um aviso a',
++    strike_suspend: 'suspendeu automaticamente (3º aviso)',
++    strike_revoke: 'retirou um aviso de',
+     set_role: 'mudou o cargo de',
+     report_resolved: 'resolveu uma denúncia contra',
+     report_dismissed: 'descartou uma denúncia contra',
+@@ -66,6 +72,7 @@
+     setting_announcement: 'mudou o aviso do site',
+     setting_blocked_names: 'mudou a lista de palavras proibidas',
+     setting_allowed_link_hosts: 'mudou a lista de sites permitidos',
++    setting_discord_url: 'mudou o link do Discord',
+ };
+ export const actionLabel = (action) => ACTIONS[action] || action;
+ 
+@@ -95,8 +102,30 @@
+             const n = Number(d.obras);
+             return Number.isFinite(n) && n > 0 ? `${n} ${n === 1 ? 'obra' : 'obras'}` : '';
+         }
+-        case 'suspend':
++        case 'suspend': {
++            const days = Number(d.dias);
++            const prazo = Number.isFinite(days) && days > 0 ? `${days} ${days === 1 ? 'dia' : 'dias'}` : 'sem prazo';
++            return d.motivo ? `${prazo} · Motivo: ${clip(d.motivo, 120)}` : prazo;
++        }
++        case 'ban':
+             return d.motivo ? `Motivo: ${clip(d.motivo, 120)}` : '';
++        case 'limits_set': {
++            const what = [d.perfil === true ? 'perfil' : '', d.anotacoes === true ? 'anotações' : ''].filter(Boolean).join(' e ');
++            const why = d.motivo ? ` · Motivo: ${clip(d.motivo, 120)}` : '';
++            return what ? `Sempre privado: ${what}${why}` : '';
++        }
++        case 'strike': {
++            const n = Number(d.ativos);
++            return `${Number.isFinite(n) && n > 0 ? `Avisos ativos: ${n} · ` : ''}Motivo: ${clip(d.motivo, 120)}`;
++        }
++        case 'strike_suspend': {
++            const days = Number(d.dias);
++            return Number.isFinite(days) && days > 0 ? `${days} ${days === 1 ? 'dia' : 'dias'}` : '';
++        }
++        case 'strike_revoke':
++            return d.motivo ? `Aviso: ${clip(d.motivo, 120)}` : '';
++        case 'setting_discord_url':
++            return `${quoted(d.antes)} → ${quoted(d.depois)}`;
+         case 'set_role':
+             return `${ROLES[normalizeRole(d.antes)].long} → ${ROLES[normalizeRole(d.depois)].long}`;
+         case 'setting_signups_open':
+diff -ruN a/js/main.js b/js/main.js
+--- a/js/main.js	2026-11-06 16:19:43.735413155 -0300
++++ b/js/main.js	2026-11-07 17:27:31.646026593 -0300
+@@ -7,6 +7,7 @@
+ import { rankOf } from './domain/roles.js';
+ import { initSession, isCloud, myRole, onSessionChange, refreshRequests, state } from './services/session.js';
+ import { mountChrome } from './ui/chrome.js';
++import { mountSuspensionGate } from './ui/suspendedScreen.js';
+ 
+ const $ = (id) => document.getElementById(id);
+ 
+@@ -65,6 +66,7 @@
+     }
+ 
+     mountChrome({ nav: $('site-nav'), tabBar: $('tab-bar'), footer: $('site-footer'), notice: $('site-notice') });
++    mountSuspensionGate();   // conta suspensa ou banida: só a tela de aviso aparece
+     defineRoutes();
+ 
+     // Sessão mudou por fora (outra aba saiu da conta, token expirou...): remonta a tela atual.
+diff -ruN a/js/services/schema.js b/js/services/schema.js
+--- a/js/services/schema.js	2026-11-06 16:19:43.730338073 -0300
++++ b/js/services/schema.js	2026-11-07 17:27:31.527137840 -0300
+@@ -1,4 +1,4 @@
+ // Versão do esquema do banco (sql/schema.sql) que este site espera.
+ // Se o banco do Supabase estiver numa versão menor, a biblioteca avisa para rodar o SQL de novo.
+-// 1 = original · 2 = Em espera, favoritos e códigos de obra · 3 = foto de perfil · 4 = seguir, feed e análises · 5 = cores do perfil · 6 = mangás e light novels · 7 = cargos e painel de administração · 8 = abas ativas no perfil e contagens por tipo · 9 = notas de 0 a 10 (meia estrela) · 10 = preferências privadas da conta (alto contraste) · 11 = fundo do perfil · 12 = limites para trocar foto e fundo · 13 = equipe fora dos limites de troca · 14 = segurança dos textos (limpeza, palavras proibidas, sites permitidos) · 15 = denúncia com snapshot e remoção de conteúdo campo a campo
+-export const REQUIRED_SCHEMA = 15;
++// 1 = original · 2 = Em espera, favoritos e códigos de obra · 3 = foto de perfil · 4 = seguir, feed e análises · 5 = cores do perfil · 6 = mangás e light novels · 7 = cargos e painel de administração · 8 = abas ativas no perfil e contagens por tipo · 9 = notas de 0 a 10 (meia estrela) · 10 = preferências privadas da conta (alto contraste) · 11 = fundo do perfil · 12 = limites para trocar foto e fundo · 13 = equipe fora dos limites de troca · 14 = segurança dos textos (limpeza, palavras proibidas, sites permitidos) · 15 = denúncia com snapshot e remoção de conteúdo campo a campo · 16 = privacidade forçada, suspensão com prazo e banimento, avisos (strikes) e link do Discord
++export const REQUIRED_SCHEMA = 16;
+diff -ruN a/js/services/session.js b/js/services/session.js
+--- a/js/services/session.js	2026-11-06 16:19:43.731161618 -0300
++++ b/js/services/session.js	2026-11-07 17:27:31.644733815 -0300
+@@ -4,11 +4,12 @@
+ import { clearHighContrast, setHighContrast } from '../core/contrast.js';
+ import { clearOwnPalette, setOwnPalette } from '../core/palette.js';
+ import { clearOwnBackground, setOwnBackground } from '../core/siteBackground.js';
++import { NO_ACCESS } from '../domain/access.js';
+ 
+-const NO_ACCESS = { role: 'member', suspended: false, reason: '' };
+-const OPEN_SITE = { signupsOpen: true, announcement: '' };
++const OPEN_SITE = { signupsOpen: true, announcement: '', discordUrl: '' };
+ 
+-// access = cargo em vigor e suspensão de quem está logado · site = configurações públicas (aviso e cadastros)
++// access = cargo em vigor, suspensão (com prazo ou banimento), travas de privacidade e avisos de quem está logado (veja domain/access.js)
++// site = configurações públicas (aviso, cadastros e link do Discord)
+ export const state = { backend: null, user: null, profile: null, requests: 0, ready: false, access: NO_ACCESS, site: OPEN_SITE };
+ 
+ const listeners = new Set();
+diff -ruN a/js/services/supabase-backend.js b/js/services/supabase-backend.js
+--- a/js/services/supabase-backend.js	2026-11-06 16:19:43.730591395 -0300
++++ b/js/services/supabase-backend.js	2026-11-07 17:27:31.527472743 -0300
+@@ -8,6 +8,7 @@
+ import { SECTION_KEYS, normalizeEntry, normalizeSections } from '../domain/entry.js';
+ import { limitMessage, parseLimitError } from '../domain/mediaLimits.js';
+ import { normalizeSnapshot } from '../domain/reportSnapshot.js';
++import { normalizeAccess, safeHttpsUrl } from '../domain/access.js';
+ import { normalizeRole } from '../domain/roles.js';
+ 
+ const PAGE = 1000;   // limite de linhas por requisição do Supabase
+@@ -495,18 +496,17 @@
+             async mine() {
+                 try {
+                     const { data, error } = await sb.rpc('my_access');
+-                    if (error) return { role: 'member', suspended: false, reason: '' };
+-                    const r = Array.isArray(data) ? data[0] : data;
+-                    return { role: normalizeRole(r?.role), suspended: r?.suspended === true, reason: cleanUnicode(r?.reason, { multiline: true }) };
+-                } catch { return { role: 'member', suspended: false, reason: '' }; }
++                    if (error) return normalizeAccess(null);
++                    return normalizeAccess(Array.isArray(data) ? data[0] : data);
++                } catch { return normalizeAccess(null); }
+             },
+             async siteSettings() {
+                 try {
+                     const { data, error } = await sb.rpc('get_public_settings');
+-                    if (error) return { signupsOpen: true, announcement: '' };
++                    if (error) return { signupsOpen: true, announcement: '', discordUrl: '' };
+                     const r = Array.isArray(data) ? data[0] : data;
+-                    return { signupsOpen: r?.signups_open !== false, announcement: cleanUnicode(r?.announcement, { multiline: true }) };
+-                } catch { return { signupsOpen: true, announcement: '' }; }
++                    return { signupsOpen: r?.signups_open !== false, announcement: cleanUnicode(r?.announcement, { multiline: true }), discordUrl: safeHttpsUrl(r?.discord_url) };
++                } catch { return { signupsOpen: true, announcement: '', discordUrl: '' }; }
+             },
+         },
+ 
+@@ -531,6 +531,12 @@
+                     openReports: Number(r.open_reports) || 0,
+                     createdAt: r.created_at,
+                     canAct: r.can_act === true,
++                    suspensionKind: r.suspension_kind === 'ban' ? 'ban' : (r.suspended === true ? 'suspension' : ''),
++                    suspensionEnds: r.suspended === true && r.suspension_kind !== 'ban' ? (Number.isNaN(new Date(r.suspension_ends).getTime()) ? '' : new Date(r.suspension_ends).toISOString()) : '',
++                    forcePrivateProfile: r.force_private_profile === true,
++                    forcePrivateNotes: r.force_private_notes === true,
++                    forceReason: cleanUnicode(r.force_reason, { multiline: true }),
++                    activeStrikes: Number(r.active_strikes) || 0,
+                 }));
+             },
+             async resetProfile(userId, fields) {
+@@ -550,8 +556,40 @@
+             async rename(userId, displayName) {
+                 await ok(sb.rpc('admin_rename_user', { p_user: userId, p_display_name: displayName }), 'Não foi possível renomear.');
+             },
+-            async setSuspended(userId, suspended, reason = '') {
+-                await ok(sb.rpc('admin_set_suspended', { p_user: userId, p_suspended: Boolean(suspended), p_reason: reason }), 'Não foi possível mudar a suspensão.');
++            /**
++             * Suspende ou reativa. `days` (1 a 365) dá um prazo; sem `days` a suspensão fica até a equipe reativar; `ban` bane (só Administração e Dona).
++             * Os campos novos só vão quando usados: assim um banco ainda na versão anterior continua aceitando a suspensão simples.
++             */
++            async setSuspended(userId, suspended, reason = '', { days = null, ban = false } = {}) {
++                const args = { p_user: userId, p_suspended: Boolean(suspended), p_reason: reason };
++                if (suspended && days != null) args.p_days = Number(days);
++                if (suspended && ban) args.p_ban = true;
++                await ok(sb.rpc('admin_set_suspended', args), 'Não foi possível mudar a suspensão.');
++            },
++            /** Trava a privacidade de uma conta: perfil e/ou anotações sempre privados. Os dois desligados tiram a trava. */
++            async setLimits(userId, { profile = false, notes = false, reason = '' } = {}) {
++                await ok(sb.rpc('admin_set_account_limits', { p_user: userId, p_private_profile: Boolean(profile), p_private_notes: Boolean(notes), p_reason: reason }), 'Não foi possível mudar a privacidade da conta.');
++            },
++            /** Dá um aviso. Devolve quantos avisos ativos a pessoa tem agora e se isso suspendeu a conta (3º aviso = 7 dias). */
++            async giveStrike(userId, reason) {
++                const rows = await ok(sb.rpc('admin_give_strike', { p_user: userId, p_reason: reason }), 'Não foi possível dar o aviso.');
++                const r = Array.isArray(rows) ? rows[0] : rows;
++                return { activeCount: Number(r?.active_count) || 0, autoSuspended: r?.auto_suspended === true, endsAt: r?.ends_at || '' };
++            },
++            async revokeStrike(strikeId) {
++                await ok(sb.rpc('admin_revoke_strike', { p_strike: Number(strikeId) }), 'Não foi possível retirar o aviso.');
++            },
++            /** Histórico de avisos de uma pessoa (status: 'active' | 'revoked' | 'used'). */
++            async strikes(userId) {
++                const rows = await ok(sb.rpc('admin_list_strikes', { p_user: userId }), 'Não foi possível carregar os avisos.');
++                return (rows || []).map((r) => ({
++                    id: Number(r.id),
++                    reason: cleanUnicode(r.reason, { multiline: true }),
++                    status: ['active', 'revoked', 'used'].includes(r.status) ? r.status : 'used',
++                    givenAt: r.given_at,
++                    givenBy: r.given_by || '',
++                    revokedAt: r.revoked_at || '',
++                }));
+             },
+             async setRole(userId, role) {
+                 await ok(sb.rpc('admin_set_role', { p_user: userId, p_role: role }), 'Não foi possível mudar o cargo.');
+@@ -595,7 +633,7 @@
+             async settings() {
+                 const rows = await ok(sb.rpc('admin_get_settings'), 'Não foi possível carregar as configurações.');
+                 const r = Array.isArray(rows) ? rows[0] : rows;
+-                return { signupsOpen: r?.signups_open !== false, announcement: cleanUnicode(r?.announcement, { multiline: true }), blockedNames: Array.isArray(r?.blocked_names) ? r.blocked_names : [], allowedLinkHosts: Array.isArray(r?.allowed_link_hosts) ? r.allowed_link_hosts : [] };
++                return { signupsOpen: r?.signups_open !== false, announcement: cleanUnicode(r?.announcement, { multiline: true }), blockedNames: Array.isArray(r?.blocked_names) ? r.blocked_names : [], allowedLinkHosts: Array.isArray(r?.allowed_link_hosts) ? r.allowed_link_hosts : [], discordUrl: safeHttpsUrl(r?.discord_url) };
+             },
+             async setSetting(key, value) {
+                 await ok(sb.rpc('admin_set_setting', { p_key: key, p_value: value }), 'Não foi possível salvar a configuração.');
+diff -ruN a/js/ui/chrome.js b/js/ui/chrome.js
+--- a/js/ui/chrome.js	2026-11-06 16:19:43.732379864 -0300
++++ b/js/ui/chrome.js	2026-11-07 17:27:31.645123949 -0300
+@@ -4,8 +4,10 @@
+ import { brandKanji, icon } from '../core/icons.js';
+ import { currentPath, navigate, onRouteChange } from '../core/router.js';
+ import { currentTheme, onThemeChange, toggleTheme } from '../core/theme.js';
++import { timeAgo } from '../core/time.js';
+ import { toast } from '../core/toast.js';
+ import { messageOf } from '../core/errors.js';
++import { AUTO_SUSPEND_DAYS, STRIKE_LIMIT, strikeCountText } from '../domain/access.js';
+ import { SITE_VERSION } from '../domain/changelog.js';
+ import { isStaff } from '../domain/roles.js';
+ import { state, isCloud, myRole, onSessionChange, refreshSession } from '../services/session.js';
+@@ -86,17 +88,22 @@
+         ${config.tmdbApiKey ? html`<p class="small">Este produto usa a API do TMDB, mas não é endossado nem certificado pelo TMDB.</p>` : ''}`);
+ }
+ 
+-/** Avisos do site no topo: conta suspensa e o aviso escrito pela administração. */
++/**
++ * Avisos do site no topo: os avisos (strikes) da equipe para esta conta e o aviso escrito pela administração.
++ * Conta suspensa não passa por aqui: ela vê só a tela de suspensão (ui/suspendedScreen.js).
++ * O banner de avisos é fixo: aparece em todas as telas e não dá para fechar; some quando a equipe retira os avisos.
++ */
+ function renderNotice(region) {
+     if (!region) return;
+-    const suspended = isCloud() && state.user && state.access.suspended;
++    const member = isCloud() && state.user && !state.access.suspended;
++    const strikes = member ? state.access.strikes : [];
+     const text = isCloud() ? state.site.announcement : '';
+-    setHtml(region, suspended || text ? html`
++    setHtml(region, strikes.length || text ? html`
+         <div class="site-notice-inner">
+-            ${suspended ? html`<div class="notice-box is-warn" role="alert">${icon('alert')}<div>
+-                <strong>Sua conta está suspensa.</strong> Seu perfil ficou oculto para as outras pessoas e você não pode seguir nem denunciar perfis.
+-                ${state.access.reason ? html`<br>Motivo: ${state.access.reason}` : ''}
+-                <br>Sua biblioteca continua sua. Se acha que foi um engano, fale com a equipe do site.
++            ${strikes.length ? html`<div class="notice-box is-warn strike-notice" role="status" data-strike-notice>${icon('alert')}<div>
++                <strong>Você tem ${strikeCountText(strikes.length)} avisos da equipe.</strong>
++                No ${STRIKE_LIMIT}º aviso, a conta é suspensa por ${AUTO_SUSPEND_DAYS} dias.
++                <ul class="strike-list">${strikes.map((s) => html`<li>${s.reason}${s.at ? html` <span class="muted small">· ${timeAgo(s.at)}</span>` : ''}</li>`)}</ul>
+             </div></div>` : ''}
+             ${text ? html`<div class="notice-box site-announcement" role="status">${icon('info')}<div>${text}</div></div>` : ''}
+         </div>` : '');
+diff -ruN a/js/ui/memberModal.js b/js/ui/memberModal.js
+--- a/js/ui/memberModal.js	2026-11-06 16:19:43.732259995 -0300
++++ b/js/ui/memberModal.js	2026-11-07 17:27:31.645256562 -0300
+@@ -1,10 +1,13 @@
+-// Gerenciar uma pessoa (equipe): restaurar dados do perfil, renomear, suspender e mudar o cargo.
+-// Cada ação chama uma função do banco que confere o cargo de novo; esconder botão aqui é só conforto.
+-import { el, html } from '../core/dom.js';
++// Gerenciar uma pessoa (equipe): restaurar dados do perfil, remover conteúdo, renomear, avisos, privacidade forçada,
++// suspender ou banir e mudar o cargo. Cada ação chama uma função do banco que confere o cargo de novo; esconder botão aqui é só conforto.
++import { el, html, setHtml } from '../core/dom.js';
+ import { confirmDialog } from '../core/dialogs.js';
+ import { messageOf } from '../core/errors.js';
++import { icon, spinner } from '../core/icons.js';
+ import { openModal } from '../core/modal.js';
++import { timeAgo } from '../core/time.js';
+ import { toast } from '../core/toast.js';
++import { AUTO_SUSPEND_DAYS, BAN_KEY, STRIKE_LIMIT, SUSPEND_PRESETS, strikeCountText, suspensionLabel } from '../domain/access.js';
+ import { WIPE_FIELDS, REMOVED_MARK } from '../domain/reportSnapshot.js';
+ import { ROLES, canAct, grantableRoles, rankOf } from '../domain/roles.js';
+ import { avatar, avatarSrc } from './avatar.js';
+@@ -19,10 +22,15 @@
+ ];
+ const FIELD_NAMES = Object.fromEntries(RESET_FIELDS.map(([k, label]) => [k, label.toLowerCase()]));
+ const WIPE_NAMES = Object.fromEntries(WIPE_FIELDS.map((f) => [f.key, f.label.toLowerCase()]));
++const STRIKE_STATUS = { active: 'Ativo', revoked: 'Retirado', used: 'Usado na suspensão' };
++
++/** Situação da conta (suspensão, travas, avisos): a lista de membros já traz; vindo de outra tela, o modal busca. */
++const hasDetails = (m) => m && typeof m.activeStrikes === 'number' && 'suspensionKind' in m;
+ 
+ /**
+  * @param {object} opts
+  * @param {{id: string, username: string, displayName: string, avatarV?: number, role: string, suspended: boolean, suspensionReason?: string}} opts.member
++ *   Pode ser só o básico (denúncia, perfil): a situação da conta (suspensão, travas e avisos) é buscada ao abrir.
+  * @param {string} opts.actorRole  cargo de quem está usando o painel
+  * @param {object} opts.moderation  backend.moderation
+  * @param {() => void} [opts.onChanged]  chamado depois de uma ação que deu certo
+@@ -30,6 +38,8 @@
+ export function openMemberModal({ member, actorRole, moderation, onChanged }) {
+     const allowed = canAct(actorRole, member.role);
+     const roles = allowed ? grantableRoles(actorRole) : [];
++    const mayBan = rankOf(actorRole) >= 2;
++    let current = member;
+ 
+     const header = html`
+         <div class="admin-who">
+@@ -39,7 +49,7 @@
+                 <span class="muted small truncate">@${member.username}</span>
+             </span>
+         </div>
+-        ${member.suspended ? html`<div class="admin-flags"><span class="badge badge-danger">Conta suspensa</span></div>` : ''}`;
++        <div class="admin-flags" data-flags></div>`;
+ 
+     const blocked = html`<p class="notice-box">Você só pode agir sobre quem tem um cargo menor que o seu. ${rankOf(member.role) >= rankOf(actorRole) ? 'Esta pessoa tem o mesmo cargo que você ou um maior.' : ''}</p>`;
+ 
+@@ -75,18 +85,7 @@
+                 </form>
+             </section>
+ 
+-            <section class="manage-section" aria-labelledby="mm-sus">
+-                <h3 id="mm-sus">${member.suspended ? 'Conta suspensa' : 'Suspender conta'}</h3>
+-                ${member.suspended ? html`
+-                    ${member.suspensionReason ? html`<p class="small">Motivo: ${member.suspensionReason}</p>` : ''}
+-                    <div><button type="button" class="button button-secondary" data-do="unsuspend">Reativar conta</button></div>` : html`
+-                    <p class="field-hint">O perfil some para as outras pessoas e a conta não pode seguir nem denunciar. A biblioteca continua guardada.</p>
+-                    <div class="field">
+-                        <label for="mm-why">Motivo <span class="muted">(a pessoa vê este texto)</span></label>
+-                        <textarea id="mm-why" class="textarea" rows="2" maxlength="300"></textarea>
+-                    </div>
+-                    <div><button type="button" class="button button-danger" data-do="suspend">Suspender</button></div>`}
+-            </section>
++            <div class="stack" data-dynamic aria-live="polite"><div class="center muted" style="padding:14px 0">${spinner(22)}</div></div>
+ 
+             ${roles.length ? html`
+             <section class="manage-section" aria-labelledby="mm-role">
+@@ -106,7 +105,122 @@
+ 
+     const error = content.querySelector('[data-error]');
+     const modal = openModal({ title: 'Gerenciar pessoa', iconName: 'shield', size: 'md', content });
+-    if (!allowed) return modal;
++    if (!allowed) {
++        paintFlags(current);
++        return modal;
++    }
++
++    // --- situação da conta: bandeiras do topo e as seções de avisos, privacidade e suspensão ---------------------------
++    function flagsHtml(m) {
++        const items = [];
++        if (m.suspended) items.push(html`<span class="badge badge-danger">${hasDetails(m) ? suspensionLabel(m.suspensionKind, m.suspensionEnds) : 'Conta suspensa'}</span>`);
++        if (m.activeStrikes > 0) items.push(html`<span class="badge badge-planned">Avisos ${strikeCountText(m.activeStrikes)}</span>`);
++        if (m.forcePrivateProfile) items.push(html`<span class="badge badge-muted">${icon('lock', { size: 11 })} Perfil travado</span>`);
++        if (m.forcePrivateNotes) items.push(html`<span class="badge badge-muted">${icon('lock', { size: 11 })} Anotações travadas</span>`);
++        return items;
++    }
++    function paintFlags(m) {
++        const box = content.querySelector('[data-flags]');
++        const items = flagsHtml(m);
++        if (items.length) setHtml(box, html`${items}`); else box.replaceChildren();
++        box.hidden = items.length === 0;
++    }
++
++    const suspendSection = (m) => m.suspended ? html`
++        <section class="manage-section" aria-labelledby="mm-sus">
++            <h3 id="mm-sus">${m.suspensionKind === 'ban' ? 'Conta banida' : 'Conta suspensa'}</h3>
++            <p class="small" data-sus-status><strong>${suspensionLabel(m.suspensionKind, m.suspensionEnds)}.</strong></p>
++            ${m.suspensionReason ? html`<p class="small">Motivo: ${m.suspensionReason}</p>` : ''}
++            <div><button type="button" class="button button-secondary" data-do="unsuspend">Reativar conta</button></div>
++        </section>` : html`
++        <section class="manage-section" aria-labelledby="mm-sus">
++            <h3 id="mm-sus">Suspender ou banir</h3>
++            <p class="field-hint">O perfil some para as outras pessoas e a conta passa a ver só uma tela de aviso (com o motivo, o prazo e o link do Discord). A biblioteca continua guardada e a pessoa pode baixar um backup. Passado o prazo, a conta volta sozinha.</p>
++            <div class="field">
++                <label for="mm-term">Prazo</label>
++                <select id="mm-term" class="select" data-term>
++                    ${SUSPEND_PRESETS.map((p) => html`<option value="${p.key}" ${p.key === '7' ? 'selected' : ''}>${p.label}</option>`)}
++                    ${mayBan ? html`<option value="${BAN_KEY}">Banir (sem volta; só a equipe reativa)</option>` : ''}
++                </select>
++                ${mayBan ? '' : html`<span class="field-hint">Banir é com a Administração e a Dona.</span>`}
++            </div>
++            <div class="field">
++                <label for="mm-why">Motivo <span class="muted">(a pessoa vê este texto)</span></label>
++                <textarea id="mm-why" class="textarea" rows="2" maxlength="300"></textarea>
++            </div>
++            <div><button type="button" class="button button-danger" data-do="suspend" data-suspend-btn>Suspender</button></div>
++        </section>`;
++
++    const limitsSection = (m) => html`
++        <section class="manage-section" aria-labelledby="mm-limits">
++            <h3 id="mm-limits">Privacidade forçada</h3>
++            <p class="field-hint">Mantém o perfil e/ou as anotações sempre privados nesta conta. A pessoa continua vendo o próprio conteúdo, mas não consegue ligar de novo (a tela de Privacidade mostra a trava e o motivo). Tirar a trava não liga nada sozinho: a opção só volta a ficar com a pessoa.</p>
++            <label class="check-row"><input type="checkbox" data-limit="profile" ${m.forcePrivateProfile ? 'checked' : ''}><span>Perfil sempre privado <span class="muted small">(sai do Explorar e do feed e fica só para quem a pessoa aprovou)</span></span></label>
++            <label class="check-row"><input type="checkbox" data-limit="notes" ${m.forcePrivateNotes ? 'checked' : ''}><span>Anotações sempre privadas <span class="muted small">(as análises não entram nesta trava)</span></span></label>
++            <div class="field">
++                <label for="mm-limit-why">Motivo <span class="muted">(a pessoa vê este texto)</span></label>
++                <input id="mm-limit-why" class="input" maxlength="300" autocomplete="off" value="${m.forceReason}">
++            </div>
++            <div><button type="button" class="button button-secondary" data-do="limits">Salvar privacidade forçada</button></div>
++        </section>`;
++
++    const strikesSection = (m) => html`
++        <section class="manage-section" aria-labelledby="mm-strikes">
++            <h3 id="mm-strikes">Avisos <span class="badge ${m.activeStrikes > 0 ? 'badge-planned' : 'badge-muted'}" data-strike-count>${strikeCountText(m.activeStrikes)}</span></h3>
++            <p class="field-hint">Cada aviso ativo aparece num banner fixo, em todas as telas, para a pessoa. No ${STRIKE_LIMIT}º aviso ativo a conta é suspensa por ${AUTO_SUSPEND_DAYS} dias e o contador recomeça.</p>
++            <div data-strike-list><div class="center muted" style="padding:8px 0">${spinner(18)}</div></div>
++            ${m.suspended ? html`<p class="field-hint">Conta suspensa ou banida não recebe aviso.</p>` : html`
++            <div class="field">
++                <label for="mm-strike-why">Motivo do aviso <span class="muted">(a pessoa vê este texto)</span></label>
++                <textarea id="mm-strike-why" class="textarea" rows="2" maxlength="300"></textarea>
++            </div>
++            <div><button type="button" class="button button-secondary" data-do="strike">Dar um aviso</button></div>`}
++        </section>`;
++
++    function paintDynamic(m) {
++        current = m;
++        setHtml(content.querySelector('[data-dynamic]'), html`${strikesSection(m)}${limitsSection(m)}${suspendSection(m)}`);
++        paintFlags(m);
++        loadStrikes();
++    }
++
++    async function loadStrikes() {
++        const box = content.querySelector('[data-strike-list]');
++        if (!box) return;
++        try {
++            const rows = await moderation.strikes(member.id);
++            if (!content.isConnected || !content.querySelector('[data-strike-list]')) return;
++            setHtml(content.querySelector('[data-strike-list]'), rows.length ? html`
++                <ul class="strike-history">${rows.map((r) => html`
++                    <li class="strike-item is-${r.status}">
++                        <span class="strike-main"><span class="strike-reason">${r.reason}</span>
++                            <span class="muted small">${STRIKE_STATUS[r.status]} · ${timeAgo(r.givenAt)}${r.givenBy ? html` · por @${r.givenBy}` : ''}</span></span>
++                        ${r.status === 'active' ? html`<button type="button" class="button button-ghost button-sm" data-revoke="${r.id}">Retirar</button>` : ''}
++                    </li>`)}</ul>` : html`<p class="muted small">Nenhum aviso até agora.</p>`);
++        } catch (err) {
++            console.error(err);
++            const target = content.querySelector('[data-strike-list]');
++            if (target) setHtml(target, html`<p class="field-error">${messageOf(err, 'Não foi possível carregar os avisos.')}</p>`);
++        }
++    }
++
++    (async () => {
++        let m = member;
++        if (!hasDetails(member)) {
++            try {
++                const rows = await moderation.members({ query: member.username, limit: 100 });
++                const found = rows.find((r) => r.id === member.id);
++                if (found) m = { ...member, ...found };
++            } catch (err) {
++                console.error(err);
++                const dyn = content.querySelector('[data-dynamic]');
++                if (dyn) setHtml(dyn, html`<p class="field-error">${messageOf(err, 'Não foi possível carregar a situação da conta.')}</p>`);
++                return;
++            }
++        }
++        if (!hasDetails(m)) m = { ...m, suspensionKind: m.suspended ? 'suspension' : '', suspensionEnds: '', forcePrivateProfile: false, forcePrivateNotes: false, forceReason: '', activeStrikes: 0 };
++        if (content.isConnected) paintDynamic(m);
++    })();
+ 
+     async function act(task, okMessage) {
+         error.hidden = true;
+@@ -124,6 +238,8 @@
+         }
+     }
+ 
++    const fail = (text) => { error.textContent = text; error.hidden = false; };
++
+     const resetBtn = content.querySelector('[data-do="reset"]');
+     const wipeBtn = content.querySelector('[data-do="wipe"]');
+     const checked = () => [...content.querySelectorAll('[data-reset]:checked')].map((c) => c.dataset.reset);
+@@ -132,10 +248,40 @@
+         if (!(e.target instanceof Element)) return;
+         if (e.target.matches('[data-reset]')) resetBtn.disabled = checked().length === 0;
+         if (e.target.matches('[data-wipe-field]')) wipeBtn.disabled = checkedWipe().length === 0;
++        if (e.target.matches('[data-term]')) {
++            const btn = content.querySelector('[data-suspend-btn]');
++            if (btn) btn.textContent = e.target.value === BAN_KEY ? 'Banir conta' : 'Suspender';
++        }
+     });
+ 
+     content.addEventListener('click', async (e) => {
+-        const btn = e.target instanceof Element ? e.target.closest('[data-do]') : null;
++        const target = e.target instanceof Element ? e.target : null;
++        const revoke = target?.closest('[data-revoke]');
++        if (revoke && content.contains(revoke)) {
++            const yes = await confirmDialog({
++                title: 'Retirar aviso',
++                message: `Retirar este aviso de @${member.username}? Ele deixa de contar e some do banner da pessoa. Fica no registro de ações.`,
++                confirmLabel: 'Retirar',
++            });
++            if (!yes) return;
++            content.querySelectorAll('button').forEach((b) => { b.dataset.wasDisabled = b.disabled ? '1' : ''; b.disabled = true; });
++            error.hidden = true;
++            try {
++                await moderation.revokeStrike(revoke.dataset.revoke);
++                toast('Aviso retirado.', { type: 'success' });
++                const next = { ...current, activeStrikes: Math.max(0, current.activeStrikes - 1) };
++                paintDynamic(next);
++                onChanged?.();
++            } catch (err) {
++                console.error(err);
++                fail(messageOf(err, 'Não foi possível retirar o aviso.'));
++            } finally {
++                content.querySelectorAll('button').forEach((b) => { if ('wasDisabled' in b.dataset) b.disabled = b.dataset.wasDisabled === '1'; });
++            }
++            return;
++        }
++
++        const btn = target?.closest('[data-do]');
+         if (!btn) return;
+         switch (btn.dataset.do) {
+             case 'reset': {
+@@ -172,10 +318,50 @@
+                     () => (changed > 0 ? 'Conteúdo removido.' : 'Nada para remover: já estava removido ou vazio.'));
+                 break;
+             }
++            case 'strike': {
++                const why = content.querySelector('#mm-strike-why')?.value.trim() || '';
++                if (!why) { fail('Escreva o motivo do aviso.'); break; }
++                const third = (current.activeStrikes || 0) + 1 >= STRIKE_LIMIT;
++                const yes = await confirmDialog({
++                    title: 'Dar um aviso',
++                    message: third
++                        ? `Este será o ${STRIKE_LIMIT}º aviso ativo de @${member.username}: a conta será suspensa por ${AUTO_SUSPEND_DAYS} dias e o contador recomeça. Continuar?`
++                        : `Dar um aviso a @${member.username}? A pessoa vê o motivo num banner em todas as telas (${strikeCountText((current.activeStrikes || 0) + 1)}).`,
++                    confirmLabel: third ? 'Dar o aviso e suspender' : 'Dar o aviso', danger: third,
++                });
++                if (!yes) break;
++                let res = { activeCount: 0, autoSuspended: false };
++                await act(async () => { res = await moderation.giveStrike(member.id, why); },
++                    () => (res.autoSuspended
++                        ? `Aviso dado. Era o ${STRIKE_LIMIT}º: a conta foi suspensa por ${AUTO_SUSPEND_DAYS} dias.`
++                        : `Aviso dado (${strikeCountText(res.activeCount)}).`));
++                break;
++            }
++            case 'limits': {
++                const profile = content.querySelector('[data-limit="profile"]').checked;
++                const notes = content.querySelector('[data-limit="notes"]').checked;
++                const reason = content.querySelector('#mm-limit-why').value.trim();
++                if (profile === current.forcePrivateProfile && notes === current.forcePrivateNotes && (!(profile || notes) || reason === current.forceReason)) {
++                    fail('Nada mudou na privacidade forçada.');
++                    break;
++                }
++                await act(() => moderation.setLimits(member.id, { profile, notes, reason }),
++                    profile || notes ? 'Privacidade forçada salva.' : 'Trava retirada. As opções voltam a ficar com a pessoa.');
++                break;
++            }
+             case 'suspend': {
+                 const why = content.querySelector('#mm-why').value.trim();
+-                const yes = await confirmDialog({ title: 'Suspender conta', message: `Suspender @${member.username}? O perfil some para as outras pessoas até a conta ser reativada.`, confirmLabel: 'Suspender', danger: true });
+-                if (yes) await act(() => moderation.setSuspended(member.id, true, why), 'Conta suspensa.');
++                const term = content.querySelector('#mm-term').value;
++                const ban = term === BAN_KEY;
++                const preset = SUSPEND_PRESETS.find((p) => p.key === term) || SUSPEND_PRESETS[2];
++                const yes = await confirmDialog({
++                    title: ban ? 'Banir conta' : 'Suspender conta',
++                    message: ban
++                        ? `Banir @${member.username}? A conta perde o acesso ao site, o perfil some para as outras pessoas e só a equipe consegue reativar. Fica no registro de ações.`
++                        : `Suspender @${member.username} ${preset.days ? `por ${preset.label}` : 'sem prazo'}? O perfil some para as outras pessoas ${preset.days ? 'e a conta volta sozinha no fim do prazo' : 'até a conta ser reativada'}.`,
++                    confirmLabel: ban ? 'Banir' : 'Suspender', danger: true,
++                });
++                if (yes) await act(() => moderation.setSuspended(member.id, true, why, { days: ban ? null : preset.days, ban }), ban ? 'Conta banida.' : 'Conta suspensa.');
+                 break;
+             }
+             case 'unsuspend':
+@@ -191,11 +377,11 @@
+         if (!form) return;
+         if (form.dataset.form === 'rename') {
+             const name = content.querySelector('#mm-name').value.trim();
+-            if (!name) { error.textContent = 'Escreva o novo nome.'; error.hidden = false; return; }
++            if (!name) { fail('Escreva o novo nome.'); return; }
+             await act(() => moderation.rename(member.id, name), 'Nome alterado.');
+         } else if (form.dataset.form === 'role') {
+             const role = content.querySelector('#mm-role-select').value;
+-            if (role === member.role) { error.textContent = 'Esta pessoa já tem esse cargo.'; error.hidden = false; return; }
++            if (role === member.role) { fail('Esta pessoa já tem esse cargo.'); return; }
+             await act(() => moderation.setRole(member.id, role), role === 'member' ? 'Cargo removido.' : `Cargo: ${ROLES[role].long}.`);
+         }
+     });
+diff -ruN a/js/ui/suspendedScreen.js b/js/ui/suspendedScreen.js
+--- a/js/ui/suspendedScreen.js	1969-12-31 21:00:00.000000000 -0300
++++ b/js/ui/suspendedScreen.js	2026-11-07 17:27:31.645227676 -0300
+@@ -0,0 +1,132 @@
++// Tela estática de conta suspensa ou banida (Patch 19).
++// Enquanto a conta estiver suspensa, só esta tela aparece: o menu, o conteúdo e o rodapé do site ficam escondidos (CSS: body.is-suspended).
++// Ela mostra o motivo, o prazo e o link do Discord da equipe, e deixa baixar um backup da biblioteca ou sair da conta.
++// Quando o prazo acaba, o site confere de novo sozinho e a tela some. Isto é só a parte visível: quem barra de verdade é o banco.
++import { config } from '../config.js';
++import { downloadBlob, html, setHtml } from '../core/dom.js';
++import { messageOf } from '../core/errors.js';
++import { icon } from '../core/icons.js';
++import { navigate } from '../core/router.js';
++import { toast } from '../core/toast.js';
++import { nextCheckDelay, safeHttpsUrl, suspensionView } from '../domain/access.js';
++import { buildBackup } from '../domain/backup.js';
++import { isCloud, onSessionChange, refreshAccess, refreshSession, state } from '../services/session.js';
++
++const isBlocked = () => isCloud() && Boolean(state.user) && state.access.suspended === true;
++
++function screenHtml(view, discordUrl) {
++    return html`
++    <div class="suspended-card glass-panel">
++        <p class="suspended-brand">${config.siteName}</p>
++        <span class="suspended-icon ${view.ban ? 'is-ban' : ''}" aria-hidden="true">${icon(view.ban ? 'ban' : 'clock', { size: 34 })}</span>
++        <h1 id="sus-title" tabindex="-1">${view.title}</h1>
++        <p class="suspended-lead">${view.lead}</p>
++        <dl class="suspended-facts">
++            <div><dt>Motivo</dt><dd data-sus-reason>${view.reason || 'A equipe não escreveu um motivo.'}</dd></div>
++            <div><dt>Prazo</dt><dd data-sus-term>${view.termText}</dd></div>
++        </dl>
++        ${discordUrl ? html`<p class="suspended-help">Acha que foi um engano? Fale com a equipe no Discord.</p>` : html`<p class="suspended-help">Acha que foi um engano? Fale com a equipe do site.</p>`}
++        <div class="suspended-actions">
++            ${discordUrl ? html`<a class="button button-primary" href="${discordUrl}" target="_blank" rel="noopener noreferrer" data-sus-discord>${icon('link', { size: 17 })} Falar com a equipe no Discord</a>` : ''}
++            <button type="button" class="button button-secondary" data-sus-backup>${icon('download', { size: 17 })} Baixar backup</button>
++            <button type="button" class="button button-secondary" data-sus-recheck>${icon('refresh', { size: 17 })} Conferir de novo</button>
++            <button type="button" class="button button-ghost" data-sus-logout>${icon('logOut', { size: 17 })} Sair da conta</button>
++        </div>
++    </div>`;
++}
++
++/** Liga a tela de suspensão ao estado da sessão. Chame uma vez, depois de montar o resto do site. */
++export function mountSuspensionGate() {
++    // <div role="main"> (e não <main>): o site já tem um <main id="main"> (escondido por CSS enquanto a conta está suspensa), e a página não deve ter dois <main> no HTML.
++    const screen = document.createElement('div');
++    screen.setAttribute('role', 'main');
++    screen.id = 'suspended-screen';
++    screen.className = 'suspended-screen';
++    screen.setAttribute('aria-labelledby', 'sus-title');
++    screen.hidden = true;
++    document.body.appendChild(screen);
++
++    let shownKey = '';
++    let timer = 0;
++
++    const stopTimer = () => { clearTimeout(timer); timer = 0; };
++
++    async function recheck({ manual = false } = {}) {
++        stopTimer();
++        try { await refreshAccess(); } catch (err) { console.error(err); }
++        if (manual && isBlocked()) toast('A conta continua suspensa.', { type: 'info' });
++    }
++
++    function paint() {
++        stopTimer();
++        if (!isBlocked()) {
++            if (!screen.hidden) { screen.hidden = true; screen.replaceChildren(); }
++            document.body.classList.remove('is-suspended');
++            shownKey = '';
++            return;
++        }
++        const access = state.access;
++        const discordUrl = safeHttpsUrl(state.site?.discordUrl);
++        const view = suspensionView(access);
++        const key = JSON.stringify([access.kind, access.endsAt, access.reason, discordUrl, view.term]);
++        const first = screen.hidden;
++        if (key !== shownKey || first) {
++            setHtml(screen, screenHtml(view, discordUrl));
++            shownKey = key;
++        }
++        screen.hidden = false;
++        document.body.classList.add('is-suspended');
++        document.title = `${view.title} · ${config.siteName}`;
++        if (first) screen.querySelector('#sus-title')?.focus({ preventScroll: true });
++
++        // Atualiza a frase do prazo (faltam X dias) a cada minuto e confere com o banco assim que a data chegar.
++        const tick = () => {
++            if (!isBlocked()) return;
++            const v = suspensionView(state.access);
++            const term = screen.querySelector('[data-sus-term]');
++            if (term) term.textContent = v.termText;
++            if (v.term === 'until') timer = setTimeout(tick, Math.min(nextCheckDelay(state.access) ?? 60_000, 60_000));
++            else if (v.term === 'checking') recheck();
++        };
++        const delay = nextCheckDelay(access);
++        if (delay != null) timer = setTimeout(tick, Math.min(delay, 60_000));
++    }
++
++    screen.addEventListener('click', async (ev) => {
++        const target = ev.target instanceof Element ? ev.target : null;
++        const btn = target?.closest('button');
++        if (!btn || !screen.contains(btn)) return;
++        if (btn.matches('[data-sus-recheck]')) {
++            btn.disabled = true;
++            await recheck({ manual: true });
++            btn.disabled = false;
++        } else if (btn.matches('[data-sus-backup]')) {
++            btn.disabled = true;
++            try {
++                const list = await state.backend.library.listMine();
++                downloadBlob(new Blob([buildBackup(list)], { type: 'application/json' }), `kamylist-backup-${new Date().toISOString().slice(0, 10)}.json`);
++                toast(`Backup com ${list.length} obras baixado.`, { type: 'success' });
++            } catch (err) {
++                console.error(err);
++                toast(messageOf(err, 'Não foi possível baixar o backup.'), { type: 'error' });
++            } finally { btn.disabled = false; }
++        } else if (btn.matches('[data-sus-logout]')) {
++            btn.disabled = true;
++            try {
++                await state.backend.auth.signOut();
++                await refreshSession();
++                navigate('/');
++                toast('Você saiu da conta.', { type: 'info' });
++            } catch (err) {
++                btn.disabled = false;
++                toast(messageOf(err), { type: 'error' });
++            }
++        }
++    });
++
++    // Voltou para a aba (talvez horas depois): confere se a suspensão já acabou.
++    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && isBlocked()) recheck(); });
++
++    onSessionChange(paint);
++    paint();
++}
+diff -ruN a/js/views/admin.js b/js/views/admin.js
+--- a/js/views/admin.js	2026-11-06 16:19:43.734703705 -0300
++++ b/js/views/admin.js	2026-11-07 17:27:31.645679184 -0300
+@@ -7,6 +7,7 @@
+ import { icon, spinner } from '../core/icons.js';
+ import { timeAgo } from '../core/time.js';
+ import { toast } from '../core/toast.js';
++import { safeHttpsUrl, strikeCountText, suspensionLabel } from '../domain/access.js';
+ import { REMOVED_MARK, mediaState, removableFields, wipeField } from '../domain/reportSnapshot.js';
+ import { parseHostList } from '../domain/textSafety.js';
+ import { ROLES, actionLabel, canAct, canEditSetting, describeDetails, isStaff, motiveLabel, rankOf } from '../domain/roles.js';
+@@ -41,10 +42,12 @@
+             <span class="person-names">
+                 <span class="name-line"><b class="truncate">${m.displayName}</b>${roleBadge(m.role)}</span>
+                 <span class="muted small truncate">@${m.username} · ${m.totalEntries} ${m.totalEntries === 1 ? 'obra' : 'obras'} · desde ${timeAgo(m.createdAt)}</span>
+-                ${m.suspended || m.openReports > 0 || !m.isPublic ? html`<span class="admin-flags">
+-                    ${m.suspended ? html`<span class="badge badge-danger">Suspensa</span>` : ''}
++                ${m.suspended || m.openReports > 0 || m.activeStrikes > 0 || m.forcePrivateNotes || !m.isPublic ? html`<span class="admin-flags">
++                    ${m.suspended ? html`<span class="badge badge-danger">${suspensionLabel(m.suspensionKind, m.suspensionEnds)}</span>` : ''}
+                     ${m.openReports > 0 ? html`<span class="badge badge-planned">${m.openReports} ${m.openReports === 1 ? 'denúncia' : 'denúncias'}</span>` : ''}
+-                    ${!m.isPublic ? html`<span class="badge badge-muted">${icon('lock', { size: 11 })} Privado</span>` : ''}
++                    ${m.activeStrikes > 0 ? html`<span class="badge badge-planned">Avisos ${strikeCountText(m.activeStrikes)}</span>` : ''}
++                    ${!m.isPublic ? html`<span class="badge badge-muted">${icon('lock', { size: 11 })} ${m.forcePrivateProfile ? 'Privado (travado)' : 'Privado'}</span>` : ''}
++                    ${m.forcePrivateNotes ? html`<span class="badge badge-muted">${icon('lock', { size: 11 })} Anotações travadas</span>` : ''}
+                 </span>` : ''}
+             </span>
+         </div>
+@@ -405,6 +408,19 @@
+                 </form>
+             </section>
+ 
++            <section class="panel glass-panel" aria-labelledby="ad-discord">
++                <h2 id="ad-discord">${icon('link')} Link do Discord</h2>
++                <form data-form="discord" class="stack" novalidate>
++                    <div class="field">
++                        <label for="ad-discord-url">Endereço do convite ou do servidor <span class="muted">(começa com https://; deixe vazio para tirar)</span></label>
++                        <input id="ad-discord-url" class="input" type="url" inputmode="url" maxlength="200" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="https://discord.gg/seu-convite" value="${s.discordUrl}" ${canText ? '' : 'disabled'}>
++                        <span class="field-hint">Aparece na tela de quem está com a conta suspensa ou banida, como o caminho para falar com a equipe. Qualquer endereço https vale, então confira se é mesmo o seu servidor.</span>
++                    </div>
++                    <p class="field-error" data-error role="alert" hidden></p>
++                    <div><button type="submit" class="button button-primary" ${canText ? '' : 'disabled'}>Salvar link</button></div>
++                </form>
++            </section>
++
+             <section class="panel glass-panel" aria-labelledby="ad-names">
+                 <h2 id="ad-names">${icon('ban')} Palavras proibidas</h2>
+                 <form data-form="names" class="stack" novalidate>
+@@ -463,6 +479,13 @@
+             const btn = form.querySelector('button[type="submit"]');
+             if (form.dataset.form === 'announcement') {
+                 save(btn, () => be.moderation.setSetting('announcement', text.value.trim()), text.value.trim() ? 'Aviso publicado.' : 'Aviso removido.');
++            } else if (form.dataset.form === 'discord') {
++                const input = box.querySelector('#ad-discord-url');
++                const url = input.value.trim();
++                const err = form.querySelector('[data-error]');
++                if (url && !safeHttpsUrl(url)) { err.textContent = 'Use um endereço que comece com https:// (por exemplo, https://discord.gg/seu-convite).'; err.hidden = false; return; }
++                err.hidden = true;
++                save(btn, async () => { await be.moderation.setSetting('discord_url', url); input.value = url; }, url ? 'Link do Discord salvo.' : 'Link do Discord removido.');
+             } else if (form.dataset.form === 'links') {
+                 const hosts = parseHostList(box.querySelector('#ad-link-hosts').value);
+                 save(btn, async () => { await be.moderation.setSetting('allowed_link_hosts', hosts); box.querySelector('#ad-link-hosts').value = hosts.join('\n'); }, `Lista salva (${hosts.length} ${hosts.length === 1 ? 'site' : 'sites'}).`);
+diff -ruN a/js/views/settingsAccount.js b/js/views/settingsAccount.js
+--- a/js/views/settingsAccount.js	2026-11-06 16:19:43.734783825 -0300
++++ b/js/views/settingsAccount.js	2026-11-07 17:27:31.645705952 -0300
+@@ -4,10 +4,10 @@
+ import { typedConfirmDialog } from '../core/dialogs.js';
+ import { messageOf } from '../core/errors.js';
+ import { icon, spinner } from '../core/icons.js';
+-import { navigate } from '../core/router.js';
++import { navigate, refresh } from '../core/router.js';
+ import { toast } from '../core/toast.js';
+ import { SECTIONS, SECTION_KEYS, normalizeSections } from '../domain/entry.js';
+-import { backend, isCloud, refreshSession, setProfile, state } from '../services/session.js';
++import { backend, isCloud, refreshAccess, refreshSession, setProfile, state } from '../services/session.js';
+ import { bindDataPanel, dataPanelHtml } from '../ui/dataPanel.js';
+ import { guardTabs, settingsHeader } from '../ui/settingsShell.js';
+ 
+@@ -15,20 +15,29 @@
+ 
+ const SECTION_HINTS = { anime: 'Animes, filmes e séries', manga: 'Mangás, manhwas e manhuas', novel: 'Light novels' };
+ 
+-function privacyPanel(p) {
++/** Aviso de trava: a equipe deixou isto sempre privado nesta conta. */
++const lockNote = (id, what, reason) => html`
++    <span class="switch-lock" id="${id}" data-lock-note>${icon('lock', { size: 14 })}
++        <span><strong>Travado pela equipe do site.</strong> ${what}${reason ? html` Motivo: “${reason}”.` : ''} Quando a equipe tirar a trava, a opção volta a ficar com você (ela não liga sozinha).</span></span>`;
++
++function privacyPanel(p, access) {
++    const lockProfile = access.forcePrivateProfile;
++    const lockNotes = access.forcePrivateNotes;
+     return html`
+     <section class="panel glass-panel" aria-labelledby="st-privacy">
+         <h2 id="st-privacy">${icon('globe')} Privacidade</h2>
+         <form data-privacy-form novalidate>
+-            <label class="switch-row">
+-                <input type="checkbox" id="st-public" ${p.isPublic ? 'checked' : ''}>
++            <label class="switch-row ${lockProfile ? 'is-locked' : ''}">
++                <input type="checkbox" id="st-public" ${p.isPublic && !lockProfile ? 'checked' : ''} ${lockProfile ? 'disabled' : ''}>
+                 <span><span class="switch-title">Perfil público</span><br>
+-                <span class="switch-desc">Qualquer pessoa com o link (ou que use o Explorar) vê sua lista e suas análises. Desligado, só quem você aprovar vê (os pedidos ficam em Feed → Pedidos). Ao ligar, os pedidos pendentes são aprovados.</span></span>
++                <span class="switch-desc">Qualquer pessoa com o link (ou que use o Explorar) vê sua lista e suas análises. Desligado, só quem você aprovar vê (os pedidos ficam em Feed → Pedidos). Ao ligar, os pedidos pendentes são aprovados.</span>
++                ${lockProfile ? lockNote('st-public-lock', 'O seu perfil fica privado.', access.forceReason) : ''}</span>
+             </label>
+-            <label class="switch-row">
+-                <input type="checkbox" id="st-notes" ${p.showNotes ? 'checked' : ''}>
++            <label class="switch-row ${lockNotes ? 'is-locked' : ''}">
++                <input type="checkbox" id="st-notes" ${p.showNotes && !lockNotes ? 'checked' : ''} ${lockNotes ? 'disabled' : ''}>
+                 <span><span class="switch-title">Mostrar minhas anotações</span><br>
+-                <span class="switch-desc">Por padrão, suas anotações ficam só com você, mesmo com o perfil público. As análises são diferentes: aparecem para quem vê a sua lista.</span></span>
++                <span class="switch-desc">Por padrão, suas anotações ficam só com você, mesmo com o perfil público. As análises são diferentes: aparecem para quem vê a sua lista.</span>
++                ${lockNotes ? lockNote('st-notes-lock', 'As suas anotações ficam só com você.', access.forceReason) : ''}</span>
+             </label>
+             <div class="sections-group" role="group" aria-labelledby="st-sections-title" aria-describedby="st-sections-desc" data-sections-group>
+                 <span class="switch-title" id="st-sections-title">Abas visíveis no seu perfil</span>
+@@ -87,7 +96,7 @@
+         ${settingsHeader({ profile, active: 'configuracoes' })}
+         <div class="settings-grid">
+             <div class="stack">
+-                ${privacyPanel(profile)}
++                ${privacyPanel(profile, state.access)}
+                 ${accountPanel(state.user?.email)}
+             </div>
+             <div class="stack">
+@@ -99,6 +108,9 @@
+     const $ = (s) => root.querySelector(s);
+     const offs = [bindDataPanel(root, be)];
+     const linkBox = $('[data-link-box]');
++    // opções travadas pela equipe: o leitor de tela lê a explicação junto com o campo
++    if (state.access.forcePrivateProfile) $('#st-public')?.setAttribute('aria-describedby', 'st-public-lock');
++    if (state.access.forcePrivateNotes) $('#st-notes')?.setAttribute('aria-describedby', 'st-notes-lock');
+ 
+     const renderLink = (p) => setHtml(linkBox, p.isPublic ? html`
+         <div class="field"><span class="field-label">Link do seu perfil</span>
+@@ -122,12 +134,21 @@
+         btn.disabled = true;
+         setHtml(btn, html`${spinner(17)} Salvando...`);
+         try {
++            const wantPublic = $('#st-public').checked;
++            const wantNotes = $('#st-notes').checked;
+             const updated = await be.profiles.updateMine({
+-                isPublic: $('#st-public').checked,
+-                showNotes: $('#st-notes').checked,
++                isPublic: wantPublic,
++                showNotes: wantNotes,
+                 sections: checkedSections(),
+             });
+             setProfile(updated);
++            // O banco manda: se a equipe travou algo depois de a tela abrir, o valor volta como "desligado".
++            if ((wantPublic && !updated.isPublic) || (wantNotes && !updated.showNotes)) {
++                await refreshAccess();
++                refresh();
++                toast('A equipe do site deixou isto privado nesta conta. As outras opções foram salvas.', { type: 'info' });
++                return;
++            }
+             renderLink(updated);
+             toast('Privacidade salva!', { type: 'success' });
+         } catch (err) {
+@@ -208,8 +229,9 @@
+     }));
+ 
+     // --- sair da aba com alterações não salvas -----------------------------------------------
+-    const isDirty = () => $('#st-public').checked !== state.profile.isPublic
+-        || $('#st-notes').checked !== state.profile.showNotes
++    // (as opções travadas pela equipe ficam de fora: a pessoa não consegue mexer nelas)
++    const isDirty = () => (!state.access.forcePrivateProfile && $('#st-public').checked !== state.profile.isPublic)
++        || (!state.access.forcePrivateNotes && $('#st-notes').checked !== state.profile.showNotes)
+         || checkedSections().join() !== normalizeSections(state.profile.sections).join()
+         || Boolean($('#st-pass').value || $('#st-pass2').value);
+     offs.push(guardTabs(root, isDirty));
+diff -ruN a/sql/schema.sql b/sql/schema.sql
+--- a/sql/schema.sql	2026-11-06 16:19:43.728821581 -0300
++++ b/sql/schema.sql	2026-11-07 17:27:31.523955885 -0300
+@@ -229,6 +229,43 @@
+   suspended_at timestamptz not null default now(),
+   constraint suspensions_reason_len check (char_length(reason) <= 300)
+ );
++-- Patch 19: suspensão com prazo (ends_at; vazio = até a equipe reativar) e banimento (kind = 'ban', sempre sem prazo).
++-- Suspensão vencida deixa de valer sozinha (is_suspended confere a data); a linha antiga só some quando alguém suspende de novo ou reativa.
++alter table public.suspensions add column if not exists ends_at timestamptz;
++alter table public.suspensions add column if not exists kind text not null default 'suspension';
++alter table public.suspensions drop constraint if exists suspensions_kind;
++alter table public.suspensions add  constraint suspensions_kind
++  check (kind in ('suspension', 'ban') and (kind = 'suspension' or ends_at is null));
++
++-- Patch 19: privacidade forçada pela equipe. Fica numa tabela FECHADA (ninguém lê nem escreve direto; só as funções abaixo),
++-- porque uma coluna em profiles seria editável pela própria pessoa e legível por qualquer visitante.
++-- O gatilho profiles_force_privacy (seção 3e) mantém is_public/show_notes desligados enquanto a trava existir.
++create table if not exists public.account_limits (
++  user_id               uuid primary key references public.profiles (id) on delete cascade,
++  force_private_profile boolean not null default false,
++  force_private_notes   boolean not null default false,
++  reason                text not null default '',
++  set_by                uuid references public.profiles (id) on delete set null,
++  set_at                timestamptz not null default now(),
++  constraint account_limits_reason_len check (char_length(reason) <= 300),
++  constraint account_limits_any check (force_private_profile or force_private_notes)
++);
++
++-- Patch 19: avisos (strikes). Ativos aparecem num aviso fixo para a pessoa; o 3º ativo suspende a conta por 7 dias
++-- e os 3 viram "used" (o contador recomeça). "revoked" = retirado pela equipe.
++create table if not exists public.strikes (
++  id         bigint generated always as identity primary key,
++  user_id    uuid not null references public.profiles (id) on delete cascade,
++  reason     text not null,
++  given_by   uuid references public.profiles (id) on delete set null,
++  given_at   timestamptz not null default now(),
++  status     text not null default 'active',
++  revoked_by uuid references public.profiles (id) on delete set null,
++  revoked_at timestamptz,
++  constraint strikes_reason_len check (char_length(reason) between 1 and 300),
++  constraint strikes_status check (status in ('active', 'revoked', 'used'))
++);
++create index if not exists strikes_user_status_idx on public.strikes (user_id, status);
+ 
+ -- Registro de ações da equipe. Guarda os nomes (@usuario) no momento da ação, para o registro continuar
+ -- legível mesmo se a conta for excluída depois.
+@@ -268,32 +305,35 @@
+ alter table public.profile_reports add  constraint profile_reports_snapshot
+   check (jsonb_typeof(snapshot) = 'object' and octet_length(snapshot::text) <= 120000);
+ 
+--- Configurações do site: signups_open (true/false), announcement (aviso no topo), blocked_names (lista de palavras proibidas)
+--- e allowed_link_hosts (sites que podem ser citados nos textos).
++-- Configurações do site: signups_open (true/false), announcement (aviso no topo), blocked_names (lista de palavras proibidas),
++-- allowed_link_hosts (sites que podem ser citados nos textos) e discord_url (link mostrado na tela de conta suspensa).
+ create table if not exists public.site_settings (
+   key        text primary key,
+   value      jsonb not null,
+   updated_by uuid references public.profiles (id) on delete set null,
+   updated_at timestamptz not null default now(),
+-  constraint site_settings_key check (key in ('signups_open', 'announcement', 'blocked_names', 'allowed_link_hosts'))
++  constraint site_settings_key check (key in ('signups_open', 'announcement', 'blocked_names', 'allowed_link_hosts', 'discord_url'))
+ );
+ -- Quem já tinha a tabela: aceita a chave nova (seguro rodar sempre).
+ alter table public.site_settings drop constraint if exists site_settings_key;
+ alter table public.site_settings add  constraint site_settings_key
+-  check (key in ('signups_open', 'announcement', 'blocked_names', 'allowed_link_hosts'));
++  check (key in ('signups_open', 'announcement', 'blocked_names', 'allowed_link_hosts', 'discord_url'));
+ insert into public.site_settings (key, value) values
+   ('signups_open',  'true'::jsonb),
+   ('announcement',  '""'::jsonb),
+   ('blocked_names', '[]'::jsonb),
++  ('discord_url',   '""'::jsonb),
+   ('allowed_link_hosts', '["myanimelist.net", "anilist.co", "themoviedb.org", "imdb.com", "mangadex.org"]'::jsonb)
+ on conflict (key) do nothing;
+ 
+ alter table public.user_roles      enable row level security;
+ alter table public.suspensions     enable row level security;
++alter table public.account_limits  enable row level security;
++alter table public.strikes         enable row level security;
+ alter table public.mod_log         enable row level security;
+ alter table public.profile_reports enable row level security;
+ alter table public.site_settings   enable row level security;
+-revoke all on public.user_roles, public.suspensions, public.mod_log, public.profile_reports, public.site_settings from anon, authenticated;
++revoke all on public.user_roles, public.suspensions, public.mod_log, public.profile_reports, public.site_settings, public.account_limits, public.strikes from anon, authenticated;
+ 
+ 
+ -- ---------------------------------------------------------------------
+@@ -322,7 +362,7 @@
+ stable
+ security definer
+ set search_path = ''
+-as $$ select exists (select 1 from public.suspensions s where s.user_id = p_user) $$;
++as $$ select exists (select 1 from public.suspensions s where s.user_id = p_user and (s.ends_at is null or s.ends_at > now())) $$;
+ 
+ -- Peso de quem está chamando. Conta suspensa perde os poderes (peso 0).
+ create or replace function public.my_rank()
+@@ -866,6 +906,32 @@
+ create trigger profiles_accept_pending after update of is_public on public.profiles
+   for each row execute function public.accept_pending_follows();
+ 
++-- 3e2. Privacidade forçada pela equipe (Patch 19). Enquanto existir a trava em account_limits, o perfil não fica público
++--      e/ou as anotações não ficam visíveis, não importa quem tente ligar (nem a própria pessoa, nem uma chamada direta à API).
++--      Roda ANTES de gravar, então o valor que a pessoa mandou é simplesmente trocado. Tirar a trava não religa nada sozinho.
++create or replace function public.profiles_force_privacy()
++returns trigger
++language plpgsql
++security definer
++set search_path = ''
++as $$
++declare
++  lim public.account_limits%rowtype;
++begin
++  select * into lim from public.account_limits l where l.user_id = new.id;
++  if found then
++    if lim.force_private_profile then new.is_public := false; end if;
++    if lim.force_private_notes   then new.show_notes := false; end if;
++  end if;
++  return new;
++end;
++$$;
++
++drop trigger if exists profiles_force_privacy on public.profiles;
++create trigger profiles_force_privacy before insert or update on public.profiles
++  for each row execute function public.profiles_force_privacy();
++revoke all on function public.profiles_force_privacy() from public, anon, authenticated;
++
+ 
+ -- ---------------------------------------------------------------------
+ -- 4. Row Level Security
+@@ -1466,9 +1532,22 @@
+ end;
+ $$;
+ 
+--- Meu acesso agora: cargo em vigor (owner | admin | mod | member; conta suspensa vira member) e se estou suspensa.
++-- Meu acesso agora: cargo em vigor (owner | admin | mod | member; conta suspensa vira member), se estou suspensa (e até quando,
++-- ou se é banimento), as travas de privacidade e os avisos (strikes) ativos. (Patch 19: o formato da resposta cresceu,
++-- por isso a função antiga é derrubada antes de recriar.)
++drop function if exists public.my_access();
+ create or replace function public.my_access()
+-returns table (role text, suspended boolean, reason text)
++returns table (
++  role                  text,
++  suspended             boolean,
++  reason                text,
++  suspension_kind       text,
++  suspension_ends       timestamptz,
++  force_private_profile boolean,
++  force_private_notes   boolean,
++  force_reason          text,
++  strikes               jsonb
++)
+ language sql
+ stable
+ security definer
+@@ -1476,19 +1555,32 @@
+ as $$
+   select case public.my_rank() when 3 then 'owner' when 2 then 'admin' when 1 then 'mod' else 'member' end,
+          public.is_suspended((select auth.uid())),
+-         (select s.reason from public.suspensions s where s.user_id = (select auth.uid()))
+-$$;
+-
+--- Configurações que o site mostra para todo mundo: cadastros abertos e aviso no topo.
++         (select s.reason from public.suspensions s
++           where s.user_id = (select auth.uid()) and (s.ends_at is null or s.ends_at > now())),
++         (select s.kind from public.suspensions s
++           where s.user_id = (select auth.uid()) and (s.ends_at is null or s.ends_at > now())),
++         (select s.ends_at from public.suspensions s
++           where s.user_id = (select auth.uid()) and (s.ends_at is null or s.ends_at > now())),
++         coalesce((select l.force_private_profile from public.account_limits l where l.user_id = (select auth.uid())), false),
++         coalesce((select l.force_private_notes   from public.account_limits l where l.user_id = (select auth.uid())), false),
++         coalesce((select l.reason from public.account_limits l where l.user_id = (select auth.uid())), ''),
++         coalesce((select jsonb_agg(jsonb_build_object('reason', k.reason, 'at', k.given_at) order by k.given_at, k.id)
++                     from public.strikes k where k.user_id = (select auth.uid()) and k.status = 'active'), '[]'::jsonb)
++$$;
++
++-- Configurações que o site mostra para todo mundo: cadastros abertos, aviso no topo e o link do Discord (tela de conta suspensa).
++-- (Patch 19: ganhou discord_url, por isso a função antiga é derrubada antes de recriar.)
++drop function if exists public.get_public_settings();
+ create or replace function public.get_public_settings()
+-returns table (signups_open boolean, announcement text)
++returns table (signups_open boolean, announcement text, discord_url text)
+ language sql
+ stable
+ security definer
+ set search_path = ''
+ as $$
+   select not exists (select 1 from public.site_settings s where s.key = 'signups_open' and s.value = 'false'::jsonb),
+-         coalesce((select s.value #>> '{}' from public.site_settings s where s.key = 'announcement'), '')
++         coalesce((select s.value #>> '{}' from public.site_settings s where s.key = 'announcement'), ''),
++         coalesce((select s.value #>> '{}' from public.site_settings s where s.key = 'discord_url' and jsonb_typeof(s.value) = 'string'), '')
+ $$;
+ 
+ -- Snapshot da denúncia (uso interno). Guarda o perfil como ele está agora e, das obras, só os textos que QUEM DENUNCIA
+@@ -1589,6 +1681,8 @@
+ 
+ -- Membros (para a equipe): busca por nome de usuário ou de exibição. Não mostra e-mail.
+ -- can_act = quem chama pode agir nessa pessoa (cargo estritamente maior).
++-- (Patch 19: ganhou prazo/banimento, travas de privacidade e avisos ativos; a função antiga é derrubada antes de recriar.)
++drop function if exists public.admin_list_members(text, int, int);
+ create or replace function public.admin_list_members(p_query text default '', p_limit int default 30, p_offset int default 0)
+ returns table (
+   id                uuid,
+@@ -1603,7 +1697,13 @@
+   total_entries     bigint,
+   open_reports      bigint,
+   created_at        timestamptz,
+-  can_act           boolean
++  can_act           boolean,
++  suspension_kind   text,
++  suspension_ends   timestamptz,
++  force_private_profile boolean,
++  force_private_notes   boolean,
++  force_reason      text,
++  active_strikes    bigint
+ )
+ language plpgsql
+ stable
+@@ -1623,10 +1723,17 @@
+          (select count(*) from public.entries e where e.user_id = p.id),
+          (select count(*) from public.profile_reports pr where pr.target_id = p.id and pr.status = 'open'),
+          p.created_at,
+-         (myrank > public.rank_of_role(r.role))
++         (myrank > public.rank_of_role(r.role)),
++         s.kind,
++         s.ends_at,
++         coalesce(l.force_private_profile, false),
++         coalesce(l.force_private_notes, false),
++         coalesce(l.reason, ''),
++         (select count(*) from public.strikes k where k.user_id = p.id and k.status = 'active')
+   from public.profiles p
+-  left join public.user_roles  r on r.user_id = p.id
+-  left join public.suspensions s on s.user_id = p.id
++  left join public.user_roles    r on r.user_id = p.id
++  left join public.suspensions   s on s.user_id = p.id and (s.ends_at is null or s.ends_at > now())
++  left join public.account_limits l on l.user_id = p.id
+   where q = '' or strpos(p.username, q) > 0 or strpos(lower(p.display_name), q) > 0
+   order by p.created_at desc, p.id
+   limit least(greatest(coalesce(p_limit, 30), 1), 100)
+@@ -1804,22 +1911,39 @@
+ end;
+ $$;
+ 
+--- Suspende (ou reativa) uma conta.
+-create or replace function public.admin_set_suspended(p_user uuid, p_suspended boolean, p_reason text default '')
++-- Suspende (ou reativa) uma conta. Patch 19: com prazo (p_days de 1 a 365; vazio = até a equipe reativar) ou banimento
++-- (p_ban: sem prazo; só Administração e Dona). Chamadas antigas, só com os 3 primeiros campos, continuam valendo (suspensão sem prazo).
++drop function if exists public.admin_set_suspended(uuid, boolean, text);
++create or replace function public.admin_set_suspended(p_user uuid, p_suspended boolean, p_reason text default '', p_days int default null, p_ban boolean default false)
+ returns void
+ language plpgsql
+ security definer
+ set search_path = ''
+ as $$
+ declare
+-  why text := left(public.clean_text(p_reason, true), 300);
++  why  text := left(public.clean_text(p_reason, true), 300);
++  ends timestamptz;
+ begin
+   perform public.require_outranks(p_user);
+   if p_suspended then
+-    insert into public.suspensions (user_id, reason, suspended_by)
+-    values (p_user, why, auth.uid())
+-    on conflict (user_id) do update set reason = excluded.reason, suspended_by = excluded.suspended_by, suspended_at = now();
+-    perform public.log_action('suspend', p_user, jsonb_build_object('motivo', why));
++    if coalesce(p_ban, false) then
++      perform public.require_staff(2);
++      if p_days is not null then
++        raise exception 'Banimento não tem prazo.' using errcode = '22023';
++      end if;
++    elsif p_days is not null then
++      if p_days < 1 or p_days > 365 then
++        raise exception 'O prazo da suspensão vai de 1 a 365 dias.' using errcode = '22023';
++      end if;
++      ends := now() + make_interval(days => p_days);
++    end if;
++    insert into public.suspensions (user_id, reason, suspended_by, kind, ends_at)
++    values (p_user, why, auth.uid(), case when coalesce(p_ban, false) then 'ban' else 'suspension' end, ends)
++    on conflict (user_id) do update
++      set reason = excluded.reason, suspended_by = excluded.suspended_by, suspended_at = now(),
++          kind = excluded.kind, ends_at = excluded.ends_at;
++    perform public.log_action(case when coalesce(p_ban, false) then 'ban' else 'suspend' end, p_user,
++      jsonb_build_object('motivo', why) || case when p_days is not null then jsonb_build_object('dias', p_days) else '{}'::jsonb end);
+   else
+     delete from public.suspensions where user_id = p_user;
+     perform public.log_action('unsuspend', p_user, '{}'::jsonb);
+@@ -1827,6 +1951,123 @@
+ end;
+ $$;
+ 
++-- Privacidade forçada (Patch 19): deixa o perfil e/ou as anotações de uma conta sempre privados. A pessoa continua vendo o
++-- próprio conteúdo; só a visibilidade para os outros é travada. Os dois campos desligados = tira a trava (e NÃO religa nada sozinho).
++create or replace function public.admin_set_account_limits(p_user uuid, p_private_profile boolean, p_private_notes boolean, p_reason text default '')
++returns void
++language plpgsql
++security definer
++set search_path = ''
++as $$
++declare
++  why text := left(public.clean_text(p_reason, true), 300);
++  pp  boolean := coalesce(p_private_profile, false);
++  pn  boolean := coalesce(p_private_notes, false);
++begin
++  perform public.require_outranks(p_user);
++  if pp or pn then
++    insert into public.account_limits (user_id, force_private_profile, force_private_notes, reason, set_by, set_at)
++    values (p_user, pp, pn, why, auth.uid(), now())
++    on conflict (user_id) do update
++      set force_private_profile = excluded.force_private_profile, force_private_notes = excluded.force_private_notes,
++          reason = excluded.reason, set_by = excluded.set_by, set_at = now();
++    -- Já vale agora: desliga o que estava ligado (o gatilho mantém desligado daqui para frente).
++    update public.profiles p
++       set is_public = case when pp then false else p.is_public end,
++           show_notes = case when pn then false else p.show_notes end
++     where p.id = p_user
++       and ((pp and p.is_public) or (pn and p.show_notes));
++    perform public.log_action('limits_set', p_user,
++      jsonb_build_object('perfil', pp, 'anotacoes', pn, 'motivo', why));
++  else
++    delete from public.account_limits where user_id = p_user;
++    perform public.log_action('limits_clear', p_user, '{}'::jsonb);
++  end if;
++end;
++$$;
++
++-- Avisos (strikes) --------------------------------------------------------------------------------------------------
++-- Dá um aviso. No 3º aviso ativo a conta é suspensa por 7 dias e os 3 avisos viram "usados" (o contador recomeça).
++-- Conta já suspensa ou banida não recebe aviso (use o registro de ações para anotar o caso).
++create or replace function public.admin_give_strike(p_user uuid, p_reason text)
++returns table (active_count int, auto_suspended boolean, ends_at timestamptz)
++language plpgsql
++security definer
++set search_path = ''
++as $$
++declare
++  why   text := left(public.clean_text(p_reason, true), 300);
++  n     int;
++  ends  timestamptz;
++begin
++  perform public.require_outranks(p_user);
++  if why is null or btrim(why) = '' then
++    raise exception 'Escreva o motivo do aviso.' using errcode = '22023';
++  end if;
++  if public.is_suspended(p_user) then
++    raise exception 'Essa conta já está suspensa ou banida.' using errcode = '22023';
++  end if;
++  insert into public.strikes (user_id, reason, given_by) values (p_user, why, auth.uid());
++  select count(*)::int into n from public.strikes k where k.user_id = p_user and k.status = 'active';
++  perform public.log_action('strike', p_user, jsonb_build_object('motivo', why, 'ativos', n));
++  if n >= 3 then
++    ends := now() + interval '7 days';
++    insert into public.suspensions (user_id, reason, suspended_by, kind, ends_at)
++    values (p_user, left('3 avisos acumulados. Último motivo: ' || why, 300), auth.uid(), 'suspension', ends)
++    on conflict (user_id) do update
++      set reason = excluded.reason, suspended_by = excluded.suspended_by, suspended_at = now(),
++          kind = 'suspension', ends_at = excluded.ends_at;
++    update public.strikes k set status = 'used' where k.user_id = p_user and k.status = 'active';
++    perform public.log_action('strike_suspend', p_user, jsonb_build_object('dias', 7));
++    return query select 0, true, ends;
++  end if;
++  return query select n, false, null::timestamptz;
++end;
++$$;
++
++-- Retira um aviso ativo (engano ou perdão).
++create or replace function public.admin_revoke_strike(p_strike bigint)
++returns void
++language plpgsql
++security definer
++set search_path = ''
++as $$
++declare
++  k public.strikes%rowtype;
++begin
++  select * into k from public.strikes where id = p_strike;
++  if not found then
++    raise exception 'Aviso não encontrado.' using errcode = 'P0002';
++  end if;
++  perform public.require_outranks(k.user_id);
++  if k.status <> 'active' then
++    raise exception 'Esse aviso já foi retirado ou usado.' using errcode = '22023';
++  end if;
++  update public.strikes set status = 'revoked', revoked_by = auth.uid(), revoked_at = now() where id = p_strike;
++  perform public.log_action('strike_revoke', k.user_id, jsonb_build_object('motivo', k.reason));
++end;
++$$;
++
++-- Histórico de avisos de uma conta (mais recentes primeiro, até 30).
++create or replace function public.admin_list_strikes(p_user uuid)
++returns table (id bigint, reason text, status text, given_at timestamptz, given_by text, revoked_at timestamptz)
++language plpgsql
++stable
++security definer
++set search_path = ''
++as $$
++begin
++  perform public.require_outranks(p_user);
++  return query
++  select k.id, k.reason, k.status, k.given_at, g.username, k.revoked_at
++  from public.strikes k
++  left join public.profiles g on g.id = k.given_by
++  where k.user_id = p_user
++  order by k.id desc
++  limit 30;
++end;
++$$;
++
+ -- Muda o cargo de alguém: 'admin', 'mod' ou 'member'. A Dona só se define pelo SQL (veja o README).
+ -- Administração só mexe em Moderação e Membros; só a Dona cria ou tira administradores.
+ create or replace function public.admin_set_role(p_user uuid, p_role text)
+@@ -1911,7 +2152,7 @@
+   from public.profile_reports pr
+   join public.profiles t            on t.id = pr.target_id
+   left join public.user_roles tr    on tr.user_id = t.id
+-  left join public.suspensions ts   on ts.user_id = t.id
++  left join public.suspensions ts   on ts.user_id = t.id and (ts.ends_at is null or ts.ends_at > now())
+   left join public.profiles rp      on rp.id = pr.reporter_id
+   left join public.profiles hb      on hb.id = pr.handled_by
+   where (coalesce(p_status, 'open') = 'all' or pr.status = coalesce(p_status, 'open'))
+@@ -1975,10 +2216,10 @@
+ $$;
+ 
+ -- Todas as configurações (administração e Dona).
+--- (O formato da resposta ganhou allowed_link_hosts: a função antiga é derrubada antes de recriar.)
++-- (O formato da resposta ganhou allowed_link_hosts e, no Patch 19, discord_url: a função antiga é derrubada antes de recriar.)
+ drop function if exists public.admin_get_settings();
+ create or replace function public.admin_get_settings()
+-returns table (signups_open boolean, announcement text, blocked_names text[], allowed_link_hosts text[])
++returns table (signups_open boolean, announcement text, blocked_names text[], allowed_link_hosts text[], discord_url text)
+ language plpgsql
+ stable
+ security definer
+@@ -1992,7 +2233,8 @@
+          coalesce((select array(select jsonb_array_elements_text(s.value) order by 1)
+                    from public.site_settings s where s.key = 'blocked_names' and jsonb_typeof(s.value) = 'array'), '{}'::text[]),
+          coalesce((select array(select jsonb_array_elements_text(s.value) order by 1)
+-                   from public.site_settings s where s.key = 'allowed_link_hosts' and jsonb_typeof(s.value) = 'array'), '{}'::text[]);
++                   from public.site_settings s where s.key = 'allowed_link_hosts' and jsonb_typeof(s.value) = 'array'), '{}'::text[]),
++         coalesce((select s.value #>> '{}' from public.site_settings s where s.key = 'discord_url' and jsonb_typeof(s.value) = 'string'), '');
+ end;
+ $$;
+ 
+@@ -2001,6 +2243,7 @@
+ --   announcement   (texto de até 280)      administração e Dona
+ --   blocked_names  (lista de palavras)     administração e Dona
+ --   allowed_link_hosts (lista de sites)    administração e Dona
++--   discord_url    (link https, até 200)   administração e Dona (vazio = sem link na tela de conta suspensa)
+ create or replace function public.admin_set_setting(p_key text, p_value jsonb)
+ returns void
+ language plpgsql
+@@ -2023,6 +2266,16 @@
+       raise exception 'O aviso pode ter até 280 caracteres.' using errcode = '22023';
+     end if;
+     cleaned := to_jsonb(public.clean_text(p_value #>> '{}', true));
++  elsif p_key = 'discord_url' then
++    perform public.require_staff(2);
++    if p_value is null or jsonb_typeof(p_value) <> 'string' then
++      raise exception 'Valor inválido.' using errcode = '22023';
++    end if;
++    cleaned := to_jsonb(btrim(p_value #>> '{}'));
++    if (cleaned #>> '{}') <> '' and (char_length(cleaned #>> '{}') > 200
++       or (cleaned #>> '{}') !~* '^https://[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*\.[a-z]{2,}(/[A-Za-z0-9._~:/?#@!$&()*+,;=%-]*)?$') then
++      raise exception 'O link do Discord precisa começar com https:// e ser um endereço válido (até 200 caracteres).' using errcode = '22023';
++    end if;
+   elsif p_key = 'allowed_link_hosts' then
+     perform public.require_staff(2);
+     if p_value is null or jsonb_typeof(p_value) <> 'array' or jsonb_array_length(p_value) > 100
+@@ -2070,7 +2323,11 @@
+ revoke all on function public.admin_wipe_text(uuid, text[], uuid)  from public, anon;
+ revoke all on function public.report_snapshot(uuid, uuid)          from public, anon, authenticated;
+ revoke all on function public.admin_rename_user(uuid, text)        from public, anon;
+-revoke all on function public.admin_set_suspended(uuid, boolean, text) from public, anon;
++revoke all on function public.admin_set_suspended(uuid, boolean, text, int, boolean) from public, anon;
++revoke all on function public.admin_set_account_limits(uuid, boolean, boolean, text) from public, anon;
++revoke all on function public.admin_give_strike(uuid, text)        from public, anon;
++revoke all on function public.admin_revoke_strike(bigint)          from public, anon;
++revoke all on function public.admin_list_strikes(uuid)             from public, anon;
+ revoke all on function public.admin_set_role(uuid, text)           from public, anon;
+ revoke all on function public.admin_list_reports(text, int)        from public, anon;
+ revoke all on function public.admin_resolve_report(bigint, text)   from public, anon;
+@@ -2085,7 +2342,11 @@
+ grant execute on function public.admin_reset_profile(uuid, text[]) to authenticated;
+ grant execute on function public.admin_wipe_text(uuid, text[], uuid) to authenticated;
+ grant execute on function public.admin_rename_user(uuid, text)     to authenticated;
+-grant execute on function public.admin_set_suspended(uuid, boolean, text) to authenticated;
++grant execute on function public.admin_set_suspended(uuid, boolean, text, int, boolean) to authenticated;
++grant execute on function public.admin_set_account_limits(uuid, boolean, boolean, text) to authenticated;
++grant execute on function public.admin_give_strike(uuid, text)      to authenticated;
++grant execute on function public.admin_revoke_strike(bigint)        to authenticated;
++grant execute on function public.admin_list_strikes(uuid)           to authenticated;
+ grant execute on function public.admin_set_role(uuid, text)        to authenticated;
+ grant execute on function public.admin_list_reports(text, int)     to authenticated;
+ grant execute on function public.admin_resolve_report(bigint, text) to authenticated;
+@@ -2111,12 +2372,15 @@
+ --        anotações e análise, e lista de sites permitidos (configuração allowed_link_hosts)
+ --   15 = denúncia com snapshot do perfil (coluna profile_reports.snapshot) e remoção de conteúdo campo a campo pela equipe
+ --        (função admin_wipe_text)
++--   16 = privacidade forçada (tabela account_limits + gatilho profiles_force_privacy), suspensão com prazo e banimento
++--        (suspensions.ends_at/kind), avisos/strikes (tabela strikes; 3º aviso = 7 dias de suspensão) e o link do Discord
++--        (configuração discord_url)
+ create or replace function public.schema_version()
+ returns integer
+ language sql
+ immutable
+ set search_path = ''
+-as $$ select 15 $$;
++as $$ select 16 $$;
+ 
+ -- Só quem precisa pode executar cada função.
+ revoke all on function public.get_public_entries(text)            from public;

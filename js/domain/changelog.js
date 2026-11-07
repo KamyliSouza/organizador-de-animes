@@ -1,9 +1,19 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.18';
+export const SITE_VERSION = '1.19';
 
 export const CHANGELOG = [
+    {
+        version: '1.19',
+        title: 'Suspensão com prazo, avisos e privacidade travada',
+        items: [
+            'Conta suspensa ou banida agora vê uma tela só dela, com o motivo, até quando vale e um botão para falar com a equipe no Discord. Dá para baixar um backup da biblioteca e sair da conta. Passado o prazo, a conta volta sozinha.',
+            'A equipe escolhe o prazo da suspensão (1, 3, 7 ou 30 dias, ou sem prazo) e a administração também pode banir. O link do Discord é definido no painel (aba Site).',
+            'Novo: avisos da equipe. Cada aviso aparece num banner no topo de todas as telas, com o motivo. No 3º aviso a conta é suspensa por 7 dias e a contagem recomeça. A equipe pode retirar um aviso.',
+            'A equipe agora pode deixar o perfil e/ou as anotações de uma conta sempre privados. Em Configurações, a opção aparece travada com o motivo; você continua vendo o seu conteúdo. Quando a trava sai, a opção volta a ficar com você (ela não liga sozinha).',
+        ],
+    },
     {
         version: '1.18',
         title: 'Denúncias com cópia e remoção por campo',

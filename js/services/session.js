@@ -4,11 +4,12 @@ import { hasSupabase } from '../config.js';
 import { clearHighContrast, setHighContrast } from '../core/contrast.js';
 import { clearOwnPalette, setOwnPalette } from '../core/palette.js';
 import { clearOwnBackground, setOwnBackground } from '../core/siteBackground.js';
+import { NO_ACCESS } from '../domain/access.js';
 
-const NO_ACCESS = { role: 'member', suspended: false, reason: '' };
-const OPEN_SITE = { signupsOpen: true, announcement: '' };
+const OPEN_SITE = { signupsOpen: true, announcement: '', discordUrl: '' };
 
-// access = cargo em vigor e suspensão de quem está logado · site = configurações públicas (aviso e cadastros)
+// access = cargo em vigor, suspensão (com prazo ou banimento), travas de privacidade e avisos de quem está logado (veja domain/access.js)
+// site = configurações públicas (aviso, cadastros e link do Discord)
 export const state = { backend: null, user: null, profile: null, requests: 0, ready: false, access: NO_ACCESS, site: OPEN_SITE };
 
 const listeners = new Set();

@@ -7,6 +7,7 @@ import { messageOf } from '../core/errors.js';
 import { icon, spinner } from '../core/icons.js';
 import { timeAgo } from '../core/time.js';
 import { toast } from '../core/toast.js';
+import { safeHttpsUrl, strikeCountText, suspensionLabel } from '../domain/access.js';
 import { REMOVED_MARK, mediaState, removableFields, wipeField } from '../domain/reportSnapshot.js';
 import { parseHostList } from '../domain/textSafety.js';
 import { ROLES, actionLabel, canAct, canEditSetting, describeDetails, isStaff, motiveLabel, rankOf } from '../domain/roles.js';
@@ -41,10 +42,12 @@ const memberRow = (m) => html`
             <span class="person-names">
                 <span class="name-line"><b class="truncate">${m.displayName}</b>${roleBadge(m.role)}</span>
                 <span class="muted small truncate">@${m.username} · ${m.totalEntries} ${m.totalEntries === 1 ? 'obra' : 'obras'} · desde ${timeAgo(m.createdAt)}</span>
-                ${m.suspended || m.openReports > 0 || !m.isPublic ? html`<span class="admin-flags">
-                    ${m.suspended ? html`<span class="badge badge-danger">Suspensa</span>` : ''}
+                ${m.suspended || m.openReports > 0 || m.activeStrikes > 0 || m.forcePrivateNotes || !m.isPublic ? html`<span class="admin-flags">
+                    ${m.suspended ? html`<span class="badge badge-danger">${suspensionLabel(m.suspensionKind, m.suspensionEnds)}</span>` : ''}
                     ${m.openReports > 0 ? html`<span class="badge badge-planned">${m.openReports} ${m.openReports === 1 ? 'denúncia' : 'denúncias'}</span>` : ''}
-                    ${!m.isPublic ? html`<span class="badge badge-muted">${icon('lock', { size: 11 })} Privado</span>` : ''}
+                    ${m.activeStrikes > 0 ? html`<span class="badge badge-planned">Avisos ${strikeCountText(m.activeStrikes)}</span>` : ''}
+                    ${!m.isPublic ? html`<span class="badge badge-muted">${icon('lock', { size: 11 })} ${m.forcePrivateProfile ? 'Privado (travado)' : 'Privado'}</span>` : ''}
+                    ${m.forcePrivateNotes ? html`<span class="badge badge-muted">${icon('lock', { size: 11 })} Anotações travadas</span>` : ''}
                 </span>` : ''}
             </span>
         </div>
@@ -405,6 +408,19 @@ function mountSettings(box, { be, role }) {
                 </form>
             </section>
 
+            <section class="panel glass-panel" aria-labelledby="ad-discord">
+                <h2 id="ad-discord">${icon('link')} Link do Discord</h2>
+                <form data-form="discord" class="stack" novalidate>
+                    <div class="field">
+                        <label for="ad-discord-url">Endereço do convite ou do servidor <span class="muted">(começa com https://; deixe vazio para tirar)</span></label>
+                        <input id="ad-discord-url" class="input" type="url" inputmode="url" maxlength="200" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="https://discord.gg/seu-convite" value="${s.discordUrl}" ${canText ? '' : 'disabled'}>
+                        <span class="field-hint">Aparece na tela de quem está com a conta suspensa ou banida, como o caminho para falar com a equipe. Qualquer endereço https vale, então confira se é mesmo o seu servidor.</span>
+                    </div>
+                    <p class="field-error" data-error role="alert" hidden></p>
+                    <div><button type="submit" class="button button-primary" ${canText ? '' : 'disabled'}>Salvar link</button></div>
+                </form>
+            </section>
+
             <section class="panel glass-panel" aria-labelledby="ad-names">
                 <h2 id="ad-names">${icon('ban')} Palavras proibidas</h2>
                 <form data-form="names" class="stack" novalidate>
@@ -463,6 +479,13 @@ function mountSettings(box, { be, role }) {
             const btn = form.querySelector('button[type="submit"]');
             if (form.dataset.form === 'announcement') {
                 save(btn, () => be.moderation.setSetting('announcement', text.value.trim()), text.value.trim() ? 'Aviso publicado.' : 'Aviso removido.');
+            } else if (form.dataset.form === 'discord') {
+                const input = box.querySelector('#ad-discord-url');
+                const url = input.value.trim();
+                const err = form.querySelector('[data-error]');
+                if (url && !safeHttpsUrl(url)) { err.textContent = 'Use um endereço que comece com https:// (por exemplo, https://discord.gg/seu-convite).'; err.hidden = false; return; }
+                err.hidden = true;
+                save(btn, async () => { await be.moderation.setSetting('discord_url', url); input.value = url; }, url ? 'Link do Discord salvo.' : 'Link do Discord removido.');
             } else if (form.dataset.form === 'links') {
                 const hosts = parseHostList(box.querySelector('#ad-link-hosts').value);
                 save(btn, async () => { await be.moderation.setSetting('allowed_link_hosts', hosts); box.querySelector('#ad-link-hosts').value = hosts.join('\n'); }, `Lista salva (${hosts.length} ${hosts.length === 1 ? 'site' : 'sites'}).`);

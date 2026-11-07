@@ -229,6 +229,43 @@ create table if not exists public.suspensions (
   suspended_at timestamptz not null default now(),
   constraint suspensions_reason_len check (char_length(reason) <= 300)
 );
+-- Patch 19: suspensão com prazo (ends_at; vazio = até a equipe reativar) e banimento (kind = 'ban', sempre sem prazo).
+-- Suspensão vencida deixa de valer sozinha (is_suspended confere a data); a linha antiga só some quando alguém suspende de novo ou reativa.
+alter table public.suspensions add column if not exists ends_at timestamptz;
+alter table public.suspensions add column if not exists kind text not null default 'suspension';
+alter table public.suspensions drop constraint if exists suspensions_kind;
+alter table public.suspensions add  constraint suspensions_kind
+  check (kind in ('suspension', 'ban') and (kind = 'suspension' or ends_at is null));
+
+-- Patch 19: privacidade forçada pela equipe. Fica numa tabela FECHADA (ninguém lê nem escreve direto; só as funções abaixo),
+-- porque uma coluna em profiles seria editável pela própria pessoa e legível por qualquer visitante.
+-- O gatilho profiles_force_privacy (seção 3e) mantém is_public/show_notes desligados enquanto a trava existir.
+create table if not exists public.account_limits (
+  user_id               uuid primary key references public.profiles (id) on delete cascade,
+  force_private_profile boolean not null default false,
+  force_private_notes   boolean not null default false,
+  reason                text not null default '',
+  set_by                uuid references public.profiles (id) on delete set null,
+  set_at                timestamptz not null default now(),
+  constraint account_limits_reason_len check (char_length(reason) <= 300),
+  constraint account_limits_any check (force_private_profile or force_private_notes)
+);
+
+-- Patch 19: avisos (strikes). Ativos aparecem num aviso fixo para a pessoa; o 3º ativo suspende a conta por 7 dias
+-- e os 3 viram "used" (o contador recomeça). "revoked" = retirado pela equipe.
+create table if not exists public.strikes (
+  id         bigint generated always as identity primary key,
+  user_id    uuid not null references public.profiles (id) on delete cascade,
+  reason     text not null,
+  given_by   uuid references public.profiles (id) on delete set null,
+  given_at   timestamptz not null default now(),
+  status     text not null default 'active',
+  revoked_by uuid references public.profiles (id) on delete set null,
+  revoked_at timestamptz,
+  constraint strikes_reason_len check (char_length(reason) between 1 and 300),
+  constraint strikes_status check (status in ('active', 'revoked', 'used'))
+);
+create index if not exists strikes_user_status_idx on public.strikes (user_id, status);
 
 -- Registro de ações da equipe. Guarda os nomes (@usuario) no momento da ação, para o registro continuar
 -- legível mesmo se a conta for excluída depois.
@@ -268,32 +305,35 @@ alter table public.profile_reports drop constraint if exists profile_reports_sna
 alter table public.profile_reports add  constraint profile_reports_snapshot
   check (jsonb_typeof(snapshot) = 'object' and octet_length(snapshot::text) <= 120000);
 
--- Configurações do site: signups_open (true/false), announcement (aviso no topo), blocked_names (lista de palavras proibidas)
--- e allowed_link_hosts (sites que podem ser citados nos textos).
+-- Configurações do site: signups_open (true/false), announcement (aviso no topo), blocked_names (lista de palavras proibidas),
+-- allowed_link_hosts (sites que podem ser citados nos textos) e discord_url (link mostrado na tela de conta suspensa).
 create table if not exists public.site_settings (
   key        text primary key,
   value      jsonb not null,
   updated_by uuid references public.profiles (id) on delete set null,
   updated_at timestamptz not null default now(),
-  constraint site_settings_key check (key in ('signups_open', 'announcement', 'blocked_names', 'allowed_link_hosts'))
+  constraint site_settings_key check (key in ('signups_open', 'announcement', 'blocked_names', 'allowed_link_hosts', 'discord_url'))
 );
 -- Quem já tinha a tabela: aceita a chave nova (seguro rodar sempre).
 alter table public.site_settings drop constraint if exists site_settings_key;
 alter table public.site_settings add  constraint site_settings_key
-  check (key in ('signups_open', 'announcement', 'blocked_names', 'allowed_link_hosts'));
+  check (key in ('signups_open', 'announcement', 'blocked_names', 'allowed_link_hosts', 'discord_url'));
 insert into public.site_settings (key, value) values
   ('signups_open',  'true'::jsonb),
   ('announcement',  '""'::jsonb),
   ('blocked_names', '[]'::jsonb),
+  ('discord_url',   '""'::jsonb),
   ('allowed_link_hosts', '["myanimelist.net", "anilist.co", "themoviedb.org", "imdb.com", "mangadex.org"]'::jsonb)
 on conflict (key) do nothing;
 
 alter table public.user_roles      enable row level security;
 alter table public.suspensions     enable row level security;
+alter table public.account_limits  enable row level security;
+alter table public.strikes         enable row level security;
 alter table public.mod_log         enable row level security;
 alter table public.profile_reports enable row level security;
 alter table public.site_settings   enable row level security;
-revoke all on public.user_roles, public.suspensions, public.mod_log, public.profile_reports, public.site_settings from anon, authenticated;
+revoke all on public.user_roles, public.suspensions, public.mod_log, public.profile_reports, public.site_settings, public.account_limits, public.strikes from anon, authenticated;
 
 
 -- ---------------------------------------------------------------------
@@ -322,7 +362,7 @@ language sql
 stable
 security definer
 set search_path = ''
-as $$ select exists (select 1 from public.suspensions s where s.user_id = p_user) $$;
+as $$ select exists (select 1 from public.suspensions s where s.user_id = p_user and (s.ends_at is null or s.ends_at > now())) $$;
 
 -- Peso de quem está chamando. Conta suspensa perde os poderes (peso 0).
 create or replace function public.my_rank()
@@ -865,6 +905,32 @@ $$;
 drop trigger if exists profiles_accept_pending on public.profiles;
 create trigger profiles_accept_pending after update of is_public on public.profiles
   for each row execute function public.accept_pending_follows();
+
+-- 3e2. Privacidade forçada pela equipe (Patch 19). Enquanto existir a trava em account_limits, o perfil não fica público
+--      e/ou as anotações não ficam visíveis, não importa quem tente ligar (nem a própria pessoa, nem uma chamada direta à API).
+--      Roda ANTES de gravar, então o valor que a pessoa mandou é simplesmente trocado. Tirar a trava não religa nada sozinho.
+create or replace function public.profiles_force_privacy()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  lim public.account_limits%rowtype;
+begin
+  select * into lim from public.account_limits l where l.user_id = new.id;
+  if found then
+    if lim.force_private_profile then new.is_public := false; end if;
+    if lim.force_private_notes   then new.show_notes := false; end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists profiles_force_privacy on public.profiles;
+create trigger profiles_force_privacy before insert or update on public.profiles
+  for each row execute function public.profiles_force_privacy();
+revoke all on function public.profiles_force_privacy() from public, anon, authenticated;
 
 
 -- ---------------------------------------------------------------------
@@ -1466,9 +1532,22 @@ begin
 end;
 $$;
 
--- Meu acesso agora: cargo em vigor (owner | admin | mod | member; conta suspensa vira member) e se estou suspensa.
+-- Meu acesso agora: cargo em vigor (owner | admin | mod | member; conta suspensa vira member), se estou suspensa (e até quando,
+-- ou se é banimento), as travas de privacidade e os avisos (strikes) ativos. (Patch 19: o formato da resposta cresceu,
+-- por isso a função antiga é derrubada antes de recriar.)
+drop function if exists public.my_access();
 create or replace function public.my_access()
-returns table (role text, suspended boolean, reason text)
+returns table (
+  role                  text,
+  suspended             boolean,
+  reason                text,
+  suspension_kind       text,
+  suspension_ends       timestamptz,
+  force_private_profile boolean,
+  force_private_notes   boolean,
+  force_reason          text,
+  strikes               jsonb
+)
 language sql
 stable
 security definer
@@ -1476,19 +1555,32 @@ set search_path = ''
 as $$
   select case public.my_rank() when 3 then 'owner' when 2 then 'admin' when 1 then 'mod' else 'member' end,
          public.is_suspended((select auth.uid())),
-         (select s.reason from public.suspensions s where s.user_id = (select auth.uid()))
+         (select s.reason from public.suspensions s
+           where s.user_id = (select auth.uid()) and (s.ends_at is null or s.ends_at > now())),
+         (select s.kind from public.suspensions s
+           where s.user_id = (select auth.uid()) and (s.ends_at is null or s.ends_at > now())),
+         (select s.ends_at from public.suspensions s
+           where s.user_id = (select auth.uid()) and (s.ends_at is null or s.ends_at > now())),
+         coalesce((select l.force_private_profile from public.account_limits l where l.user_id = (select auth.uid())), false),
+         coalesce((select l.force_private_notes   from public.account_limits l where l.user_id = (select auth.uid())), false),
+         coalesce((select l.reason from public.account_limits l where l.user_id = (select auth.uid())), ''),
+         coalesce((select jsonb_agg(jsonb_build_object('reason', k.reason, 'at', k.given_at) order by k.given_at, k.id)
+                     from public.strikes k where k.user_id = (select auth.uid()) and k.status = 'active'), '[]'::jsonb)
 $$;
 
--- Configurações que o site mostra para todo mundo: cadastros abertos e aviso no topo.
+-- Configurações que o site mostra para todo mundo: cadastros abertos, aviso no topo e o link do Discord (tela de conta suspensa).
+-- (Patch 19: ganhou discord_url, por isso a função antiga é derrubada antes de recriar.)
+drop function if exists public.get_public_settings();
 create or replace function public.get_public_settings()
-returns table (signups_open boolean, announcement text)
+returns table (signups_open boolean, announcement text, discord_url text)
 language sql
 stable
 security definer
 set search_path = ''
 as $$
   select not exists (select 1 from public.site_settings s where s.key = 'signups_open' and s.value = 'false'::jsonb),
-         coalesce((select s.value #>> '{}' from public.site_settings s where s.key = 'announcement'), '')
+         coalesce((select s.value #>> '{}' from public.site_settings s where s.key = 'announcement'), ''),
+         coalesce((select s.value #>> '{}' from public.site_settings s where s.key = 'discord_url' and jsonb_typeof(s.value) = 'string'), '')
 $$;
 
 -- Snapshot da denúncia (uso interno). Guarda o perfil como ele está agora e, das obras, só os textos que QUEM DENUNCIA
@@ -1589,6 +1681,8 @@ $$;
 
 -- Membros (para a equipe): busca por nome de usuário ou de exibição. Não mostra e-mail.
 -- can_act = quem chama pode agir nessa pessoa (cargo estritamente maior).
+-- (Patch 19: ganhou prazo/banimento, travas de privacidade e avisos ativos; a função antiga é derrubada antes de recriar.)
+drop function if exists public.admin_list_members(text, int, int);
 create or replace function public.admin_list_members(p_query text default '', p_limit int default 30, p_offset int default 0)
 returns table (
   id                uuid,
@@ -1603,7 +1697,13 @@ returns table (
   total_entries     bigint,
   open_reports      bigint,
   created_at        timestamptz,
-  can_act           boolean
+  can_act           boolean,
+  suspension_kind   text,
+  suspension_ends   timestamptz,
+  force_private_profile boolean,
+  force_private_notes   boolean,
+  force_reason      text,
+  active_strikes    bigint
 )
 language plpgsql
 stable
@@ -1623,10 +1723,17 @@ begin
          (select count(*) from public.entries e where e.user_id = p.id),
          (select count(*) from public.profile_reports pr where pr.target_id = p.id and pr.status = 'open'),
          p.created_at,
-         (myrank > public.rank_of_role(r.role))
+         (myrank > public.rank_of_role(r.role)),
+         s.kind,
+         s.ends_at,
+         coalesce(l.force_private_profile, false),
+         coalesce(l.force_private_notes, false),
+         coalesce(l.reason, ''),
+         (select count(*) from public.strikes k where k.user_id = p.id and k.status = 'active')
   from public.profiles p
-  left join public.user_roles  r on r.user_id = p.id
-  left join public.suspensions s on s.user_id = p.id
+  left join public.user_roles    r on r.user_id = p.id
+  left join public.suspensions   s on s.user_id = p.id and (s.ends_at is null or s.ends_at > now())
+  left join public.account_limits l on l.user_id = p.id
   where q = '' or strpos(p.username, q) > 0 or strpos(lower(p.display_name), q) > 0
   order by p.created_at desc, p.id
   limit least(greatest(coalesce(p_limit, 30), 1), 100)
@@ -1804,8 +1911,49 @@ begin
 end;
 $$;
 
--- Suspende (ou reativa) uma conta.
-create or replace function public.admin_set_suspended(p_user uuid, p_suspended boolean, p_reason text default '')
+-- Suspende (ou reativa) uma conta. Patch 19: com prazo (p_days de 1 a 365; vazio = até a equipe reativar) ou banimento
+-- (p_ban: sem prazo; só Administração e Dona). Chamadas antigas, só com os 3 primeiros campos, continuam valendo (suspensão sem prazo).
+drop function if exists public.admin_set_suspended(uuid, boolean, text);
+create or replace function public.admin_set_suspended(p_user uuid, p_suspended boolean, p_reason text default '', p_days int default null, p_ban boolean default false)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  why  text := left(public.clean_text(p_reason, true), 300);
+  ends timestamptz;
+begin
+  perform public.require_outranks(p_user);
+  if p_suspended then
+    if coalesce(p_ban, false) then
+      perform public.require_staff(2);
+      if p_days is not null then
+        raise exception 'Banimento não tem prazo.' using errcode = '22023';
+      end if;
+    elsif p_days is not null then
+      if p_days < 1 or p_days > 365 then
+        raise exception 'O prazo da suspensão vai de 1 a 365 dias.' using errcode = '22023';
+      end if;
+      ends := now() + make_interval(days => p_days);
+    end if;
+    insert into public.suspensions (user_id, reason, suspended_by, kind, ends_at)
+    values (p_user, why, auth.uid(), case when coalesce(p_ban, false) then 'ban' else 'suspension' end, ends)
+    on conflict (user_id) do update
+      set reason = excluded.reason, suspended_by = excluded.suspended_by, suspended_at = now(),
+          kind = excluded.kind, ends_at = excluded.ends_at;
+    perform public.log_action(case when coalesce(p_ban, false) then 'ban' else 'suspend' end, p_user,
+      jsonb_build_object('motivo', why) || case when p_days is not null then jsonb_build_object('dias', p_days) else '{}'::jsonb end);
+  else
+    delete from public.suspensions where user_id = p_user;
+    perform public.log_action('unsuspend', p_user, '{}'::jsonb);
+  end if;
+end;
+$$;
+
+-- Privacidade forçada (Patch 19): deixa o perfil e/ou as anotações de uma conta sempre privados. A pessoa continua vendo o
+-- próprio conteúdo; só a visibilidade para os outros é travada. Os dois campos desligados = tira a trava (e NÃO religa nada sozinho).
+create or replace function public.admin_set_account_limits(p_user uuid, p_private_profile boolean, p_private_notes boolean, p_reason text default '')
 returns void
 language plpgsql
 security definer
@@ -1813,17 +1961,110 @@ set search_path = ''
 as $$
 declare
   why text := left(public.clean_text(p_reason, true), 300);
+  pp  boolean := coalesce(p_private_profile, false);
+  pn  boolean := coalesce(p_private_notes, false);
 begin
   perform public.require_outranks(p_user);
-  if p_suspended then
-    insert into public.suspensions (user_id, reason, suspended_by)
-    values (p_user, why, auth.uid())
-    on conflict (user_id) do update set reason = excluded.reason, suspended_by = excluded.suspended_by, suspended_at = now();
-    perform public.log_action('suspend', p_user, jsonb_build_object('motivo', why));
+  if pp or pn then
+    insert into public.account_limits (user_id, force_private_profile, force_private_notes, reason, set_by, set_at)
+    values (p_user, pp, pn, why, auth.uid(), now())
+    on conflict (user_id) do update
+      set force_private_profile = excluded.force_private_profile, force_private_notes = excluded.force_private_notes,
+          reason = excluded.reason, set_by = excluded.set_by, set_at = now();
+    -- Já vale agora: desliga o que estava ligado (o gatilho mantém desligado daqui para frente).
+    update public.profiles p
+       set is_public = case when pp then false else p.is_public end,
+           show_notes = case when pn then false else p.show_notes end
+     where p.id = p_user
+       and ((pp and p.is_public) or (pn and p.show_notes));
+    perform public.log_action('limits_set', p_user,
+      jsonb_build_object('perfil', pp, 'anotacoes', pn, 'motivo', why));
   else
-    delete from public.suspensions where user_id = p_user;
-    perform public.log_action('unsuspend', p_user, '{}'::jsonb);
+    delete from public.account_limits where user_id = p_user;
+    perform public.log_action('limits_clear', p_user, '{}'::jsonb);
   end if;
+end;
+$$;
+
+-- Avisos (strikes) --------------------------------------------------------------------------------------------------
+-- Dá um aviso. No 3º aviso ativo a conta é suspensa por 7 dias e os 3 avisos viram "usados" (o contador recomeça).
+-- Conta já suspensa ou banida não recebe aviso (use o registro de ações para anotar o caso).
+create or replace function public.admin_give_strike(p_user uuid, p_reason text)
+returns table (active_count int, auto_suspended boolean, ends_at timestamptz)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  why   text := left(public.clean_text(p_reason, true), 300);
+  n     int;
+  ends  timestamptz;
+begin
+  perform public.require_outranks(p_user);
+  if why is null or btrim(why) = '' then
+    raise exception 'Escreva o motivo do aviso.' using errcode = '22023';
+  end if;
+  if public.is_suspended(p_user) then
+    raise exception 'Essa conta já está suspensa ou banida.' using errcode = '22023';
+  end if;
+  insert into public.strikes (user_id, reason, given_by) values (p_user, why, auth.uid());
+  select count(*)::int into n from public.strikes k where k.user_id = p_user and k.status = 'active';
+  perform public.log_action('strike', p_user, jsonb_build_object('motivo', why, 'ativos', n));
+  if n >= 3 then
+    ends := now() + interval '7 days';
+    insert into public.suspensions (user_id, reason, suspended_by, kind, ends_at)
+    values (p_user, left('3 avisos acumulados. Último motivo: ' || why, 300), auth.uid(), 'suspension', ends)
+    on conflict (user_id) do update
+      set reason = excluded.reason, suspended_by = excluded.suspended_by, suspended_at = now(),
+          kind = 'suspension', ends_at = excluded.ends_at;
+    update public.strikes k set status = 'used' where k.user_id = p_user and k.status = 'active';
+    perform public.log_action('strike_suspend', p_user, jsonb_build_object('dias', 7));
+    return query select 0, true, ends;
+  end if;
+  return query select n, false, null::timestamptz;
+end;
+$$;
+
+-- Retira um aviso ativo (engano ou perdão).
+create or replace function public.admin_revoke_strike(p_strike bigint)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  k public.strikes%rowtype;
+begin
+  select * into k from public.strikes where id = p_strike;
+  if not found then
+    raise exception 'Aviso não encontrado.' using errcode = 'P0002';
+  end if;
+  perform public.require_outranks(k.user_id);
+  if k.status <> 'active' then
+    raise exception 'Esse aviso já foi retirado ou usado.' using errcode = '22023';
+  end if;
+  update public.strikes set status = 'revoked', revoked_by = auth.uid(), revoked_at = now() where id = p_strike;
+  perform public.log_action('strike_revoke', k.user_id, jsonb_build_object('motivo', k.reason));
+end;
+$$;
+
+-- Histórico de avisos de uma conta (mais recentes primeiro, até 30).
+create or replace function public.admin_list_strikes(p_user uuid)
+returns table (id bigint, reason text, status text, given_at timestamptz, given_by text, revoked_at timestamptz)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  perform public.require_outranks(p_user);
+  return query
+  select k.id, k.reason, k.status, k.given_at, g.username, k.revoked_at
+  from public.strikes k
+  left join public.profiles g on g.id = k.given_by
+  where k.user_id = p_user
+  order by k.id desc
+  limit 30;
 end;
 $$;
 
@@ -1911,7 +2152,7 @@ begin
   from public.profile_reports pr
   join public.profiles t            on t.id = pr.target_id
   left join public.user_roles tr    on tr.user_id = t.id
-  left join public.suspensions ts   on ts.user_id = t.id
+  left join public.suspensions ts   on ts.user_id = t.id and (ts.ends_at is null or ts.ends_at > now())
   left join public.profiles rp      on rp.id = pr.reporter_id
   left join public.profiles hb      on hb.id = pr.handled_by
   where (coalesce(p_status, 'open') = 'all' or pr.status = coalesce(p_status, 'open'))
@@ -1975,10 +2216,10 @@ end;
 $$;
 
 -- Todas as configurações (administração e Dona).
--- (O formato da resposta ganhou allowed_link_hosts: a função antiga é derrubada antes de recriar.)
+-- (O formato da resposta ganhou allowed_link_hosts e, no Patch 19, discord_url: a função antiga é derrubada antes de recriar.)
 drop function if exists public.admin_get_settings();
 create or replace function public.admin_get_settings()
-returns table (signups_open boolean, announcement text, blocked_names text[], allowed_link_hosts text[])
+returns table (signups_open boolean, announcement text, blocked_names text[], allowed_link_hosts text[], discord_url text)
 language plpgsql
 stable
 security definer
@@ -1992,7 +2233,8 @@ begin
          coalesce((select array(select jsonb_array_elements_text(s.value) order by 1)
                    from public.site_settings s where s.key = 'blocked_names' and jsonb_typeof(s.value) = 'array'), '{}'::text[]),
          coalesce((select array(select jsonb_array_elements_text(s.value) order by 1)
-                   from public.site_settings s where s.key = 'allowed_link_hosts' and jsonb_typeof(s.value) = 'array'), '{}'::text[]);
+                   from public.site_settings s where s.key = 'allowed_link_hosts' and jsonb_typeof(s.value) = 'array'), '{}'::text[]),
+         coalesce((select s.value #>> '{}' from public.site_settings s where s.key = 'discord_url' and jsonb_typeof(s.value) = 'string'), '');
 end;
 $$;
 
@@ -2001,6 +2243,7 @@ $$;
 --   announcement   (texto de até 280)      administração e Dona
 --   blocked_names  (lista de palavras)     administração e Dona
 --   allowed_link_hosts (lista de sites)    administração e Dona
+--   discord_url    (link https, até 200)   administração e Dona (vazio = sem link na tela de conta suspensa)
 create or replace function public.admin_set_setting(p_key text, p_value jsonb)
 returns void
 language plpgsql
@@ -2023,6 +2266,16 @@ begin
       raise exception 'O aviso pode ter até 280 caracteres.' using errcode = '22023';
     end if;
     cleaned := to_jsonb(public.clean_text(p_value #>> '{}', true));
+  elsif p_key = 'discord_url' then
+    perform public.require_staff(2);
+    if p_value is null or jsonb_typeof(p_value) <> 'string' then
+      raise exception 'Valor inválido.' using errcode = '22023';
+    end if;
+    cleaned := to_jsonb(btrim(p_value #>> '{}'));
+    if (cleaned #>> '{}') <> '' and (char_length(cleaned #>> '{}') > 200
+       or (cleaned #>> '{}') !~* '^https://[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*\.[a-z]{2,}(/[A-Za-z0-9._~:/?#@!$&()*+,;=%-]*)?$') then
+      raise exception 'O link do Discord precisa começar com https:// e ser um endereço válido (até 200 caracteres).' using errcode = '22023';
+    end if;
   elsif p_key = 'allowed_link_hosts' then
     perform public.require_staff(2);
     if p_value is null or jsonb_typeof(p_value) <> 'array' or jsonb_array_length(p_value) > 100
@@ -2070,7 +2323,11 @@ revoke all on function public.admin_reset_profile(uuid, text[])    from public, 
 revoke all on function public.admin_wipe_text(uuid, text[], uuid)  from public, anon;
 revoke all on function public.report_snapshot(uuid, uuid)          from public, anon, authenticated;
 revoke all on function public.admin_rename_user(uuid, text)        from public, anon;
-revoke all on function public.admin_set_suspended(uuid, boolean, text) from public, anon;
+revoke all on function public.admin_set_suspended(uuid, boolean, text, int, boolean) from public, anon;
+revoke all on function public.admin_set_account_limits(uuid, boolean, boolean, text) from public, anon;
+revoke all on function public.admin_give_strike(uuid, text)        from public, anon;
+revoke all on function public.admin_revoke_strike(bigint)          from public, anon;
+revoke all on function public.admin_list_strikes(uuid)             from public, anon;
 revoke all on function public.admin_set_role(uuid, text)           from public, anon;
 revoke all on function public.admin_list_reports(text, int)        from public, anon;
 revoke all on function public.admin_resolve_report(bigint, text)   from public, anon;
@@ -2085,7 +2342,11 @@ grant execute on function public.admin_list_members(text, int, int) to authentic
 grant execute on function public.admin_reset_profile(uuid, text[]) to authenticated;
 grant execute on function public.admin_wipe_text(uuid, text[], uuid) to authenticated;
 grant execute on function public.admin_rename_user(uuid, text)     to authenticated;
-grant execute on function public.admin_set_suspended(uuid, boolean, text) to authenticated;
+grant execute on function public.admin_set_suspended(uuid, boolean, text, int, boolean) to authenticated;
+grant execute on function public.admin_set_account_limits(uuid, boolean, boolean, text) to authenticated;
+grant execute on function public.admin_give_strike(uuid, text)      to authenticated;
+grant execute on function public.admin_revoke_strike(bigint)        to authenticated;
+grant execute on function public.admin_list_strikes(uuid)           to authenticated;
 grant execute on function public.admin_set_role(uuid, text)        to authenticated;
 grant execute on function public.admin_list_reports(text, int)     to authenticated;
 grant execute on function public.admin_resolve_report(bigint, text) to authenticated;
@@ -2111,12 +2372,15 @@ grant execute on function public.admin_set_setting(text, jsonb)    to authentica
 --        anotações e análise, e lista de sites permitidos (configuração allowed_link_hosts)
 --   15 = denúncia com snapshot do perfil (coluna profile_reports.snapshot) e remoção de conteúdo campo a campo pela equipe
 --        (função admin_wipe_text)
+--   16 = privacidade forçada (tabela account_limits + gatilho profiles_force_privacy), suspensão com prazo e banimento
+--        (suspensions.ends_at/kind), avisos/strikes (tabela strikes; 3º aviso = 7 dias de suspensão) e o link do Discord
+--        (configuração discord_url)
 create or replace function public.schema_version()
 returns integer
 language sql
 immutable
 set search_path = ''
-as $$ select 15 $$;
+as $$ select 16 $$;
 
 -- Só quem precisa pode executar cada função.
 revoke all on function public.get_public_entries(text)            from public;

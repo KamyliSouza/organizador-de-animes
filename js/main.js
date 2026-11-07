@@ -7,6 +7,7 @@ import { currentTheme } from './core/theme.js';
 import { rankOf } from './domain/roles.js';
 import { initSession, isCloud, myRole, onSessionChange, refreshRequests, state } from './services/session.js';
 import { mountChrome } from './ui/chrome.js';
+import { mountSuspensionGate } from './ui/suspendedScreen.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -65,6 +66,7 @@ async function boot() {
     }
 
     mountChrome({ nav: $('site-nav'), tabBar: $('tab-bar'), footer: $('site-footer'), notice: $('site-notice') });
+    mountSuspensionGate();   // conta suspensa ou banida: só a tela de aviso aparece
     defineRoutes();
 
     // Sessão mudou por fora (outra aba saiu da conta, token expirou...): remonta a tela atual.

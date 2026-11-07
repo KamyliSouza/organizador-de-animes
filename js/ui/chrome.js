@@ -4,8 +4,10 @@ import { html, on, setHtml } from '../core/dom.js';
 import { brandKanji, icon } from '../core/icons.js';
 import { currentPath, navigate, onRouteChange } from '../core/router.js';
 import { currentTheme, onThemeChange, toggleTheme } from '../core/theme.js';
+import { timeAgo } from '../core/time.js';
 import { toast } from '../core/toast.js';
 import { messageOf } from '../core/errors.js';
+import { AUTO_SUSPEND_DAYS, STRIKE_LIMIT, strikeCountText } from '../domain/access.js';
 import { SITE_VERSION } from '../domain/changelog.js';
 import { isStaff } from '../domain/roles.js';
 import { state, isCloud, myRole, onSessionChange, refreshSession } from '../services/session.js';
@@ -86,17 +88,22 @@ function renderFooter(footer) {
         ${config.tmdbApiKey ? html`<p class="small">Este produto usa a API do TMDB, mas não é endossado nem certificado pelo TMDB.</p>` : ''}`);
 }
 
-/** Avisos do site no topo: conta suspensa e o aviso escrito pela administração. */
+/**
+ * Avisos do site no topo: os avisos (strikes) da equipe para esta conta e o aviso escrito pela administração.
+ * Conta suspensa não passa por aqui: ela vê só a tela de suspensão (ui/suspendedScreen.js).
+ * O banner de avisos é fixo: aparece em todas as telas e não dá para fechar; some quando a equipe retira os avisos.
+ */
 function renderNotice(region) {
     if (!region) return;
-    const suspended = isCloud() && state.user && state.access.suspended;
+    const member = isCloud() && state.user && !state.access.suspended;
+    const strikes = member ? state.access.strikes : [];
     const text = isCloud() ? state.site.announcement : '';
-    setHtml(region, suspended || text ? html`
+    setHtml(region, strikes.length || text ? html`
         <div class="site-notice-inner">
-            ${suspended ? html`<div class="notice-box is-warn" role="alert">${icon('alert')}<div>
-                <strong>Sua conta está suspensa.</strong> Seu perfil ficou oculto para as outras pessoas e você não pode seguir nem denunciar perfis.
-                ${state.access.reason ? html`<br>Motivo: ${state.access.reason}` : ''}
-                <br>Sua biblioteca continua sua. Se acha que foi um engano, fale com a equipe do site.
+            ${strikes.length ? html`<div class="notice-box is-warn strike-notice" role="status" data-strike-notice>${icon('alert')}<div>
+                <strong>Você tem ${strikeCountText(strikes.length)} avisos da equipe.</strong>
+                No ${STRIKE_LIMIT}º aviso, a conta é suspensa por ${AUTO_SUSPEND_DAYS} dias.
+                <ul class="strike-list">${strikes.map((s) => html`<li>${s.reason}${s.at ? html` <span class="muted small">· ${timeAgo(s.at)}</span>` : ''}</li>`)}</ul>
             </div></div>` : ''}
             ${text ? html`<div class="notice-box site-announcement" role="status">${icon('info')}<div>${text}</div></div>` : ''}
         </div>` : '');

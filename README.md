@@ -83,6 +83,7 @@ Sem esse passo, estas coisas não funcionam (o site mostra um aviso amarelo na b
 - os **limites para trocar a foto e o fundo** (o SQL cria a tabela privada `media_changes`, as funções dos limites e um gatilho no armazenamento — a versão do banco passa a ser a **12**; veja "Limites para trocar a foto e o fundo");
 - a **isenção da equipe nos limites de troca** (Dona, Administração e Moderação não têm espera nem limite por dia — a versão do banco passa a ser a **13**; veja "Limites para trocar a foto e o fundo");
 - a **denúncia com snapshot** e a **remoção de conteúdo campo a campo** pela equipe (o SQL acrescenta a coluna `snapshot` às denúncias e a função `admin_wipe_text` — a versão do banco passa a ser a **15**; veja "Snapshot da denúncia e remoção de conteúdo");
+- a **privacidade forçada**, a **suspensão com prazo e o banimento**, os **avisos (strikes)** e o **link do Discord** da tela de conta suspensa (o SQL cria as tabelas fechadas `account_limits` e `strikes`, acrescenta `ends_at` e `kind` às suspensões e a configuração `discord_url` — a versão do banco passa a ser a **16**; veja "Suspensão, banimento, avisos e privacidade forçada");
 - o botão **Excluir minha conta**.
 
 ---
@@ -303,7 +304,19 @@ Em qualquer perfil que não seja o seu aparece **Denunciar**: a pessoa escolhe o
 
 - **Restaurar:** o nome de exibição volta para "Usuário" + 4 caracteres; a bio fica vazia; o @ vira `user_` + um código (o link antigo do perfil deixa de funcionar); a foto some; o fundo do perfil some. A pessoa pode editar de novo depois. Ao restaurar a foto, o site a esconde na hora e tenta apagar o arquivo; se o Supabase recusar, apague em **Storage → avatars** (o perfil já aparece sem foto).
 - **Renomear:** troca só o nome de exibição (1 a 40 caracteres), mesmo que contenha uma palavra da lista de nomes proibidos.
-- **Suspender:** o perfil some para as outras pessoas (Explorar, link do perfil, seguidores, feed). Quem é suspensa continua vendo a própria biblioteca e vê um aviso no topo com o motivo, mas não consegue seguir nem denunciar, e perde os poderes de equipe enquanto durar. **Reativar** devolve tudo.
+- **Suspender:** o perfil some para as outras pessoas (Explorar, link do perfil, seguidores, feed) e a pessoa não consegue seguir nem denunciar, e perde os poderes de equipe enquanto durar. **Reativar** devolve tudo. Desde a versão 1.19 a suspensão tem **prazo** e a pessoa vê uma **tela própria** (veja a seção abaixo).
+
+### Suspensão, banimento, avisos e privacidade forçada
+
+Tudo isto fica em **Gerenciar** (Membros ou o botão de uma denúncia) e exige a **versão 16** do banco (rode o `sql/schema.sql` de novo **antes** de subir os arquivos). Cada ação só age em quem tem cargo menor que o seu e fica no **Registro**.
+
+- **Suspensão com prazo:** escolha **1, 3, 7 ou 30 dias** (ou **sem prazo**, que dura até a equipe reativar) e escreva o motivo. Passado o prazo, a conta volta **sozinha** (o banco confere a data a cada uso; não há nada para rodar). Suspensões antigas, de antes da 1.19, continuam valendo como "sem prazo".
+- **Banimento:** só **Administração e Dona** banem. Não tem prazo; só a equipe reativa (**Reativar conta**).
+- **Tela de conta suspensa ou banida:** enquanto vale, a pessoa vê **só esta tela**: o motivo, o prazo ("Até 12/11/2026 às 14:30, faltam 3 dias") e, se você cadastrou, o botão **Falar com a equipe no Discord**. Ela ainda pode **baixar um backup** da biblioteca, **conferir de novo** e **sair da conta**. Quando o prazo acaba, a tela some sozinha. A tela é só a parte visível: quem barra de verdade é o banco (o perfil some, não dá para seguir, denunciar nem agir como equipe). Não há botão de excluir conta nessa tela.
+- **Link do Discord:** painel → aba **Site** → **Link do Discord** (Administração e Dona). Aceita qualquer endereço `https://` (até 200 caracteres), então confira se é o seu servidor; vazio = a tela diz só "fale com a equipe do site".
+- **Avisos (strikes):** **Gerenciar → Avisos → Dar um aviso** (com o motivo). Cada aviso **ativo** aparece para a pessoa num **banner no topo de todas as telas** ("Você tem 2 de 3 avisos da equipe"), que não dá para fechar e some quando a equipe **retira** os avisos. No **3º aviso ativo** a conta é **suspensa por 7 dias** e os 3 avisos viram "usados": o contador recomeça do zero depois. Não há validade automática: um aviso ativo só sai se a equipe o retirar. Conta já suspensa ou banida não recebe aviso.
+- **Privacidade forçada:** **Gerenciar → Privacidade forçada** deixa o **perfil** e/ou as **anotações** sempre privados. Vale na hora (desliga o que estava ligado) e o banco desfaz qualquer tentativa de ligar de novo, até por chamada direta à API. A pessoa continua vendo o próprio conteúdo; em **Configurações → Privacidade** a opção aparece travada, com a explicação e o motivo. **Tirar a trava não liga nada sozinho**: a opção só volta a ficar com a pessoa. A trava das anotações **não** cobre as análises (elas aparecem para quem vê a lista; para tirar uma análise ofensiva use **Remover conteúdo**).
+- **Onde isto mora no banco:** a trava e os avisos ficam em tabelas fechadas (`account_limits`, `strikes`), não em colunas do perfil, porque o perfil pode ser editado pela própria pessoa e lido por qualquer visitante. O gatilho `profiles_force_privacy` mantém `is_public` e `show_notes` desligados enquanto a trava existir.
 
 ### Segurança dos textos, palavras proibidas e cadastros fechados
 
@@ -387,7 +400,7 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.18`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.19`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
 
 ## Como o código está organizado
 
@@ -438,6 +451,7 @@ Os dois backends (`local-backend.js` e `supabase-backend.js`) têm a mesma inter
 | "A Dona do site não pode excluir a conta" | Passe o cargo de Dona para outra pessoa antes (veja "Passar o cargo de Dona") |
 | "O armazenamento de fotos ainda não existe" ou "A foto ficou grande demais" | O `sql/schema.sql` novo não foi executado (cria o bucket `avatars` com o limite de 64 KB e, na versão 11, o `backgrounds` com 384 KB; o mesmo aviso aparece ao enviar o fundo do perfil) |
 | O fundo do perfil não envia, ou a chave "Desfoque nos cards" não salva | O `sql/schema.sql` da versão 11 ainda não foi executado (cria as colunas `bg_v` e `bg_blur` e o armazenamento `backgrounds`) |
+| "Gerenciar" dá erro ao dar um aviso, travar a privacidade ou suspender com prazo, ou o painel não mostra o campo do Discord | O `sql/schema.sql` da versão 16 ainda não foi executado (cria `account_limits`, `strikes` e o prazo das suspensões). Rode o SQL **antes** de subir os arquivos da 1.19 |
 | "Espere N s para trocar a foto de novo" ou "Você já fez 10 trocas de foto e fundo nas últimas 24 horas" | É o limite de trocas funcionando (veja "Limites para trocar a foto e o fundo"). Sem a versão 12 do banco essas mensagens e os contadores não aparecem e não há limite |
 | MAL mostra "Muitas buscas seguidas" ou "Serviço indisponível" | O Jikan limitou ou está lento: espere alguns segundos ou use o AniList |
 | E-mail de confirmação não chega | Veja o spam; o plano gratuito limita e-mails por hora. Para grupos pequenos, desligue **Confirm email** |

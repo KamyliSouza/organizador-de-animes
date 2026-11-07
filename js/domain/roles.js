@@ -58,6 +58,12 @@ const ACTIONS = {
     rename: 'renomeou',
     suspend: 'suspendeu',
     unsuspend: 'reativou',
+    ban: 'baniu',
+    limits_set: 'travou a privacidade de',
+    limits_clear: 'tirou a trava de privacidade de',
+    strike: 'deu um aviso a',
+    strike_suspend: 'suspendeu automaticamente (3º aviso)',
+    strike_revoke: 'retirou um aviso de',
     set_role: 'mudou o cargo de',
     report_resolved: 'resolveu uma denúncia contra',
     report_dismissed: 'descartou uma denúncia contra',
@@ -66,6 +72,7 @@ const ACTIONS = {
     setting_announcement: 'mudou o aviso do site',
     setting_blocked_names: 'mudou a lista de palavras proibidas',
     setting_allowed_link_hosts: 'mudou a lista de sites permitidos',
+    setting_discord_url: 'mudou o link do Discord',
 };
 export const actionLabel = (action) => ACTIONS[action] || action;
 
@@ -95,8 +102,30 @@ export function describeDetails(action, details) {
             const n = Number(d.obras);
             return Number.isFinite(n) && n > 0 ? `${n} ${n === 1 ? 'obra' : 'obras'}` : '';
         }
-        case 'suspend':
+        case 'suspend': {
+            const days = Number(d.dias);
+            const prazo = Number.isFinite(days) && days > 0 ? `${days} ${days === 1 ? 'dia' : 'dias'}` : 'sem prazo';
+            return d.motivo ? `${prazo} · Motivo: ${clip(d.motivo, 120)}` : prazo;
+        }
+        case 'ban':
             return d.motivo ? `Motivo: ${clip(d.motivo, 120)}` : '';
+        case 'limits_set': {
+            const what = [d.perfil === true ? 'perfil' : '', d.anotacoes === true ? 'anotações' : ''].filter(Boolean).join(' e ');
+            const why = d.motivo ? ` · Motivo: ${clip(d.motivo, 120)}` : '';
+            return what ? `Sempre privado: ${what}${why}` : '';
+        }
+        case 'strike': {
+            const n = Number(d.ativos);
+            return `${Number.isFinite(n) && n > 0 ? `Avisos ativos: ${n} · ` : ''}Motivo: ${clip(d.motivo, 120)}`;
+        }
+        case 'strike_suspend': {
+            const days = Number(d.dias);
+            return Number.isFinite(days) && days > 0 ? `${days} ${days === 1 ? 'dia' : 'dias'}` : '';
+        }
+        case 'strike_revoke':
+            return d.motivo ? `Aviso: ${clip(d.motivo, 120)}` : '';
+        case 'setting_discord_url':
+            return `${quoted(d.antes)} → ${quoted(d.depois)}`;
         case 'set_role':
             return `${ROLES[normalizeRole(d.antes)].long} → ${ROLES[normalizeRole(d.depois)].long}`;
         case 'setting_signups_open':
