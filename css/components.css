@@ -286,18 +286,8 @@
 .progress.is-complete > span { background: var(--st-completed); }
 
 /* ---------------------------------------------------------
-   Cards de estatística
+   Ícone de destaque (página inicial e janelas de informação)
    --------------------------------------------------------- */
-.stat-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
-.stat-tile {
-    display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 20px;
-    width: 100%; font: inherit; color: inherit; text-align: left; cursor: pointer;
-    transition: border-color .18s ease, transform .18s ease, background-color .18s ease;
-}
-.stat-tile:hover { border-color: var(--card-border-strong); transform: translateY(-2px); }
-.stat-tile:focus-visible { outline: 3px solid var(--primary-color); outline-offset: 2px; }
-.stat-tile[aria-pressed="true"] { border-color: var(--primary-color); background: var(--notice-bg); box-shadow: 0 0 0 1px var(--primary-color) inset; }
-.stat-text { display: flex; flex-direction: column; min-width: 0; }
 .stat-icon {
     display: grid; place-items: center;
     width: 42px; height: 42px; flex: 0 0 auto;
@@ -306,8 +296,6 @@
     border: 1px solid color-mix(in srgb, var(--tile-color, var(--primary-color)) 30%, transparent);
     border-radius: 14px;
 }
-.stat-label { display: block; overflow-wrap: anywhere; font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--subtitle-color); }
-.stat-value { display: block; font-size: 1.5rem; font-weight: 900; line-height: 1.1; }
 
 /* ---------------------------------------------------------
    Cabeçalho de página
@@ -318,14 +306,59 @@
 .page-head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* ---------------------------------------------------------
-   Barra de ferramentas da biblioteca
+   Biblioteca: sub-abas de status, busca, botão Filtros e modo de exibição
    --------------------------------------------------------- */
+.library-controls { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.status-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.status-tab {
+    display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; min-height: 40px;
+    padding: 6px 14px;
+    font: inherit; font-size: .88rem; font-weight: 800; line-height: 1.15; text-align: left; overflow-wrap: anywhere;
+    color: var(--subtitle-color);
+    background: var(--input-bg);
+    border: 2px solid var(--card-border);
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    transition: border-color .18s ease, background-color .18s ease, color .18s ease;
+}
+.status-tab:hover { color: var(--text-color); border-color: var(--card-border-strong); }
+.status-tab:focus-visible { outline: 3px solid var(--primary-color); outline-offset: 2px; }
+.status-tab[aria-selected="true"] { color: var(--text-color); background: var(--notice-bg); border-color: var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color) inset; }
+.status-tab .count {
+    display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+    min-width: 22px; height: 20px; padding: 0 6px;
+    font-size: .72rem; line-height: 1; font-weight: 800;
+    color: var(--subtitle-color); background: var(--primary-soft); border-radius: var(--radius-pill);
+}
+.st-dot { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 50%; background: var(--dot, var(--muted-color)); }
+.status-tab[data-status="watching"] .st-dot { --dot: var(--st-watching); }
+.status-tab[data-status="planned"] .st-dot { --dot: var(--st-planned); }
+.status-tab[data-status="completed"] .st-dot { --dot: var(--st-completed); }
+.status-tab[data-status="on_hold"] .st-dot { --dot: var(--st-on_hold); }
+.status-tab[data-status="dropped"] .st-dot { --dot: var(--st-dropped); }
+
 .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
-.toolbar-group { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; min-width: 0; }
 .search-field { position: relative; min-width: 180px; flex: 1 1 200px; }
 .search-field .icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted-color); pointer-events: none; }
 .search-field .input { padding-left: 40px; min-height: 40px; border-radius: var(--radius-pill); }
-.toolbar .select { width: auto; min-height: 40px; border-radius: var(--radius-pill); padding-left: 16px; padding-right: 40px; background-position: right 16px center; }
+.filters-toggle { flex: 0 0 auto; min-height: 40px; max-width: 100%; }
+.filters-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 20px; height: 20px; padding: 0 6px;
+    font-size: .72rem; line-height: 1; font-weight: 800;
+    color: var(--button-text); background: var(--button-bg); border-radius: var(--radius-pill);
+}
+.filters-badge[hidden] { display: none; }
+.filters-panel { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px; border-radius: 20px; }
+.filters-panel[hidden] { display: none; }
+.filters-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: 12px 16px; }
+.filters-actions { display: flex; justify-content: flex-end; }
+.skeleton-bar .skeleton { min-height: 44px; border-radius: 22px; }
+@media (max-width: 30em) {
+    /* celular: a busca ocupa a linha toda; embaixo ficam o botão Filtros (que cresce) e o alternador cards/lista */
+    .library-bar .search-field { flex: 1 1 100%; }
+    .filters-toggle { flex: 1 1 auto; justify-content: center; }
+}
 
 /* ---------------------------------------------------------
    Cards de obra
@@ -612,12 +645,6 @@
 .share-preview { display: grid; place-items: center; }
 .share-preview canvas { width: min(100%, 320px); height: auto; border-radius: 18px; box-shadow: var(--shadow-card); }
 
-@media (max-width: 70em) {
-    .stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
-@media (max-width: 36em) {
-    .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
 @media (max-width: 56.25em) {
     .media-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .schedule-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -630,7 +657,6 @@
     .season-settings .span-2 { grid-column: 1 / -1; }
     .synopsis-layout { grid-template-columns: minmax(0, 1fr); justify-items: center; }
     .season-edit-row { grid-template-columns: minmax(0, 1fr) 80px 64px 32px; }
-    .toolbar .select { flex: 1 1 140px; }
 }
 
 /* Modo lista: com o seletor de status, os botões não cabem ao lado do título em telas pequenas.
@@ -679,15 +705,12 @@
     .section-tab { flex: 1 1 0; min-width: 0; padding: 8px 8px; gap: 6px; font-size: .86rem; line-height: 1.15; text-align: center; }
     .section-tab .icon { display: none; }
 }
-/* a lista da biblioteca (e do perfil) é o destino da rolagem dos cards de números do topo */
-[data-browser] { scroll-margin-top: 12px; }
 @media (max-width: 18.75em) {
     .section-tabs { flex-direction: column; border-radius: 22px; }
 }
 
 /* Telas bem estreitas = celulares pequenos ou página com zoom/texto ampliado */
 @media (max-width: 27.5em) {
-    .stat-tile { flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; }
     .stat-icon { width: 36px; height: 36px; border-radius: 12px; }
     .media-card { grid-template-columns: 76px minmax(0, 1fr); gap: 10px; padding: 10px; }
     .media-card .poster { width: 76px; border-radius: 12px; }
@@ -700,12 +723,9 @@
     .season-settings { padding: 10px; }
 }
 @media (max-width: 22.5em) {
-    .stat-label { letter-spacing: .02em; font-size: .66rem; }
-    .toolbar .select { flex: 1 1 100%; }
-    .modal-footer .button { flex: 1 1 100%; }
+        .modal-footer .button { flex: 1 1 100%; }
 }
 @media (max-width: 18.75em) {
-    .stat-grid { grid-template-columns: minmax(0, 1fr); }
     .media-actions .button-sm { padding: 6px 4px; font-size: .74rem; letter-spacing: 0; }
     .media-actions .button-sm .icon { display: none; }
     .media-actions .status-select { padding-left: 8px; padding-right: 24px; background-position: right 7px center; background-size: 11px 11px; }

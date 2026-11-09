@@ -1,9 +1,18 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.21';
+export const SITE_VERSION = '1.22';
 
 export const CHANGELOG = [
+    {
+        version: '1.22',
+        title: 'Biblioteca mais limpa: abas de status e Filtros',
+        items: [
+            'Os cartões de números do topo saíram: agora cada status é uma aba logo acima da lista (Todas, Assistindo, Quero ver, Concluídas, Em espera, Dropadas), com o número de obras ao lado. Clicar numa aba filtra a lista, como antes.',
+            'A categoria (Anime, Filme, Série) e a ordem da lista foram para o botão "Filtros", ao lado da busca. Quando há algo ligado ali, o botão mostra quantos ajustes estão ativos. Se a lista ficar vazia, há um botão para limpar os filtros e a busca.',
+            'As abas Anime, Mangá e Light Novel, a busca e o botão de cards/lista continuam onde estavam. O perfil público usa o mesmo desenho.',
+        ],
+    },
     {
         version: '1.21',
         title: '"Nova obra" sempre à mão',

@@ -21,7 +21,6 @@ import { openMemberModal } from '../ui/memberModal.js';
 import { openReportModal } from '../ui/reportModal.js';
 import { roleBadge } from '../ui/roleBadge.js';
 import { bindSectionTabs, loadSection, sectionCounts, sectionTabsHtml } from '../ui/sectionTabs.js';
-import { statTilesHtml } from '../ui/statTiles.js';
 
 const link = (username) => `${location.origin}${location.pathname}#/u/${username}`;
 
@@ -141,7 +140,6 @@ export async function mount(root, ctx) {
         ${canView ? html`
         <div data-sections ${keys.length < 2 ? html`hidden` : ''}></div>
         <div id="section-panel" class="stack" data-panel ${keys.length < 2 ? '' : html`role="tabpanel"`}>
-            <div data-tiles></div>
             <div data-favorites-wrap></div>
             <div data-browser class="stack"></div>
         </div>` : lockedCard(profile)}`);
@@ -151,7 +149,6 @@ export async function mount(root, ctx) {
     let switchSectionRef = null;     // troca de aba (definida abaixo, usada pelo aviso "também há resultados em...")
 
     if (canView) {
-        const tiles = root.querySelector('[data-tiles]');
         const sectionsEl = root.querySelector('[data-sections]');
         const panel = root.querySelector('[data-panel]');
         const favWrap = root.querySelector('[data-favorites-wrap]');
@@ -175,16 +172,13 @@ export async function mount(root, ctx) {
             setHtml(sectionsEl, sectionTabsHtml({ active: section, counts, panelId: 'section-panel', keys }));
             panel.setAttribute('aria-labelledby', `tab-${section}`);
         };
-        const paintTiles = (status = browser?.getStatus() ?? 'all') => setHtml(tiles, statTilesHtml(entries, { active: status, section }));
 
         browser = mountLibraryBrowser(root.querySelector('[data-browser]'), {
             entries, readonly: true, section,
             actions: { details: (entry) => openDetailsModal(entry) },
-            onStatusChange: (status) => paintTiles(status),
             onSectionRequest: (next) => switchSectionRef?.(next),
         });
         paintTabs();
-        paintTiles();
         paintFavorites();
 
         const switchSection = (next) => {
@@ -192,17 +186,10 @@ export async function mount(root, ctx) {
             section = next;
             browser.setSection(section);
             paintTabs();
-            paintTiles();
             paintFavorites();
         };
         switchSectionRef = switchSection;
         if (tabsOn) offs.push(bindSectionTabs(sectionsEl, switchSection, keys));
-        // Os cards com os números filtram a lista pelo status correspondente e rolam até ela.
-        offs.push(on(tiles, 'click', '[data-stat]', (_, btn) => {
-            browser.setStatus(btn.dataset.stat);
-            tiles.querySelector(`[data-stat="${btn.dataset.stat}"]`)?.focus({ preventScroll: true });
-            browser.scrollToList();
-        }));
         offs.push(on(root, 'click', '[data-favorites] [data-action="details"], [data-favorites] [data-action="cover"]', (_, btn) => {
             const entry = entries.find((e) => e.id === btn.closest('[data-id]')?.dataset.id);
             if (entry) openDetailsModal(entry);

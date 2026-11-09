@@ -16,7 +16,6 @@ import { openReadProgressModal } from '../ui/readProgressModal.js';
 import { openSeasonsModal } from '../ui/seasonsModal.js';
 import { bindSectionTabs, loadSection, saveSection, sectionCounts, sectionTabsHtml } from '../ui/sectionTabs.js';
 import { openShareModal } from '../ui/shareModal.js';
-import { statTilesHtml } from '../ui/statTiles.js';
 
 const dismissedKey = () => `kamylist_legacy_dismissed_${state.user?.id || 'local'}`;
 const profileLink = (username) => `${location.origin}${location.pathname}#/u/${username}`;
@@ -26,7 +25,7 @@ export async function mount(root) {
     const cloud = isCloud();
     const name = state.profile?.displayName || '';
 
-    setHtml(root, html`<div class="stat-grid"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
+    setHtml(root, html`<div class="skeleton-bar"><div class="skeleton"></div></div>
         <div class="media-grid"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>`);
 
     let entries;
@@ -56,18 +55,15 @@ export async function mount(root) {
         <div class="stack" data-banners></div>
         <div data-sections></div>
         <div id="section-panel" role="tabpanel" class="stack" data-panel>
-            <div data-tiles></div>
             <div data-browser class="stack"></div>
         </div>`);
 
-    const tiles = root.querySelector('[data-tiles]');
     const banners = root.querySelector('[data-banners]');
     const sectionsEl = root.querySelector('[data-sections]');
     const panel = root.querySelector('[data-panel]');
     let browser = null;
     let section = loadSection();     // "anime" (com filme e série) · "manga" · "novel" (light novel)
 
-    const paintTiles = () => setHtml(tiles, statTilesHtml(entries, { active: browser?.getStatus() ?? 'all', section }));
     const paintTabs = () => {
         setHtml(sectionsEl, sectionTabsHtml({ active: section, counts: sectionCounts(entries), panelId: 'section-panel' }));
         panel.setAttribute('aria-labelledby', `tab-${section}`);
@@ -80,16 +76,14 @@ export async function mount(root) {
     };
     const refresh = () => {
         paintTabs();
-        paintTiles();
-        browser?.setEntries(entries);
+        browser?.setEntries(entries);     // atualiza também os números das sub-abas de status
     };
     function switchSection(next) {
         if (!SECTIONS[next] || next === section) return;
         section = next;
         saveSection(section);
-        browser?.setSection(section);      // zera status e categoria; avisa o onStatusChange
+        browser?.setSection(section);      // zera status e categoria; redesenha as sub-abas de status
         paintTabs();
-        paintTiles();
         paintHead();
     }
 
@@ -242,18 +236,10 @@ export async function mount(root) {
         },
     };
 
-    browser = mountLibraryBrowser(root.querySelector('[data-browser]'), { entries, section, actions, onStatusChange: () => paintTiles(), onSectionRequest: switchSection });
+    browser = mountLibraryBrowser(root.querySelector('[data-browser]'), { entries, section, actions, onSectionRequest: switchSection });
     const offTabs = bindSectionTabs(sectionsEl, switchSection);
     // O botão "Nova obra" do topo (computador) e o flutuante (celular) abrem o formulário daqui enquanto a biblioteca está na tela.
     const offNewWork = registerLibraryOpener(() => openForm(null));
-
-    // Os cards com os números filtram a lista pelo status correspondente e rolam até ela.
-    const offTiles = on(tiles, 'click', '[data-stat]', (_, btn) => {
-        const status = btn.dataset.stat;
-        browser.setStatus(status);
-        tiles.querySelector(`[data-stat="${status}"]`)?.focus({ preventScroll: true });
-        browser.scrollToList();
-    });
 
     // --- cabeçalho e avisos ---------------------------------------------------------
     const off = on(root, 'click', '[data-act]', async (_, btn) => {
@@ -298,5 +284,5 @@ export async function mount(root) {
         }).catch(() => {});
     }
 
-    return () => { off(); offTiles(); offTabs(); offNewWork(); browser.destroy(); };
+    return () => { off(); offTabs(); offNewWork(); browser.destroy(); };
 }

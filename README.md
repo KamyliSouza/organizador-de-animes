@@ -234,8 +234,6 @@ A biblioteca (e o perfil de quem você visita) tem três abas: **Anime** (inclui
 - **Busca na biblioteca:** o campo de busca vale para a aba atual. Se o mesmo nome aparece em outra aba, um aviso abaixo da lista mostra onde ("Também há resultados para essa busca em: Mangá (1)") e o botão leva você até lá, mantendo a busca.
 - **Progresso das obras dos outros:** no perfil de outra pessoa, o card (e a linha do modo lista) diz onde ela está: **"Episódio: 4 da Temporada: 2"** em anime e série, **"Volume: 5, Capítulo: 10"** em mangá e light novel. A temporada conta só as de TV (OVA, filme e especial aparecem pelo nome, como "Episódio: 2 de OVA Especial"); com uma temporada só, aparece apenas "Episódio: 7". Filmes e obras que ainda não começaram mantêm o texto de sempre. Na sua própria biblioteca nada muda.
 - **Explorar em três linhas:** cada cartão do Explorar resume a biblioteca por tipo, **Animes**, **Mangás** e **Light Novels**, cada um com *total*, *ativas* (assistindo ou lendo agora) e *concluídas*. Só entram as abas ligadas da pessoa; uma aba escondida não aparece (nem nas contas).
-- **Cartões de números do topo:** clicar em *Obras*, *Assistindo*, *Concluídas* etc. filtra a lista e **rola suavemente até ela** (quem ativou "reduzir movimento" no sistema tem a rolagem imediata).
-
 - **Categorias:** *Mangá* e *Light novel*. Manhwa (Coreia) e manhua (China) são cadastrados como *Mangá* e ganham um selo de origem ("Manhwa", "Manhua") nos cards, na lista e nos detalhes.
 - **Progresso por contadores:** capítulos lidos / total e volumes lidos / total. O botão **+1 Cap** soma um capítulo (só em obras *Lendo*) e **Progresso** abre a janela para ajustar os quatro números. Total **0** quer dizer "não sei" (obra em publicação): o card mostra só o que já foi lido, sem barra de progresso. Os lidos nunca passam do total.
 - **Status de leitura:** *Lendo*, *Quero ler*, *Concluído*, *Em espera* e *Dropado* (por baixo são os mesmos status dos animes, só mudam os nomes). Ao escolher *Concluído*, capítulos e volumes vão até o total, quando ele é conhecido. Obras *Quero ler* ainda não têm +1 Cap: para começar, mude o status para *Lendo*.
@@ -245,6 +243,17 @@ A biblioteca (e o perfil de quem você visita) tem três abas: **Anime** (inclui
 - **Estatísticas:** o modal tem as mesmas três abas. *Anime* mostra o tempo assistido e a divisão entre anime, filme e série; *Mangá* e *Light Novel* mostram capítulos e volumes lidos e os gêneros mais lidos.
 - **Feed e compartilhar:** o feed usa "começou a ler" e "concluiu a leitura"; o cartão de compartilhar mostra o progresso de leitura.
 - **Backup:** o `.json` exportado leva os novos campos, e backups antigos (de antes dos mangás) continuam entrando normalmente.
+
+## Biblioteca: abas de status e botão Filtros
+
+A tela da biblioteca (e o perfil de quem você visita) ficou com menos caixas e mais clareza. De cima para baixo:
+
+- **Anime · Mangá · Light Novel:** as três abas de sempre, com o número de obras de cada uma; a última aba usada fica lembrada.
+- **Abas de status:** *Todas · Assistindo · Quero ver · Concluídas · Em espera · Dropadas* (em Mangá e Light Novel, *Lendo* e *Quero ler*), cada uma com o **número de obras** e uma bolinha na cor do status. Elas **substituem os cartões de números** e continuam filtrando a lista. Os números são sempre os da aba atual, não mudam com a busca, e se atualizam sozinhos quando você muda o status de uma obra, soma um episódio ou adiciona/exclui. Teclado: setas, *Home* e *End* andam entre as abas de status.
+- **Busca** (título ou tag), botão **Filtros** e o alternador **cards / lista** (lembrado neste navegador).
+- **Filtros:** abre um painel com **Categoria** (Anime, Filme, Série; só aparece na aba Anime) e **Ordenar por** (Mais recentes, Título A-Z, Melhor nota, Maior progresso). Quando algo está diferente do padrão, o botão mostra um número com os ajustes ativos e o painel tem **Limpar filtros**. Se a lista ficar vazia por causa dos filtros ou da busca, o aviso "Nenhuma obra encontrada" traz o botão **Limpar filtros e busca**.
+- **Favoritos:** continuam por aba, como antes: o coração em cada obra e, no perfil, a faixa **Favoritos** com rolagem lateral.
+- O código está em `js/ui/libraryBrowser.js` (busca, Filtros e lista) e `js/ui/statusTabs.js` (abas de status e contagem); a biblioteca e o perfil usam o mesmo.
 
 ## Botão "Nova obra" sempre à mão
 
@@ -421,7 +430,7 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.21`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.22`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
 
 ## Como o código está organizado
 
@@ -435,7 +444,7 @@ js/
   domain/               regras puras: obras, temporadas, estatísticas, backup, cargos, limites de troca de foto/fundo, histórico de novidades (changelog.js)
   domain/textSafety.js  limpeza de textos, palavras proibidas e sites permitidos (as mesmas regras existem no banco)
   services/             backends (local e Supabase), sessão, busca (Jikan, AniList, TMDB)
-  ui/                   componentes: cards, filtros, modais, cartão de compartilhar, avatar, menu da conta (accountMenu.js), botão Nova obra (newWork.js), abas da conta, abas Anime/Mangá/Light Novel, progresso de leitura
+  ui/                   componentes: cards, filtros, modais, cartão de compartilhar, avatar, menu da conta (accountMenu.js), botão Nova obra (newWork.js), abas da conta, abas Anime/Mangá/Light Novel e de status (statusTabs.js), progresso de leitura
   views/                telas: início, biblioteca, login, perfil, explorar, feed (atividade e pedidos), personalização, configurações, painel da equipe (admin.js)
 tools/palettes.mjs      gera css/palettes.css e as cores de css/contrast.css e confere o contraste (node tools/palettes.mjs --check)
 sql/schema.sql          tabelas, regras de segurança e funções do Supabase (pode rodar de novo a qualquer momento)
