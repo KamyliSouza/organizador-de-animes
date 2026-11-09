@@ -74,7 +74,7 @@ const ACTIONS = {
     setting_allowed_link_hosts: 'mudou a lista de sites permitidos',
     setting_discord_url: 'mudou o link do Discord',
 };
-export const actionLabel = (action) => ACTIONS[action] || action;
+export const actionLabel = (action) => (typeof action === 'string' && Object.prototype.hasOwnProperty.call(ACTIONS, action) ? ACTIONS[action] : action);
 
 const clip = (v, n = 80) => {
     const t = String(v ?? '').replace(/\s+/g, ' ').trim();

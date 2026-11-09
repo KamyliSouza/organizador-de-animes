@@ -25,7 +25,8 @@ export const NO_ACCESS = Object.freeze({
     forcePrivateProfile: false, forcePrivateNotes: false, forceReason: '', strikes: Object.freeze([]),
 });
 
-const validDate = (v) => {
+/** Data válida em ISO, ou '' (qualquer outra coisa). */
+export const validDate = (v) => {
     if (!v) return '';
     const d = new Date(v);
     return Number.isNaN(d.getTime()) ? '' : d.toISOString();

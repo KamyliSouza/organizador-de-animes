@@ -373,3 +373,35 @@ body.is-suspended > *:not(#suspended-screen):not(#toast-region):not(.modal-overl
 }
 /* Gerenciar pessoa: o cabeçalho (foto e nome) ocupa só a própria altura; "flex: 1 1 220px" vale para a linha da lista, não para a coluna da janela */
 .modal-body .admin-who { flex: 0 0 auto; }
+
+/* ---------------------------------------------------------
+   Denúncias com contexto, ações rápidas, filtros do registro e histórico por conta (Patch 20)
+   --------------------------------------------------------- */
+.report-context { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; background: var(--notice-bg); border-radius: var(--radius-small); min-width: 0; }
+.report-flags { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.report-flags .badge { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.context-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: .88rem; color: var(--subtitle-color); }
+.context-list li { min-width: 0; overflow-wrap: anywhere; }
+.context-list .link-button { font-size: inherit; white-space: normal; max-width: 100%; text-align: left; }
+.context-list .badge { white-space: normal; max-width: 100%; overflow-wrap: anywhere; }
+.report-quick { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--card-border); min-width: 0; }
+.report-quick-label { font-size: .8rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--muted-color); overflow-wrap: anywhere; }
+.report-quick .button-sm { white-space: normal; min-width: 0; max-width: 100%; text-align: center; overflow-wrap: anywhere; }
+.report-quick .button.is-suggested { border-color: var(--primary-color); color: var(--primary-text); }
+.log-filters { align-items: flex-end; }
+.log-filters .log-person { flex: 1 1 240px; max-width: 420px; min-width: min(240px, 100%); }
+.log-ref { font-style: italic; }
+.history-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.history-item { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 8px 12px; border-radius: var(--radius-small); background: var(--notice-bg); border-left: 3px solid transparent; }
+.history-item.is-punishment { border-left-color: var(--danger); }
+.history-title { font-weight: 800; overflow-wrap: anywhere; }
+.history-extra { font-size: .9rem; overflow-wrap: anywhere; white-space: pre-line; }
+.history-item .muted { overflow-wrap: anywhere; }
+.quick-dialog textarea { min-height: 72px; }
+.quick-resolve { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.quick-resolve .check-row { display: flex; align-items: flex-start; gap: 8px; font-weight: 600; font-size: .92rem; }
+.quick-resolve .check-row input { margin-top: 3px; }
+@media (max-width: 30em) {
+    .report-quick .button-sm { min-height: 44px; flex: 1 1 auto; }   /* ação sobre a conta de outra pessoa: alvo de toque confortável */
+    .report-context { padding: 10px; }
+}

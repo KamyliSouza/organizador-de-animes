@@ -1,9 +1,18 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.19';
+export const SITE_VERSION = '1.20';
 
 export const CHANGELOG = [
+    {
+        version: '1.20',
+        title: 'Denúncias mais rápidas e justas',
+        items: [
+            'A equipe agora vê, em cada denúncia, a situação da conta denunciada (avisos, suspensão, privacidade travada), quantas denúncias ela já tem e o que já aconteceu antes. Também vê quantas denúncias quem denunciou já fez e quantas foram descartadas. Isso ajuda a decidir com mais cuidado.',
+            'Ações rápidas na própria denúncia: restaurar o nome, limpar a bio, zerar foto e fundo, dar um aviso, suspender ou banir. A ação e a resolução da denúncia acontecem juntas, sem passos esquecidos.',
+            'Cada conta tem agora um histórico de punições (avisos, suspensões, banimentos, travas e o que foi restaurado ou removido), e o Registro da equipe ganhou filtros por tipo de ação e por pessoa.',
+        ],
+    },
     {
         version: '1.19',
         title: 'Suspensão com prazo, avisos e privacidade travada',

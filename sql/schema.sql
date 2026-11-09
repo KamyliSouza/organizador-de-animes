@@ -279,6 +279,8 @@ create table if not exists public.mod_log (
   target_name text,
   details     jsonb not null default '{}'::jsonb
 );
+-- Patch 20: o histórico de punições de uma conta lê o registro por pessoa.
+create index if not exists mod_log_target_idx on public.mod_log (target_id, id desc);
 
 -- Denúncias de perfil (nome, bio ou foto). Uma denúncia aberta por par denunciante/perfil.
 create table if not exists public.profile_reports (
@@ -297,6 +299,9 @@ create table if not exists public.profile_reports (
 );
 create unique index if not exists profile_reports_one_open on public.profile_reports (reporter_id, target_id) where status = 'open';
 create index if not exists profile_reports_status_idx on public.profile_reports (status, id desc);
+-- Patch 20: a fila mostra quantas denúncias a pessoa denunciada e quem denunciou já têm.
+create index if not exists profile_reports_target_idx   on public.profile_reports (target_id);
+create index if not exists profile_reports_reporter_idx on public.profile_reports (reporter_id);
 --   * snapshot (Patch 18): cópia do que a pessoa denunciada mostrava NA HORA da denúncia (nome, @, bio, versões da foto e do fundo
 --     e os textos das obras que quem denunciou conseguia ver). Assim a equipe vê a prova mesmo que a pessoa edite tudo depois.
 --     Só a equipe lê (admin_list_reports). Os arquivos de imagem não são copiados: só a versão (avatar_v / bg_v).
@@ -1471,6 +1476,8 @@ $$;
 -- Cada função confere o cargo de quem chama; o painel do site é só a vitrine.
 
 -- Registra uma ação no log (uso interno).
+-- Patch 20: quando a ação nasce de uma denúncia (admin_act_on_report), a função avisa pelo ajuste de transação kamylist.report
+-- e o registro guarda o número da denúncia em details.denuncia (o histórico e o registro mostram "por denúncia #N").
 create or replace function public.log_action(p_action text, p_target uuid, p_details jsonb default '{}'::jsonb)
 returns void
 language plpgsql
@@ -1478,16 +1485,37 @@ security definer
 set search_path = ''
 as $$
 declare
-  me uuid := auth.uid();
+  me  uuid := auth.uid();
+  rep text := nullif(current_setting('kamylist.report', true), '');
+  det jsonb := coalesce(p_details, '{}'::jsonb);
 begin
+  if rep ~ '^[0-9]{1,15}$' and not (det ? 'denuncia') then
+    det := det || jsonb_build_object('denuncia', rep::bigint);
+  end if;
   insert into public.mod_log (actor_id, actor_name, action, target_id, target_name, details)
   values (me,
           coalesce((select '@' || p.username from public.profiles p where p.id = me), '?'),
           p_action,
           p_target,
           (select '@' || p.username from public.profiles p where p.id = p_target),
-          coalesce(p_details, '{}'::jsonb));
+          det);
 end;
+$$;
+
+-- Grupo de uma ação do registro (Patch 20): 'punicoes' (avisos, suspensão, banimento, privacidade forçada), 'conteudo' (restaurar,
+-- remover e renomear), 'denuncias' e 'equipe' (cargos e configurações do site). O filtro do Registro e o histórico da conta usam isto.
+create or replace function public.log_category(p_action text)
+returns text
+language sql
+immutable
+set search_path = ''
+as $$
+  select case
+    when p_action in ('strike', 'strike_suspend', 'strike_revoke', 'suspend', 'unsuspend', 'ban', 'limits_set', 'limits_clear') then 'punicoes'
+    when p_action ~ '^(reset|wipe)_' or p_action = 'rename' then 'conteudo'
+    when p_action ~ '^report_' then 'denuncias'
+    else 'equipe'
+  end
 $$;
 
 -- Exige cargo mínimo (1 = moderação, 2 = administração, 3 = Dona). Devolve o peso de quem chama.
@@ -2108,10 +2136,13 @@ end;
 $$;
 
 -- Fila de denúncias. A equipe só vê denúncias sobre quem tem cargo menor que o seu.
--- p_status: 'open', 'resolved', 'dismissed' ou 'all'
--- (drop antes: o formato do resultado ganhou colunas: bio e fundo atuais e o snapshot)
+-- p_status: 'open', 'resolved', 'dismissed' ou 'all'. p_oldest: true = mais antigas primeiro (padrão: mais recentes).
+-- Patch 20: cada denúncia já traz o contexto para decidir sem abrir mais nada: situação atual da conta denunciada (suspensão,
+-- avisos ativos, travas), quantas denúncias ela tem, o que já aconteceu com ela (target_past, contado no registro) e o histórico de quem denunciou.
+-- (drop antes: o formato do resultado e os parâmetros mudaram)
 drop function if exists public.admin_list_reports(text, int);
-create function public.admin_list_reports(p_status text default 'open', p_limit int default 50)
+drop function if exists public.admin_list_reports(text, int, boolean);
+create function public.admin_list_reports(p_status text default 'open', p_limit int default 50, p_oldest boolean default false)
 returns table (
   id                  bigint,
   created_at          timestamptz,
@@ -2129,7 +2160,17 @@ returns table (
   handled_at          timestamptz,
   target_bio          text,
   target_bg_v         bigint,
-  snapshot            jsonb
+  snapshot            jsonb,
+  target_suspension_kind  text,
+  target_suspension_ends  timestamptz,
+  target_active_strikes   int,
+  target_force_profile    boolean,
+  target_force_notes      boolean,
+  target_open_reports     int,
+  target_total_reports    int,
+  target_past             jsonb,
+  reporter_total          int,
+  reporter_dismissed      int
 )
 language plpgsql
 stable
@@ -2148,16 +2189,32 @@ begin
          hb.username,
          pr.handled_at,
          t.bio, t.bg_v,
-         pr.snapshot
+         pr.snapshot,
+         ts.kind,
+         ts.ends_at,
+         (select count(*)::int from public.strikes k where k.user_id = t.id and k.status = 'active'),
+         coalesce(al.force_private_profile, false),
+         coalesce(al.force_private_notes, false),
+         (select count(*)::int from public.profile_reports o where o.target_id = t.id and o.status = 'open'),
+         (select count(*)::int from public.profile_reports o where o.target_id = t.id),
+         (select jsonb_build_object(
+                   'avisos',     count(*) filter (where l.action = 'strike'),
+                   'suspensoes', count(*) filter (where l.action in ('suspend', 'strike_suspend')),
+                   'banimentos', count(*) filter (where l.action = 'ban'),
+                   'conteudo',   count(*) filter (where public.log_category(l.action) = 'conteudo'))
+            from public.mod_log l where l.target_id = t.id),
+         (select count(*)::int from public.profile_reports o where o.reporter_id = pr.reporter_id),
+         (select count(*)::int from public.profile_reports o where o.reporter_id = pr.reporter_id and o.status = 'dismissed')
   from public.profile_reports pr
   join public.profiles t            on t.id = pr.target_id
   left join public.user_roles tr    on tr.user_id = t.id
   left join public.suspensions ts   on ts.user_id = t.id and (ts.ends_at is null or ts.ends_at > now())
+  left join public.account_limits al on al.user_id = t.id
   left join public.profiles rp      on rp.id = pr.reporter_id
   left join public.profiles hb      on hb.id = pr.handled_by
   where (coalesce(p_status, 'open') = 'all' or pr.status = coalesce(p_status, 'open'))
     and myrank > public.rank_of_role(tr.role)
-  order by pr.id desc
+  order by (case when coalesce(p_oldest, false) then pr.id end) asc nulls last, pr.id desc
   limit least(greatest(coalesce(p_limit, 50), 1), 100);
 end;
 $$;
@@ -2189,8 +2246,82 @@ begin
 end;
 $$;
 
+-- Ação rápida a partir de uma denúncia (Patch 20): faz a ação sobre a pessoa denunciada E resolve a denúncia, tudo numa chamada só
+-- (se algo falhar, nada fica pela metade). Cada ação usa a função de sempre, então as mesmas regras de cargo valem, e o registro
+-- guarda o número da denúncia ("por denúncia #N").
+--   p_action: 'strike' (aviso), 'suspend' (p_days de 1 a 365; vazio = sem prazo), 'ban' (Administração e Dona),
+--             'limit_profile' (perfil sempre privado; mantém a trava de anotações que já existir),
+--             'reset_name', 'reset_bio', 'reset_media' (foto e fundo).
+--   p_reason: texto que a pessoa vê (aviso, suspensão, banimento e trava); as outras ações ignoram.
+--   p_resolve: resolve esta denúncia (se ainda estiver aberta). p_resolve_others: resolve também as outras abertas sobre a mesma pessoa.
+-- Devolve os avisos ativos (só no aviso), se o 3º aviso suspendeu a conta e quantas denúncias foram resolvidas.
+create or replace function public.admin_act_on_report(
+  p_report bigint, p_action text, p_reason text default '', p_days int default null,
+  p_resolve boolean default true, p_resolve_others boolean default false)
+returns table (active_count int, auto_suspended boolean, closed_reports int)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  rep    public.profile_reports%rowtype;
+  why    text := left(public.clean_text(p_reason, true), 300);
+  n      int := 0;
+  auto   boolean := false;
+  closed int := 0;
+  lim    public.account_limits%rowtype;
+  r      record;
+begin
+  select * into rep from public.profile_reports where id = p_report;
+  if not found then
+    raise exception 'Denúncia não encontrada.' using errcode = 'P0002';
+  end if;
+  perform public.require_outranks(rep.target_id);
+  if p_action is null or p_action not in ('strike', 'suspend', 'ban', 'limit_profile', 'reset_name', 'reset_bio', 'reset_media') then
+    raise exception 'Ação inválida.' using errcode = '22023';
+  end if;
+
+  perform set_config('kamylist.report', p_report::text, true);
+  if p_action = 'strike' then
+    select g.active_count, g.auto_suspended into n, auto from public.admin_give_strike(rep.target_id, why) g;
+  elsif p_action = 'suspend' then
+    perform public.admin_set_suspended(rep.target_id, true, why, p_days, false);
+  elsif p_action = 'ban' then
+    perform public.admin_set_suspended(rep.target_id, true, why, null, true);
+  elsif p_action = 'limit_profile' then
+    select * into lim from public.account_limits a where a.user_id = rep.target_id;
+    perform public.admin_set_account_limits(rep.target_id, true, coalesce(lim.force_private_notes, false),
+                                            coalesce(nullif(why, ''), lim.reason, ''));
+  elsif p_action = 'reset_name' then
+    perform public.admin_reset_profile(rep.target_id, array['display_name']);
+  elsif p_action = 'reset_bio' then
+    perform public.admin_reset_profile(rep.target_id, array['bio']);
+  else
+    perform public.admin_reset_profile(rep.target_id, array['avatar', 'background']);
+  end if;
+
+  if coalesce(p_resolve, true) then
+    for r in
+      select o.id, o.reason from public.profile_reports o
+      where o.target_id = rep.target_id and o.status = 'open' and (o.id = p_report or coalesce(p_resolve_others, false))
+      order by o.id
+    loop
+      update public.profile_reports set status = 'resolved', handled_by = auth.uid(), handled_at = now() where id = r.id;
+      perform set_config('kamylist.report', r.id::text, true);
+      perform public.log_action('report_resolved', rep.target_id, jsonb_build_object('denuncia', r.id, 'motivo', r.reason));
+      closed := closed + 1;
+    end loop;
+  end if;
+  perform set_config('kamylist.report', '', true);
+  return query select n, auto, closed;
+end;
+$$;
+
 -- Registro de ações (mais recentes primeiro). Paginação: passe o id do último item recebido em p_before.
-create or replace function public.admin_list_log(p_limit int default 50, p_before bigint default null)
+-- Patch 20: filtros. p_category: 'punicoes', 'conteudo', 'denuncias' ou 'equipe' (veja log_category; vazio ou 'all' = tudo).
+-- p_person: parte de um @usuário (de quem agiu ou de quem sofreu a ação).
+drop function if exists public.admin_list_log(int, bigint);
+create or replace function public.admin_list_log(p_limit int default 50, p_before bigint default null, p_category text default null, p_person text default null)
 returns table (
   id          bigint,
   created_at  timestamptz,
@@ -2204,14 +2335,50 @@ stable
 security definer
 set search_path = ''
 as $$
+declare
+  q text := lower(regexp_replace(btrim(coalesce(p_person, '')), '^@+', ''));
+  c text := nullif(btrim(coalesce(p_category, '')), '');
 begin
   perform public.require_staff(1);
+  if c is not null and c <> 'all' and c not in ('punicoes', 'conteudo', 'denuncias', 'equipe') then
+    raise exception 'Grupo de ações inválido.' using errcode = '22023';
+  end if;
   return query
   select l.id, l.created_at, l.actor_name, l.action, l.target_name, l.details
   from public.mod_log l
-  where p_before is null or l.id < p_before
+  where (p_before is null or l.id < p_before)
+    and (c is null or c = 'all' or public.log_category(l.action) = c)
+    and (q = '' or strpos(lower(l.target_name), q) > 0 or strpos(lower(l.actor_name), q) > 0)
   order by l.id desc
   limit least(greatest(coalesce(p_limit, 50), 1), 100);
+end;
+$$;
+
+-- Histórico de punições de uma conta (Patch 20): avisos, suspensões, banimentos, travas de privacidade e o que foi restaurado,
+-- removido ou renomeado, mais recentes primeiro. Só para quem tem cargo maior que o da pessoa. Paginação: p_before.
+create or replace function public.admin_account_history(p_user uuid, p_limit int default 40, p_before bigint default null)
+returns table (
+  id          bigint,
+  created_at  timestamptz,
+  actor_name  text,
+  action      text,
+  details     jsonb
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  perform public.require_outranks(p_user);
+  return query
+  select l.id, l.created_at, l.actor_name, l.action, l.details
+  from public.mod_log l
+  where l.target_id = p_user
+    and public.log_category(l.action) in ('punicoes', 'conteudo')
+    and (p_before is null or l.id < p_before)
+  order by l.id desc
+  limit least(greatest(coalesce(p_limit, 40), 1), 100);
 end;
 $$;
 
@@ -2329,9 +2496,12 @@ revoke all on function public.admin_give_strike(uuid, text)        from public, 
 revoke all on function public.admin_revoke_strike(bigint)          from public, anon;
 revoke all on function public.admin_list_strikes(uuid)             from public, anon;
 revoke all on function public.admin_set_role(uuid, text)           from public, anon;
-revoke all on function public.admin_list_reports(text, int)        from public, anon;
+revoke all on function public.admin_list_reports(text, int, boolean) from public, anon;
+revoke all on function public.admin_act_on_report(bigint, text, text, int, boolean, boolean) from public, anon;
 revoke all on function public.admin_resolve_report(bigint, text)   from public, anon;
-revoke all on function public.admin_list_log(int, bigint)          from public, anon;
+revoke all on function public.admin_list_log(int, bigint, text, text) from public, anon;
+revoke all on function public.admin_account_history(uuid, int, bigint) from public, anon;
+revoke all on function public.log_category(text)                   from public, anon, authenticated;
 revoke all on function public.admin_get_settings()                 from public, anon;
 revoke all on function public.admin_set_setting(text, jsonb)       from public, anon;
 
@@ -2348,9 +2518,11 @@ grant execute on function public.admin_give_strike(uuid, text)      to authentic
 grant execute on function public.admin_revoke_strike(bigint)        to authenticated;
 grant execute on function public.admin_list_strikes(uuid)           to authenticated;
 grant execute on function public.admin_set_role(uuid, text)        to authenticated;
-grant execute on function public.admin_list_reports(text, int)     to authenticated;
+grant execute on function public.admin_list_reports(text, int, boolean) to authenticated;
+grant execute on function public.admin_act_on_report(bigint, text, text, int, boolean, boolean) to authenticated;
 grant execute on function public.admin_resolve_report(bigint, text) to authenticated;
-grant execute on function public.admin_list_log(int, bigint)       to authenticated;
+grant execute on function public.admin_list_log(int, bigint, text, text) to authenticated;
+grant execute on function public.admin_account_history(uuid, int, bigint) to authenticated;
 grant execute on function public.admin_get_settings()              to authenticated;
 grant execute on function public.admin_set_setting(text, jsonb)    to authenticated;
 
@@ -2375,12 +2547,15 @@ grant execute on function public.admin_set_setting(text, jsonb)    to authentica
 --   16 = privacidade forçada (tabela account_limits + gatilho profiles_force_privacy), suspensão com prazo e banimento
 --        (suspensions.ends_at/kind), avisos/strikes (tabela strikes; 3º aviso = 7 dias de suspensão) e o link do Discord
 --        (configuração discord_url)
+--   17 = fila de denúncias com contexto (admin_list_reports), ação rápida que age e resolve junto (admin_act_on_report),
+--        registro com filtros e ligação com a denúncia (admin_list_log, log_category) e histórico de punições por conta
+--        (admin_account_history)
 create or replace function public.schema_version()
 returns integer
 language sql
 immutable
 set search_path = ''
-as $$ select 16 $$;
+as $$ select 17 $$;
 
 -- Só quem precisa pode executar cada função.
 revoke all on function public.get_public_entries(text)            from public;

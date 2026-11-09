@@ -9,6 +9,7 @@ import { timeAgo } from '../core/time.js';
 import { toast } from '../core/toast.js';
 import { safeHttpsUrl, strikeCountText, suspensionLabel } from '../domain/access.js';
 import { REMOVED_MARK, mediaState, removableFields, wipeField } from '../domain/reportSnapshot.js';
+import { LOG_CATEGORIES, contextView, quickActionsFor, quickResultMessage, reportRef } from '../domain/reportContext.js';
 import { parseHostList } from '../domain/textSafety.js';
 import { ROLES, actionLabel, canAct, canEditSetting, describeDetails, isStaff, motiveLabel, rankOf } from '../domain/roles.js';
 import { backend, isCloud, myRole, refreshAccess, state } from '../services/session.js';
@@ -16,6 +17,7 @@ import { confirmDialog } from '../core/dialogs.js';
 import { avatar, avatarSrc } from '../ui/avatar.js';
 import { backgroundSrc } from '../ui/profileBackground.js';
 import { openMemberModal } from '../ui/memberModal.js';
+import { openQuickActionDialog } from '../ui/quickActionDialog.js';
 import { roleBadge } from '../ui/roleBadge.js';
 
 export const ADMIN_TABS = [
@@ -175,6 +177,29 @@ function snapshotBlock(r, mayAct, isOpen) {
         </details>`;
 }
 
+/** Contexto da denúncia (Patch 20): situação da conta, outras denúncias, o que já aconteceu e o histórico de quem denunciou. */
+function contextBlock(r, mayAct) {
+    const v = contextView(r);
+    if (!v.known && !v.flags.length) return '';
+    return html`
+        <div class="report-context" data-context="${r.id}">
+            ${v.flags.length ? html`<div class="report-flags">${v.flags.map((f) => html`<span class="badge badge-${f.tone}">${f.lock ? icon('lock', { size: 12 }) : ''}${f.text}</span>`)}</div>` : ''}
+            <ul class="context-list">
+                ${v.reportsLine ? html`<li data-ctx="reports">${v.reportsLine}</li>` : ''}
+                ${v.pastLine ? html`<li data-ctx="past">${v.pastLine}${v.hasPast && mayAct ? html` <button type="button" class="link-button" data-manage="${r.id}">Ver histórico</button>` : ''}</li>` : ''}
+                ${v.reporterLine ? html`<li data-ctx="reporter">${v.reporterLine}${v.reporterNote ? html` <span class="badge badge-muted">${v.reporterNote}</span>` : ''}</li>` : ''}
+            </ul>
+        </div>`;
+}
+
+const quickRow = (r, role) => html`
+    <div class="report-quick" role="group" aria-label="Ações rápidas">
+        <span class="report-quick-label">Ação rápida <span class="muted">(já resolve a denúncia)</span></span>
+        <div class="report-actions">
+            ${quickActionsFor(r.reason, role).map((a) => html`<button type="button" class="button button-secondary button-sm ${a.suggested ? 'is-suggested' : ''}" data-quick="${a.key}" data-rid="${r.id}" ${a.key === 'reset_media' ? html`data-reset-media="${r.id}"` : ''}>${icon(a.icon, { size: 15 })} ${a.label}</button>`)}
+        </div>
+    </div>`;
+
 const reportCard = (r, role, openSnaps = new Set()) => html`
     <article class="report-card glass-panel" data-report="${r.id}">
         <header class="report-head">
@@ -187,22 +212,23 @@ const reportCard = (r, role, openSnaps = new Set()) => html`
             </div>
             <span class="admin-flags">
                 <span class="badge badge-planned">${motiveLabel(r.reason)}</span>
-                ${r.target.suspended ? html`<span class="badge badge-danger">Suspensa</span>` : ''}
+                ${r.target.suspended && !r.context.suspensionKind ? html`<span class="badge badge-danger">Suspensa</span>` : ''}
                 ${r.status !== 'open' ? html`<span class="badge badge-muted">${STATUS_LABEL[r.status] || r.status}</span>` : ''}
             </span>
         </header>
         ${r.details ? html`<p class="report-details">${r.details}</p>` : ''}
+        ${contextBlock(r, canAct(role, r.target.role))}
         ${snapshotBlock(r, canAct(role, r.target.role), openSnaps.has(r.id))}
         <p class="report-meta">Denunciado por ${r.reporter ? `@${r.reporter}` : 'uma conta excluída'} · ${timeAgo(r.createdAt)}${r.handledBy ? html` · tratada por @${r.handledBy} ${timeAgo(r.handledAt)}` : ''}</p>
         <div class="report-actions">
             <a class="button button-ghost button-sm" href="#/u/${r.target.username}">Ver perfil</a>
-            ${canAct(role, r.target.role) ? html`<button type="button" class="button button-secondary button-sm" data-manage="${r.id}">${icon('shield', { size: 15 })} Gerenciar</button>
-            <button type="button" class="button button-secondary button-sm" data-reset-media="${r.id}">${icon('image', { size: 15 })} Zerar foto e fundo</button>` : ''}
+            ${canAct(role, r.target.role) ? html`<button type="button" class="button button-secondary button-sm" data-manage="${r.id}">${icon('shield', { size: 15 })} Gerenciar</button>` : ''}
             ${r.status === 'open' ? html`
                 <button type="button" class="button button-primary button-sm" data-close-report="resolved" data-id="${r.id}">${icon('check', { size: 15 })} Resolver</button>
                 <button type="button" class="button button-ghost button-sm" data-close-report="dismissed" data-id="${r.id}">Descartar</button>` : html`
                 <button type="button" class="button button-ghost button-sm" data-close-report="open" data-id="${r.id}">Reabrir</button>`}
         </div>
+        ${r.status === 'open' && canAct(role, r.target.role) ? quickRow(r, role) : ''}
     </article>`;
 
 function mountReports(box, { be, role, onCount }) {
@@ -217,10 +243,18 @@ function mountReports(box, { be, role, onCount }) {
                     <option value="all">Todas</option>
                 </select>
             </div>
+            <div class="field" style="min-width:min(200px, 100%)">
+                <label for="rp-order">Ordem</label>
+                <select id="rp-order" class="select" data-order>
+                    <option value="new">Mais recentes primeiro</option>
+                    <option value="old">Mais antigas primeiro</option>
+                </select>
+            </div>
         </div>
         <div data-list aria-live="polite"></div>`);
     const list = box.querySelector('[data-list]');
     const filter = box.querySelector('[data-filter]');
+    const order = box.querySelector('[data-order]');
     let token = 0;
     let reports = [];
     const openSnaps = new Set();   // cópias abertas: continuam abertas depois de remover algo e recarregar a lista
@@ -229,7 +263,7 @@ function mountReports(box, { be, role, onCount }) {
         const mine = ++token;
         setHtml(list, loading());
         try {
-            const rows = await be.moderation.reports({ status: filter.value, limit: 50 });
+            const rows = await be.moderation.reports({ status: filter.value, limit: 50, oldest: order.value === 'old' });
             if (mine !== token) return;
             reports = rows;
             if (filter.value === 'open') onCount(rows.length);
@@ -244,6 +278,7 @@ function mountReports(box, { be, role, onCount }) {
     }
 
     filter.addEventListener('change', load);
+    order.addEventListener('change', load);
     const offs = [
         // "toggle" e "error" não sobem na árvore: ouvintes em fase de captura
         on(list, 'toggle', 'details[data-snap]', (_, d) => { const id = Number(d.dataset.snap); if (d.open) openSnaps.add(id); else openSnaps.delete(id); }, true),
@@ -265,25 +300,20 @@ function mountReports(box, { be, role, onCount }) {
             const r = reports.find((x) => String(x.id) === btn.dataset.manage);
             if (r) openMemberModal({ member: { ...r.target, suspensionReason: '' }, actorRole: role, moderation: be.moderation, onChanged: () => load() });
         }),
-        on(list, 'click', '[data-reset-media]', async (_, btn) => {
-            const r = reports.find((x) => String(x.id) === btn.dataset.resetMedia);
+        on(list, 'click', '[data-quick]', (_, btn) => {
+            const r = reports.find((x) => String(x.id) === btn.dataset.rid);
+            const action = btn.dataset.quick;
             if (!r) return;
-            const yes = await confirmDialog({
-                title: 'Zerar foto e fundo',
-                message: `Tirar a foto de perfil e a imagem de fundo de @${r.target.username}? Isso não tem como desfazer, mas fica no registro de ações. A pessoa pode colocar outras depois.`,
-                confirmLabel: 'Zerar', danger: true,
+            openQuickActionDialog({
+                report: r,
+                action,
+                onSubmit: async (values) => {
+                    const res = await be.moderation.actOnReport(r.id, action, values);
+                    toast(quickResultMessage(action, res, { days: values.days }), { type: 'success' });
+                    await load();
+                    if (filter.value !== 'open') onCount(null);
+                },
             });
-            if (!yes) return;
-            btn.disabled = true;
-            try {
-                await be.moderation.resetProfile(r.target.id, ['avatar', 'background']);
-                toast('Foto e fundo zerados.', { type: 'success' });
-                await load();
-            } catch (err) {
-                console.error(err);
-                btn.disabled = false;
-                toast(messageOf(err, 'Não foi possível zerar a foto e o fundo.'), { type: 'error' });
-            }
         }),
         on(list, 'click', '[data-wipe]', async (_, btn) => {
             const r = reports.find((x) => String(x.id) === btn.dataset.report);
@@ -326,27 +356,44 @@ const logRow = (l) => {
     return html`
     <li class="log-row" data-log="${l.id}">
         <time class="log-time" datetime="${l.at}">${stamp(l.at)}</time>
-        <span class="log-text"><b>${l.actor || 'Alguém'}</b> ${actionLabel(l.action)}${l.target ? html` <b>${l.target}</b>` : ''}${extra ? html`<span class="log-extra">${extra}</span>` : ''}</span>
+        <span class="log-text"><b>${l.actor || 'Alguém'}</b> ${actionLabel(l.action)}${l.target ? html` <b>${l.target}</b>` : ''}${extra ? html`<span class="log-extra">${extra}</span>` : ''}${reportRef(l.action, l.details) ? html`<span class="log-extra log-ref">por ${reportRef(l.action, l.details)}</span>` : ''}</span>
     </li>`;
 };
 
 function mountLog(box, { be }) {
-    setHtml(box, html`<div data-list aria-live="polite"></div>`);
+    setHtml(box, html`
+        <div class="admin-bar log-filters">
+            <div class="field" style="min-width:min(220px, 100%)">
+                <label for="lg-cat">Mostrar</label>
+                <select id="lg-cat" class="select" data-cat>
+                    ${LOG_CATEGORIES.map(([key, label]) => html`<option value="${key}">${label}</option>`)}
+                </select>
+            </div>
+            <div class="field log-person">
+                <label for="lg-person">Pessoa <span class="muted">(quem agiu ou quem sofreu a ação)</span></label>
+                <input id="lg-person" class="input" type="search" data-person placeholder="@usuário" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="40">
+            </div>
+        </div>
+        <div data-list aria-live="polite"></div>`);
     const list = box.querySelector('[data-list]');
+    const cat = box.querySelector('[data-cat]');
+    const person = box.querySelector('[data-person]');
     let token = 0;
     let rows = [];
     let more = false;
 
+    const filtered = () => cat.value !== 'all' || person.value.trim() !== '';
     const paint = () => setHtml(list, rows.length ? html`
         <ul class="log-list glass-panel">${rows.map(logRow)}</ul>
         ${more ? html`<div class="admin-more"><button type="button" class="button button-secondary" data-more>Mostrar mais</button></div>` : ''}`
+        : filtered() ? empty('search', 'Nenhuma ação com esses filtros', 'Tente outro grupo ou outro @usuário.')
         : empty('list', 'O registro está vazio', 'As ações da equipe aparecem aqui.'));
 
     async function load({ append = false } = {}) {
         const mine = ++token;
         if (!append) setHtml(list, loading());
         try {
-            const got = await be.moderation.log({ limit: PAGE, before: append ? rows[rows.length - 1]?.id : null });
+            const got = await be.moderation.log({ limit: PAGE, before: append ? rows[rows.length - 1]?.id : null, category: cat.value, person: person.value });
             if (mine !== token) return;
             rows = append ? [...rows, ...got] : got;
             more = got.length === PAGE;
@@ -358,6 +405,9 @@ function mountLog(box, { be }) {
         }
     }
 
+    const reload = debounce(() => load(), 300);
+    cat.addEventListener('change', () => load());
+    person.addEventListener('input', reload);
     const off = on(list, 'click', '[data-more]', (_, btn) => { btn.disabled = true; load({ append: true }); });
     load();
     return () => { token++; off(); };

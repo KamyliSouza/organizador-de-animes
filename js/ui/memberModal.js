@@ -1,5 +1,5 @@
 // Gerenciar uma pessoa (equipe): restaurar dados do perfil, remover conteúdo, renomear, avisos, privacidade forçada,
-// suspender ou banir e mudar o cargo. Cada ação chama uma função do banco que confere o cargo de novo; esconder botão aqui é só conforto.
+// suspender ou banir, ver o histórico de punições da conta e mudar o cargo. Cada ação chama uma função do banco que confere o cargo de novo; esconder botão aqui é só conforto.
 import { el, html, setHtml } from '../core/dom.js';
 import { confirmDialog } from '../core/dialogs.js';
 import { messageOf } from '../core/errors.js';
@@ -9,6 +9,7 @@ import { timeAgo } from '../core/time.js';
 import { toast } from '../core/toast.js';
 import { AUTO_SUSPEND_DAYS, BAN_KEY, STRIKE_LIMIT, SUSPEND_PRESETS, strikeCountText, suspensionLabel } from '../domain/access.js';
 import { WIPE_FIELDS, REMOVED_MARK } from '../domain/reportSnapshot.js';
+import { historyView } from '../domain/reportContext.js';
 import { ROLES, canAct, grantableRoles, rankOf } from '../domain/roles.js';
 import { avatar, avatarSrc } from './avatar.js';
 import { roleBadge } from './roleBadge.js';
@@ -177,11 +178,59 @@ export function openMemberModal({ member, actorRole, moderation, onChanged }) {
             <div><button type="button" class="button button-secondary" data-do="strike">Dar um aviso</button></div>`}
         </section>`;
 
+    // --- histórico de punições (Patch 20): avisos, suspensões, banimentos, travas e ajustes de conteúdo, do mais novo para o mais antigo ---
+    const HISTORY_PAGE = 10;
+    let historyRows = [];
+    let historyMore = false;
+    const historySection = html`
+        <section class="manage-section" aria-labelledby="mm-history">
+            <h3 id="mm-history">Histórico de punições</h3>
+            <p class="field-hint">Avisos, suspensões, banimentos, travas de privacidade e o que foi restaurado ou removido nesta conta, do mais novo para o mais antigo. Quando a ação veio de uma denúncia, o número aparece junto.</p>
+            <div data-history-list><div class="center muted" style="padding:8px 0">${spinner(18)}</div></div>
+        </section>`;
+
+    function paintHistory() {
+        const box = content.querySelector('[data-history-list]');
+        if (!box) return;
+        if (!historyRows.length) { setHtml(box, html`<p class="muted small" data-history-empty>Nenhuma punição registrada para esta conta.</p>`); return; }
+        setHtml(box, html`
+            <ul class="history-list">${historyRows.map((row) => {
+                const v = historyView(row);
+                return html`
+                <li class="history-item ${v.punishment ? 'is-punishment' : ''}" data-history="${row.id}">
+                    <span class="history-title">${v.title}</span>
+                    ${v.extra ? html`<span class="history-extra">${v.extra}</span>` : ''}
+                    <span class="muted small">${v.actor ? html`por ${v.actor} · ` : ''}${timeAgo(row.at)}${v.ref ? html` · ${v.ref}` : ''}</span>
+                </li>`;
+            })}</ul>
+            ${historyMore ? html`<div><button type="button" class="button button-ghost button-sm" data-history-more>Mostrar mais</button></div>` : ''}`);
+    }
+
+    async function loadHistory({ append = false } = {}) {
+        if (!content.querySelector('[data-history-list]')) return;
+        try {
+            const got = await moderation.accountHistory(member.id, { limit: HISTORY_PAGE, before: append ? historyRows[historyRows.length - 1]?.id : null });
+            if (!content.isConnected) return;
+            historyRows = append ? [...historyRows, ...got] : got;
+            historyMore = got.length === HISTORY_PAGE;
+            paintHistory();
+        } catch (err) {
+            console.error(err);
+            const box = content.querySelector('[data-history-list]');
+            if (box) setHtml(box, html`<p class="field-error">${messageOf(err, 'Não foi possível carregar o histórico.')}</p>`);
+        }
+    }
+    content.addEventListener('click', (ev) => {
+        const btn = ev.target instanceof Element ? ev.target.closest('[data-history-more]') : null;
+        if (btn && content.contains(btn)) { btn.disabled = true; loadHistory({ append: true }); }
+    });
+
     function paintDynamic(m) {
         current = m;
-        setHtml(content.querySelector('[data-dynamic]'), html`${strikesSection(m)}${limitsSection(m)}${suspendSection(m)}`);
+        setHtml(content.querySelector('[data-dynamic]'), html`${strikesSection(m)}${limitsSection(m)}${suspendSection(m)}${historySection}`);
         paintFlags(m);
         loadStrikes();
+        loadHistory();
     }
 
     async function loadStrikes() {

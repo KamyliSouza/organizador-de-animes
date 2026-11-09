@@ -9,6 +9,7 @@ import { SECTION_KEYS, normalizeEntry, normalizeSections } from '../domain/entry
 import { limitMessage, parseLimitError } from '../domain/mediaLimits.js';
 import { normalizeSnapshot } from '../domain/reportSnapshot.js';
 import { normalizeAccess, safeHttpsUrl } from '../domain/access.js';
+import { normalizeHistoryEntry, normalizeReportContext } from '../domain/reportContext.js';
 import { normalizeRole } from '../domain/roles.js';
 
 const PAGE = 1000;   // limite de linhas por requisição do Supabase
@@ -594,9 +595,14 @@ export async function createSupabaseBackend() {
             async setRole(userId, role) {
                 await ok(sb.rpc('admin_set_role', { p_user: userId, p_role: role }), 'Não foi possível mudar o cargo.');
             },
-            /** status: 'open' | 'resolved' | 'dismissed' | 'all' */
-            async reports({ status = 'open', limit = 50 } = {}) {
-                const rows = await ok(sb.rpc('admin_list_reports', { p_status: status, p_limit: limit }), 'Não foi possível carregar as denúncias.');
+            /**
+             * status: 'open' | 'resolved' | 'dismissed' | 'all'. oldest: mais antigas primeiro (só vai quando usado, para bancos ainda na versão anterior).
+             * Cada denúncia traz `context`: situação da conta denunciada, outras denúncias e o histórico de quem denunciou (Patch 20).
+             */
+            async reports({ status = 'open', limit = 50, oldest = false } = {}) {
+                const args = { p_status: status, p_limit: limit };
+                if (oldest) args.p_oldest = true;
+                const rows = await ok(sb.rpc('admin_list_reports', args), 'Não foi possível carregar as denúncias.');
                 return (rows || []).map((r) => ({
                     id: Number(r.id),
                     createdAt: r.created_at,
@@ -615,16 +621,39 @@ export async function createSupabaseBackend() {
                         suspended: r.target_suspended === true,
                     },
                     snapshot: normalizeSnapshot(r.snapshot),
+                    context: normalizeReportContext(r),
                     handledBy: r.handled_by_username || '',
                     handledAt: r.handled_at,
                 }));
             },
+            /**
+             * Ação rápida a partir de uma denúncia: faz a ação na pessoa denunciada e resolve a denúncia, tudo junto (se falhar, nada muda).
+             * action: 'strike' | 'suspend' | 'ban' | 'limit_profile' | 'reset_name' | 'reset_bio' | 'reset_media'.
+             * Devolve os avisos ativos (aviso), se o 3º aviso suspendeu a conta e quantas denúncias foram resolvidas.
+             */
+            async actOnReport(reportId, action, { reason = '', days = null, resolve = true, resolveOthers = false } = {}) {
+                const args = { p_report: Number(reportId), p_action: action, p_reason: reason, p_resolve: Boolean(resolve), p_resolve_others: Boolean(resolveOthers) };
+                if (days != null) args.p_days = Number(days);
+                const rows = await ok(sb.rpc('admin_act_on_report', args), 'Não foi possível concluir a ação.');
+                const r = Array.isArray(rows) ? rows[0] : rows;
+                return { activeCount: Number(r?.active_count) || 0, autoSuspended: r?.auto_suspended === true, closedReports: Number(r?.closed_reports) || 0 };
+            },
+            /** Histórico de punições de uma pessoa (avisos, suspensões, banimentos, travas e ajustes de conteúdo), mais recentes primeiro. */
+            async accountHistory(userId, { limit = 20, before = null } = {}) {
+                const args = { p_user: userId, p_limit: limit };
+                if (before != null) args.p_before = before;
+                const rows = await ok(sb.rpc('admin_account_history', args), 'Não foi possível carregar o histórico.');
+                return (rows || []).map(normalizeHistoryEntry);
+            },
             async resolveReport(id, status) {
                 await ok(sb.rpc('admin_resolve_report', { p_report: id, p_status: status }), 'Não foi possível atualizar a denúncia.');
             },
-            async log({ limit = 50, before = null } = {}) {
+            /** category: 'punicoes' | 'conteudo' | 'denuncias' | 'equipe' (vazio = tudo); person: parte de um @usuário. Os filtros só vão quando usados. */
+            async log({ limit = 50, before = null, category = '', person = '' } = {}) {
                 const args = { p_limit: limit };
                 if (before != null) args.p_before = before;
+                if (category && category !== 'all') args.p_category = category;
+                if (String(person || '').trim()) args.p_person = String(person).trim().slice(0, 40);
                 const rows = await ok(sb.rpc('admin_list_log', args), 'Não foi possível carregar o registro.');
                 return (rows || []).map((r) => ({
                     id: Number(r.id), at: r.created_at, actor: r.actor_name, action: r.action, target: r.target_name || '', details: r.details || {},
