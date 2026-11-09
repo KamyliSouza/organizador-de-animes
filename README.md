@@ -246,6 +246,15 @@ A biblioteca (e o perfil de quem você visita) tem três abas: **Anime** (inclui
 - **Feed e compartilhar:** o feed usa "começou a ler" e "concluiu a leitura"; o cartão de compartilhar mostra o progresso de leitura.
 - **Backup:** o `.json` exportado leva os novos campos, e backups antigos (de antes dos mangás) continuam entrando normalmente.
 
+## Botão "Nova obra" sempre à mão
+
+Quem está logada (ou usa o site no modo local) tem o botão **Nova obra** em todas as telas: **no computador** ele fica no topo, ao lado da sua foto (em telas até cerca de 1050 px vira só o ícone `+`, com o nome na dica e para o leitor de tela) e **no celular** ele é um botão flutuante logo acima da barra de baixo. Visitantes sem conta não veem o botão, nem quem está trocando a senha (`#/nova-senha`).
+
+- **Na biblioteca** ele abre o formulário de sempre (na aba em que você está) e o cartão novo aparece na hora.
+- **Nas outras telas** (Feed, Explorar, seu perfil, configurações...) o formulário abre na aba que você usou por último. Ao salvar, o aviso tem um atalho **Ver** para a biblioteca; se você está no seu próprio perfil, ele já mostra a obra nova. A obra é salva do mesmo jeito, com as mesmas regras (aviso de obra repetida, limites de texto, etc.): nenhum dado ou endereço mudou, e não há nada novo para rodar no Supabase.
+- O botão antigo do cabeçalho da biblioteca saiu (ficaria repetido). O botão **Adicionar obra** do estado vazio continua.
+- O código está em `js/ui/newWork.js` (quem abre o formulário) e `js/ui/chrome.js` (os dois botões). O botão flutuante usa o espaço logo acima da barra de baixo, mesmo com texto grande.
+
 ## Cargos e painel da equipe
 
 O site tem quatro cargos. O cargo aparece como um selo ao lado do nome (perfil, Explorar, feed, pedidos e listas de seguidores); **membros não têm selo**.
@@ -412,7 +421,7 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.20`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.21`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
 
 ## Como o código está organizado
 
@@ -426,7 +435,7 @@ js/
   domain/               regras puras: obras, temporadas, estatísticas, backup, cargos, limites de troca de foto/fundo, histórico de novidades (changelog.js)
   domain/textSafety.js  limpeza de textos, palavras proibidas e sites permitidos (as mesmas regras existem no banco)
   services/             backends (local e Supabase), sessão, busca (Jikan, AniList, TMDB)
-  ui/                   componentes: cards, filtros, modais, cartão de compartilhar, avatar, menu da conta (accountMenu.js), abas da conta, abas Anime/Mangá/Light Novel, progresso de leitura
+  ui/                   componentes: cards, filtros, modais, cartão de compartilhar, avatar, menu da conta (accountMenu.js), botão Nova obra (newWork.js), abas da conta, abas Anime/Mangá/Light Novel, progresso de leitura
   views/                telas: início, biblioteca, login, perfil, explorar, feed (atividade e pedidos), personalização, configurações, painel da equipe (admin.js)
 tools/palettes.mjs      gera css/palettes.css e as cores de css/contrast.css e confere o contraste (node tools/palettes.mjs --check)
 sql/schema.sql          tabelas, regras de segurança e funções do Supabase (pode rodar de novo a qualquer momento)

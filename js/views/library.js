@@ -11,6 +11,7 @@ import { backend, isCloud, state } from '../services/session.js';
 import { openDetailsModal, openScheduleModal, openStatsModal } from '../ui/infoModals.js';
 import { mountLibraryBrowser } from '../ui/libraryBrowser.js';
 import { openMediaForm } from '../ui/mediaFormModal.js';
+import { registerLibraryOpener } from '../ui/newWork.js';
 import { openReadProgressModal } from '../ui/readProgressModal.js';
 import { openSeasonsModal } from '../ui/seasonsModal.js';
 import { bindSectionTabs, loadSection, saveSection, sectionCounts, sectionTabsHtml } from '../ui/sectionTabs.js';
@@ -50,7 +51,6 @@ export async function mount(root) {
             <div class="page-head-actions">
                 <button type="button" class="button button-secondary" data-act="schedule">${icon('calendar', { size: 17 })} Agenda</button>
                 <button type="button" class="button button-secondary" data-act="stats">${icon('chart', { size: 17 })} Estatísticas</button>
-                <button type="button" class="button button-primary" data-act="add">${icon('plus', { size: 17 })} Nova obra</button>
             </div>
         </header>
         <div class="stack" data-banners></div>
@@ -244,6 +244,8 @@ export async function mount(root) {
 
     browser = mountLibraryBrowser(root.querySelector('[data-browser]'), { entries, section, actions, onStatusChange: () => paintTiles(), onSectionRequest: switchSection });
     const offTabs = bindSectionTabs(sectionsEl, switchSection);
+    // O botão "Nova obra" do topo (computador) e o flutuante (celular) abrem o formulário daqui enquanto a biblioteca está na tela.
+    const offNewWork = registerLibraryOpener(() => openForm(null));
 
     // Os cards com os números filtram a lista pelo status correspondente e rolam até ela.
     const offTiles = on(tiles, 'click', '[data-stat]', (_, btn) => {
@@ -256,7 +258,6 @@ export async function mount(root) {
     // --- cabeçalho e avisos ---------------------------------------------------------
     const off = on(root, 'click', '[data-act]', async (_, btn) => {
         switch (btn.dataset.act) {
-            case 'add': openForm(null); break;
             case 'stats': openStatsModal(entries, { section }); break;
             case 'schedule': openScheduleModal({ getEntries: () => entries, onIncrement: increment }); break;
             case 'copy-link': {
@@ -297,5 +298,5 @@ export async function mount(root) {
         }).catch(() => {});
     }
 
-    return () => { off(); offTiles(); offTabs(); browser.destroy(); };
+    return () => { off(); offTiles(); offTabs(); offNewWork(); browser.destroy(); };
 }

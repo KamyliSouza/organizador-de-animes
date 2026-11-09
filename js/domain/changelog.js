@@ -1,9 +1,17 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.20';
+export const SITE_VERSION = '1.21';
 
 export const CHANGELOG = [
+    {
+        version: '1.21',
+        title: '"Nova obra" sempre à mão',
+        items: [
+            'O botão "Nova obra" agora fica sempre visível: no computador, no topo, ao lado da sua foto; no celular, como um botão flutuante acima da barra de baixo.',
+            'Dá para adicionar uma obra de qualquer tela (Feed, Explorar, seu perfil, configurações). Quando você está na biblioteca, o formulário abre como sempre; nas outras telas, abre na aba que você usou por último e o aviso de sucesso tem um atalho para ver a biblioteca.',
+        ],
+    },
     {
         version: '1.20',
         title: 'Denúncias mais rápidas e justas',

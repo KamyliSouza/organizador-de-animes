@@ -12,6 +12,7 @@ import { SITE_VERSION } from '../domain/changelog.js';
 import { isStaff } from '../domain/roles.js';
 import { state, isCloud, myRole, onSessionChange, refreshSession } from '../services/session.js';
 import { accountMenuHtml, bindAccountMenu, captureAccountFocus, closeAccountMenu } from './accountMenu.js';
+import { requestNewWork, showsNewWork } from './newWork.js';
 import { openPatchNotesModal } from './patchNotesModal.js';
 
 const isActive = (path, ...prefixes) => prefixes.some((p) => (p === '/' ? path === '/' : path === p || path.startsWith(p + '/')));
@@ -59,6 +60,7 @@ function renderNav(nav) {
             <span class="nav-spacer"></span>
             <div class="nav-actions">
                 <button type="button" class="icon-button" data-theme-toggle aria-label="${dark ? 'Usar tema claro' : 'Usar tema escuro'}" title="${dark ? 'Tema claro' : 'Tema escuro'}">${icon(dark ? 'sun' : 'moon', { size: 20 })}</button>
+                ${showsNewWork(currentPath()) ? html`<button type="button" class="button button-primary new-work-top" data-new-work aria-haspopup="dialog" title="Nova obra">${icon('plus', { size: 18 })}<span class="new-work-label">Nova obra</span></button>` : ''}
                 ${cloud && user
                     ? accountMenuHtml({ profile: state.profile, user, role: myRole(), path: currentPath() })
                     : html`<span class="nav-account row" style="gap:8px;flex-wrap:nowrap">
@@ -77,6 +79,32 @@ function renderTabBar(bar) {
     const all = [...items.filter((i) => !i.desktopOnly), account].filter(Boolean);
     setHtml(bar, html`${all.map((i) => html`
         <a class="tab-link" href="${i.href}" ${i.active ? html`aria-current="page"` : ''}>${icon(i.icon, { size: 20 })}<span>${i.label}</span>${badge(i)}</a>`)}`);
+}
+
+/** Botão flutuante "Nova obra" (celular). Só é redesenhado quando aparece ou some, para o teclado não perder o foco nele. */
+let fabShown = null;
+function renderFab(region) {
+    if (!region) return;
+    const show = showsNewWork(currentPath());
+    document.body.classList.toggle('has-fab', show);
+    if (show === fabShown) return;
+    fabShown = show;
+    setHtml(region, show
+        ? html`<button type="button" class="button button-primary new-work-fab" data-new-work aria-haspopup="dialog">${icon('plus', { size: 22 })}<span class="new-work-label">Nova obra</span></button>`
+        : '');
+}
+
+/** O botão flutuante fica logo acima da barra inferior, qualquer que seja a altura dela (texto grande, tela baixa). */
+function watchFabOffset(tabBar) {
+    const sync = () => {
+        const r = tabBar.getBoundingClientRect();
+        if (!r.height) return;           // barra escondida (computador): vale o padrão do CSS
+        document.documentElement.style.setProperty('--fab-bottom', `${Math.round(window.innerHeight - r.top + 12)}px`);
+    };
+    sync();
+    window.addEventListener('resize', sync);
+    if (typeof ResizeObserver === 'function') new ResizeObserver(sync).observe(tabBar);
+    return sync;
 }
 
 function renderFooter(footer) {
@@ -109,11 +137,21 @@ function renderNotice(region) {
         </div>` : '');
 }
 
-export function mountChrome({ nav, tabBar, footer, notice }) {
-    const paint = () => { const restoreFocus = captureAccountFocus(nav); renderNav(nav); renderTabBar(tabBar); renderNotice(notice); restoreFocus(); };
+export function mountChrome({ nav, tabBar, footer, notice, fab }) {
+    const paint = () => {
+        const restoreFocus = captureAccountFocus(nav);
+        const hadNewWorkFocus = nav.contains(document.activeElement) && document.activeElement.closest('[data-new-work]');
+        renderNav(nav); renderTabBar(tabBar); renderNotice(notice); renderFab(fab);
+        restoreFocus();
+        if (hadNewWorkFocus) nav.querySelector('[data-new-work]')?.focus({ preventScroll: true });   // o redesenho não tira o teclado do botão
+        syncFab?.();
+    };
+    const syncFab = fab ? watchFabOffset(tabBar) : null;
     paint();
     renderFooter(footer);
     on(footer, 'click', '[data-patch-notes]', () => openPatchNotesModal());
+    on(nav, 'click', '[data-new-work]', () => requestNewWork());
+    if (fab) on(fab, 'click', '[data-new-work]', () => requestNewWork());
 
     // Mudou de tela: o menu da conta fecha. Um aviso de rota para a MESMA tela (acontece no começo, enquanto o site termina de abrir) só redesenha.
     let lastPath = currentPath();
