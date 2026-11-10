@@ -9,11 +9,13 @@ import { toast } from '../core/toast.js';
 import { messageOf } from '../core/errors.js';
 import { AUTO_SUSPEND_DAYS, STRIKE_LIMIT, strikeCountText } from '../domain/access.js';
 import { SITE_VERSION } from '../domain/changelog.js';
-import { isStaff } from '../domain/roles.js';
 import { state, isCloud, myRole, onSessionChange, refreshSession } from '../services/session.js';
 import { accountMenuHtml, bindAccountMenu, captureAccountFocus, closeAccountMenu } from './accountMenu.js';
 import { requestNewWork, showsNewWork } from './newWork.js';
 import { openPatchNotesModal } from './patchNotesModal.js';
+import { SECTION_EVENT, loadSection } from './sectionTabs.js';
+import { requestShortcut } from './shortcuts.js';
+import { SIDE_ID, isSideMenuOpen, setSideMenuOpen, showsSideMenu, sideMenuHtml } from './sideMenu.js';
 
 const isActive = (path, ...prefixes) => prefixes.some((p) => (p === '/' ? path === '/' : path === p || path.startsWith(p + '/')));
 
@@ -27,8 +29,7 @@ function navModel() {
     ];
     if (cloud && user) items.push({ href: '#/feed', label: 'Feed', icon: 'activity', active: isActive(path, '/feed'), badge: state.requests });
     if (cloud) items.push({ href: '#/explorar', label: 'Explorar', icon: 'compass', active: isActive(path, '/explorar', '/u') });
-    // Equipe (moderação, administração e Dona): atalho para o painel. No celular o atalho fica no menu do avatar.
-    if (cloud && user && isStaff(myRole())) items.push({ href: '#/admin', label: 'Painel', icon: 'shield', active: isActive(path, '/admin'), desktopOnly: true, admin: true });
+    // O Painel da equipe (moderação, administração e Dona) fica no menu do avatar, junto da conta (js/ui/accountMenu.js).
 
     // Quem está logada acessa perfil e configurações pelo avatar no topo (accountMenu.js); sem login ou sem conta, o atalho fica na barra inferior.
     let account = null;
@@ -50,12 +51,13 @@ function renderNav(nav) {
 
     setHtml(nav, html`
         <div class="site-nav-inner">
+            ${showsSideMenu(currentPath()) ? html`<button type="button" class="icon-button side-toggle" data-side-toggle aria-expanded="${String(isSideMenuOpen())}" aria-controls="${SIDE_ID}" aria-label="Menu lateral" title="Mostrar ou esconder o menu lateral">${icon('panelLeft', { size: 20 })}</button>` : ''}
             <a class="brand" href="#/" aria-label="${config.siteName} — início">
                 <span class="brand-mark">${brandKanji(28)}</span>
                 <span class="brand-text">${config.siteName}</span>
             </a>
             <nav class="nav-links" aria-label="Principal">
-                ${items.map((i) => html`<a class="nav-link${i.admin ? ' nav-link-admin' : ''}" href="${i.href}" ${i.admin ? html`aria-label="Painel da equipe" title="Painel da equipe"` : ''} ${i.active ? html`aria-current="page"` : ''}>${icon(i.icon, { size: 17 })}<span class="nav-text">${i.label}</span>${badge(i)}</a>`)}
+                ${items.map((i) => html`<a class="nav-link" href="${i.href}" ${i.active ? html`aria-current="page"` : ''}>${icon(i.icon, { size: 17 })}<span class="nav-text">${i.label}</span>${badge(i)}</a>`)}
             </nav>
             <span class="nav-spacer"></span>
             <div class="nav-actions">
@@ -76,7 +78,7 @@ function renderNav(nav) {
 
 function renderTabBar(bar) {
     const { items, account } = navModel();
-    const all = [...items.filter((i) => !i.desktopOnly), account].filter(Boolean);
+    const all = [...items, account].filter(Boolean);
     setHtml(bar, html`${all.map((i) => html`
         <a class="tab-link" href="${i.href}" ${i.active ? html`aria-current="page"` : ''}>${icon(i.icon, { size: 20 })}<span>${i.label}</span>${badge(i)}</a>`)}`);
 }
@@ -105,6 +107,28 @@ function watchFabOffset(tabBar) {
     window.addEventListener('resize', sync);
     if (typeof ResizeObserver === 'function') new ResizeObserver(sync).observe(tabBar);
     return sync;
+}
+
+/**
+ * Menu lateral (computador, opcional). Só é redesenhado quando muda o que ele mostra (tela, aba lembrada, pedidos para seguir, aberto/fechado),
+ * para o teclado não perder o lugar. O CSS decide se cabe na tela (só em telas largas).
+ */
+let sideKey = null;
+function renderSide(region) {
+    if (!region) return;
+    const show = showsSideMenu(currentPath()) && isSideMenuOpen();
+    document.body.classList.toggle('has-sidemenu', show);
+    const section = loadSection();
+    const { items } = navModel();
+    const key = show ? JSON.stringify([currentPath(), section, items.map((i) => [i.href, i.badge || 0])]) : '';
+    if (key === sideKey) return;
+    sideKey = key;
+    const active = document.activeElement;
+    const focusSel = active instanceof Element && region.contains(active)
+        ? (active.dataset.shortcut ? `[data-shortcut="${active.dataset.shortcut}"]` : active.getAttribute('href') ? `a.side-link[href="${active.getAttribute('href')}"]` : null)
+        : null;
+    setHtml(region, show ? sideMenuHtml({ items, section, badge }) : '');
+    if (focusSel) region.querySelector(focusSel)?.focus({ preventScroll: true });
 }
 
 function renderFooter(footer) {
@@ -137,13 +161,17 @@ function renderNotice(region) {
         </div>` : '');
 }
 
-export function mountChrome({ nav, tabBar, footer, notice, fab }) {
+export function mountChrome({ nav, tabBar, footer, notice, fab, side }) {
     const paint = () => {
         const restoreFocus = captureAccountFocus(nav);
-        const hadNewWorkFocus = nav.contains(document.activeElement) && document.activeElement.closest('[data-new-work]');
-        renderNav(nav); renderTabBar(tabBar); renderNotice(notice); renderFab(fab);
+        // O redesenho do topo não tira o teclado dos botões "Nova obra" e "Menu lateral".
+        const active = document.activeElement;
+        const keepFocus = active instanceof Element && nav.contains(active)
+            ? (active.closest('[data-new-work]') ? '[data-new-work]' : active.closest('[data-side-toggle]') ? '[data-side-toggle]' : null)
+            : null;
+        renderNav(nav); renderTabBar(tabBar); renderNotice(notice); renderFab(fab); renderSide(side);
         restoreFocus();
-        if (hadNewWorkFocus) nav.querySelector('[data-new-work]')?.focus({ preventScroll: true });   // o redesenho não tira o teclado do botão
+        if (keepFocus) nav.querySelector(keepFocus)?.focus({ preventScroll: true });
         syncFab?.();
     };
     const syncFab = fab ? watchFabOffset(tabBar) : null;
@@ -152,6 +180,9 @@ export function mountChrome({ nav, tabBar, footer, notice, fab }) {
     on(footer, 'click', '[data-patch-notes]', () => openPatchNotesModal());
     on(nav, 'click', '[data-new-work]', () => requestNewWork());
     if (fab) on(fab, 'click', '[data-new-work]', () => requestNewWork());
+    on(nav, 'click', '[data-side-toggle]', () => { setSideMenuOpen(!isSideMenuOpen()); paint(); });
+    if (side) on(side, 'click', '[data-shortcut]', (_, btn) => requestShortcut(btn.dataset.shortcut));
+    window.addEventListener(SECTION_EVENT, () => renderSide(side));     // Agenda só existe na aba Anime
 
     // Mudou de tela: o menu da conta fecha. Um aviso de rota para a MESMA tela (acontece no começo, enquanto o site termina de abrir) só redesenha.
     let lastPath = currentPath();

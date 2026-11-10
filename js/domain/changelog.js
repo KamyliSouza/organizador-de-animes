@@ -1,9 +1,18 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.22';
+export const SITE_VERSION = '1.23';
 
 export const CHANGELOG = [
+    {
+        version: '1.23',
+        title: 'Navegação mais enxuta e menu lateral',
+        items: [
+            'O topo e a barra de baixo ficam só com Biblioteca, Feed e Explorar. O Painel da equipe saiu do topo e fica no menu do avatar, junto de Meu perfil, Personalização e Configurações.',
+            'No computador, o botão ao lado da marca liga um menu lateral opcional: Biblioteca, Feed e Explorar, mais os atalhos Agenda (só na aba Anime), Favoritos e Estatísticas, que funcionam de qualquer tela. Ele vem desligado e o site lembra a sua escolha.',
+            'Em "Filtros", na biblioteca, há agora a opção "Só favoritos".',
+        ],
+    },
     {
         version: '1.22',
         title: 'Biblioteca mais limpa: abas de status e Filtros',

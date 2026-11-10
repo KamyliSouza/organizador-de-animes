@@ -78,8 +78,8 @@
 :root:not([data-contrast="high"]) [data-bg] .status-tab { background-color: var(--bg-solid); background-image: linear-gradient(var(--input-bg), var(--input-bg)); }
 :root:not([data-contrast="high"]) [data-bg] .status-tab[aria-selected="true"] { background-image: linear-gradient(var(--notice-bg), var(--notice-bg)); }
 /* menu, rodapé e barra de baixo também ficam sobre a imagem: um pouco mais firmes que o normal */
-:root:not([data-contrast="high"]) .site-bg[data-bg="blur"] ~ .site-nav, :root:not([data-contrast="high"]) .site-bg[data-bg="blur"] ~ .site-footer, :root:not([data-contrast="high"]) .site-bg[data-bg="blur"] ~ .tab-bar { background-color: color-mix(in srgb, color-mix(in srgb, var(--modal-bg) 50%, Canvas) 92%, transparent); }
-:root:not([data-contrast="high"]) .site-bg[data-bg="solid"] ~ .site-nav, :root:not([data-contrast="high"]) .site-bg[data-bg="solid"] ~ .site-footer, :root:not([data-contrast="high"]) .site-bg[data-bg="solid"] ~ .tab-bar { background-color: color-mix(in srgb, var(--modal-bg) 50%, Canvas); }
+:root:not([data-contrast="high"]) .site-bg[data-bg="blur"] ~ .site-nav, :root:not([data-contrast="high"]) .site-bg[data-bg="blur"] ~ .site-footer, :root:not([data-contrast="high"]) .site-bg[data-bg="blur"] ~ .tab-bar, :root:not([data-contrast="high"]) .site-bg[data-bg="blur"] ~ .side-region { background-color: color-mix(in srgb, color-mix(in srgb, var(--modal-bg) 50%, Canvas) 92%, transparent); }
+:root:not([data-contrast="high"]) .site-bg[data-bg="solid"] ~ .site-nav, :root:not([data-contrast="high"]) .site-bg[data-bg="solid"] ~ .site-footer, :root:not([data-contrast="high"]) .site-bg[data-bg="solid"] ~ .tab-bar, :root:not([data-contrast="high"]) .site-bg[data-bg="solid"] ~ .side-region { background-color: color-mix(in srgb, var(--modal-bg) 50%, Canvas); }
 
 /* Alto contraste: sem imagem, sem transparência */
 :root[data-contrast="high"] .site-bg { display: none; }

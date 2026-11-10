@@ -6,6 +6,7 @@ import { icon } from '../core/icons.js';
 import { DEFAULT_SECTION, SECTIONS, SECTION_KEYS, normalizeSection, sectionOf } from '../domain/entry.js';
 
 const KEY = 'kamylist_section';
+export const SECTION_EVENT = 'kamylist:section';
 export const SECTION_ICONS = { anime: 'play', manga: 'book', novel: 'bookmark' };
 
 /** Aba lembrada neste navegador (as versões antigas guardavam "watch"/"read": viram Anime/Mangá). */
@@ -14,6 +15,8 @@ export function loadSection() {
 }
 export function saveSection(section) {
     try { localStorage.setItem(KEY, section); } catch { /* ok */ }
+    // O menu lateral mostra a Agenda só na aba Anime: avisa quando a aba lembrada muda.
+    try { window.dispatchEvent(new CustomEvent(SECTION_EVENT, { detail: section })); } catch { /* ok */ }
 }
 
 /** Quantas obras há em cada seção. */

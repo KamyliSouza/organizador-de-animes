@@ -65,7 +65,7 @@ async function boot() {
         return;
     }
 
-    mountChrome({ nav: $('site-nav'), tabBar: $('tab-bar'), footer: $('site-footer'), notice: $('site-notice'), fab: $('fab-region') });
+    mountChrome({ nav: $('site-nav'), tabBar: $('tab-bar'), footer: $('site-footer'), notice: $('site-notice'), fab: $('fab-region'), side: $('side-region') });
     mountSuspensionGate();   // conta suspensa ou banida: só a tela de aviso aparece
     defineRoutes();
 

@@ -16,6 +16,7 @@ import { openReadProgressModal } from '../ui/readProgressModal.js';
 import { openSeasonsModal } from '../ui/seasonsModal.js';
 import { bindSectionTabs, loadSection, saveSection, sectionCounts, sectionTabsHtml } from '../ui/sectionTabs.js';
 import { openShareModal } from '../ui/shareModal.js';
+import { registerLibraryShortcuts } from '../ui/shortcuts.js';
 
 const dismissedKey = () => `kamylist_legacy_dismissed_${state.user?.id || 'local'}`;
 const profileLink = (username) => `${location.origin}${location.pathname}#/u/${username}`;
@@ -278,11 +279,24 @@ export async function mount(root) {
     paintHead();
     refresh();
 
+    // Atalhos do menu lateral (computador): valem aqui e, a partir de outras telas, abrem a biblioteca e cumprem o pedido.
+    const offShortcuts = registerLibraryShortcuts({
+        schedule: () => {
+            if (section !== 'anime') switchSection('anime');           // a Agenda só existe na aba Anime
+            openScheduleModal({ getEntries: () => entries, onIncrement: increment });
+        },
+        favorites: () => {
+            browser.showFavorites();
+            root.querySelector('[data-browser]')?.scrollIntoView({ block: 'start' });
+        },
+        stats: () => openStatsModal(entries, { section }),
+    });
+
     if (cloud && state.user) {
         be.meta?.schemaVersion?.().then((v) => {
             if (v !== null && v < REQUIRED_SCHEMA) { schemaOutdated = true; renderBanners(); }
         }).catch(() => {});
     }
 
-    return () => { off(); offTabs(); offNewWork(); browser.destroy(); };
+    return () => { off(); offTabs(); offNewWork(); offShortcuts(); browser.destroy(); };
 }

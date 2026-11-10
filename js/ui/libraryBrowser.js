@@ -35,7 +35,7 @@ const FILTERS_ID = 'filters-panel';
  * @param {(section:string)=>void} [opts.onSectionRequest]  chamado quando a pessoa clica numa aba que também tem a obra buscada
  */
 export function mountLibraryBrowser(root, { entries = [], readonly = false, section: initialSection = DEFAULT_SECTION, actions = {}, onStatusChange = null, onSectionRequest = null }) {
-    const filters = { status: 'all', category: 'all', sort: 'recent', query: '' };
+    const filters = { status: 'all', category: 'all', sort: 'recent', query: '', favorites: false };
     let section = normalizeSection(initialSection);
     let view = loadView();
     let all = entries;
@@ -91,13 +91,14 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, sect
                     </select>
                 </div>
             </div>
+            <label class="check-row" for="filter-favorites"><input type="checkbox" id="filter-favorites" data-filter-favorites> <span>${icon('heart', { size: 15 })} Só favoritos</span></label>
             <div class="filters-actions">
                 <button type="button" class="button button-ghost button-sm" data-filters-clear>Limpar filtros</button>
             </div>`);
     }
 
-    /** Quantos ajustes do painel Filtros estão ligados (categoria diferente de "todas" e/ou ordem diferente da padrão). */
-    const activeFilters = () => (filters.category !== 'all' ? 1 : 0) + (filters.sort !== 'recent' ? 1 : 0);
+    /** Quantos ajustes do painel Filtros estão ligados (categoria diferente de "todas", ordem diferente da padrão, só favoritos). */
+    const activeFilters = () => (filters.category !== 'all' ? 1 : 0) + (filters.sort !== 'recent' ? 1 : 0) + (filters.favorites ? 1 : 0);
 
     function syncControls() {
         for (const tab of tabsEl.querySelectorAll('[data-status]')) {
@@ -108,6 +109,8 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, sect
         results.setAttribute('aria-labelledby', `status-tab-${filters.status}`);
         root.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
         panel.querySelectorAll('select[data-filter]').forEach((sel) => { sel.value = filters[sel.dataset.filter]; });
+        const fav = panel.querySelector('[data-filter-favorites]');
+        if (fav) fav.checked = filters.favorites;
 
         const n = activeFilters();
         badge.hidden = n === 0;
@@ -144,7 +147,7 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, sect
 
         if (!list.length) {
             const empty = inSection.length === 0;
-            const narrowed = filters.status !== 'all' || filters.category !== 'all' || filters.query.trim() !== '';
+            const narrowed = filters.status !== 'all' || filters.category !== 'all' || filters.favorites || filters.query.trim() !== '';
             setHtml(results, html`
                 <div class="empty-state glass-panel">
                     ${icon('film', { size: 44 })}
@@ -195,10 +198,11 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, sect
     // Botão Filtros: abre e fecha o painel (categoria e ordem).
     offs.push(on(root, 'click', '[data-filters-toggle]', () => { filtersOpen = !filtersOpen; syncControls(); }));
     offs.push(on(panel, 'click', '[data-filters-clear]', () => {
-        filters.category = 'all'; filters.sort = 'recent';
+        filters.category = 'all'; filters.sort = 'recent'; filters.favorites = false;
         syncControls();
         renderResults();
     }));
+    offs.push(on(panel, 'change', '[data-filter-favorites]', (_, box) => { filters.favorites = box.checked; syncControls(); renderResults(); }));
     offs.push(on(panel, 'change', 'select[data-filter]', (_, s) => { filters[s.dataset.filter] = s.value; syncControls(); renderResults(); }));
 
     offs.push(on(results, 'click', '[data-goto-section]', (_, b) => onSectionRequest?.(b.dataset.gotoSection)));
@@ -236,9 +240,9 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, sect
     syncControls();
     renderResults();
 
-    /** Tira status, categoria e busca (a ordem e o modo ficam): usado por "ver na biblioteca" e pelo botão da lista vazia. */
+    /** Tira status, categoria, busca e "só favoritos" (a ordem e o modo ficam): usado por "ver na biblioteca" e pelo botão da lista vazia. */
     function clearAll() {
-        filters.status = 'all'; filters.category = 'all'; filters.query = '';
+        filters.status = 'all'; filters.category = 'all'; filters.query = ''; filters.favorites = false;
         searchInput.value = '';
         syncControls();
         renderResults();
@@ -249,12 +253,21 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, sect
     function setSection(next) {
         if (!SECTIONS[next] || next === section) return;
         section = next;
-        filters.status = 'all'; filters.category = 'all';
+        filters.status = 'all'; filters.category = 'all';          // "só favoritos" também continua (como a ordem)
         renderTabs();
         renderPanel();
         syncControls();
         renderResults();
         onStatusChange?.('all');
+    }
+
+    /** Atalho "Favoritos" do menu lateral: só as favoritas da aba atual (zera status, categoria e busca) e abre o painel para a pessoa ver e poder desligar. */
+    function showFavorites() {
+        clearAll();
+        filters.favorites = true;
+        filtersOpen = true;
+        syncControls();
+        renderResults();
     }
 
     /** Limpa os filtros e rola até a obra, destacando-a por um instante (usado em "ver na biblioteca"). */
@@ -269,6 +282,7 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, sect
 
     return {
         reveal,
+        showFavorites,
         getStatus: () => filters.status,
         setStatus,
         setSection,

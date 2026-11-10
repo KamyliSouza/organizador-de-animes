@@ -401,12 +401,13 @@ export const favoriteCount = (entries, section = null) => entries.filter((e) => 
 
 const createdMs = (e) => (e.createdAt ? Date.parse(e.createdAt) || 0 : Number(e.id) || 0);
 
-export function filterEntries(entries, { status = 'all', category = 'all', query = '', section = 'all' } = {}) {
+export function filterEntries(entries, { status = 'all', category = 'all', query = '', section = 'all', favorites = false } = {}) {
     const q = query.trim().toLowerCase();
     return entries.filter((e) => {
         if (section !== 'all' && sectionOf(e) !== normalizeSection(section)) return false;
         if (status !== 'all' && e.status !== status) return false;
         if (category !== 'all' && e.category !== category) return false;
+        if (favorites && !e.favorite) return false;
         if (!q) return true;
         return e.title.toLowerCase().includes(q) || e.tags.some((t) => t.toLowerCase().includes(q));
     });

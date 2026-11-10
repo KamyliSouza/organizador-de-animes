@@ -255,6 +255,17 @@ A tela da biblioteca (e o perfil de quem você visita) ficou com menos caixas e 
 - **Favoritos:** continuam por aba, como antes: o coração em cada obra e, no perfil, a faixa **Favoritos** com rolagem lateral.
 - O código está em `js/ui/libraryBrowser.js` (busca, Filtros e lista) e `js/ui/statusTabs.js` (abas de status e contagem); a biblioteca e o perfil usam o mesmo.
 
+## Navegação enxuta e menu lateral (computador)
+
+- **Topo e barra de baixo:** só **Biblioteca, Feed e Explorar** (com a bolinha de pedidos no Feed). O **Painel da equipe** não fica mais no topo: está no **menu do avatar**, junto de Meu perfil, Personalização, Configurações e Sair.
+- **Menu lateral (opcional):** em telas largas (a partir de 1200 px, para o conteúdo sempre ter pelo menos 960 px ao lado da coluna) há um botão **Menu lateral** ao lado da marca. Ele liga uma coluna à esquerda com **Biblioteca, Feed e Explorar** e os **atalhos**:
+  - **Agenda:** abre a agenda de lançamentos da semana (só aparece quando a aba lembrada da biblioteca é **Anime**);
+  - **Favoritos:** abre a biblioteca só com as obras favoritas da aba atual (o filtro **Só favoritos**, em **Filtros**, mostra e desliga isso);
+  - **Estatísticas:** abre as estatísticas da aba atual.
+  Os atalhos funcionam de qualquer tela: fora da biblioteca, o site abre a biblioteca e cumpre o pedido. Enquanto o menu lateral está ligado, o topo não repete Biblioteca, Feed e Explorar. O menu vem **desligado**, a escolha fica salva neste navegador, e o botão só aparece para quem tem biblioteca (conta logada ou modo local).
+- No celular nada muda: a barra de baixo continua e os botões **Agenda** e **Estatísticas** ficam no topo da biblioteca; **Só favoritos** está em **Filtros**.
+- O código está em `js/ui/sideMenu.js` (menu e preferência), `js/ui/shortcuts.js` (atalhos) e `js/ui/chrome.js` (topo).
+
 ## Botão "Nova obra" sempre à mão
 
 Quem está logada (ou usa o site no modo local) tem o botão **Nova obra** em todas as telas: **no computador** ele fica no topo, ao lado da sua foto (em telas até cerca de 1050 px vira só o ícone `+`, com o nome na dica e para o leitor de tela) e **no celular** ele é um botão flutuante logo acima da barra de baixo. Visitantes sem conta não veem o botão, nem quem está trocando a senha (`#/nova-senha`).
@@ -287,7 +298,7 @@ select id, 'owner' from auth.users where email = 'SEU_EMAIL@exemplo.com'
 on conflict (user_id) do update set role = 'owner';
 ```
 
-Recarregue o site: aparece **Painel** no menu (no celular, no menu do avatar, no canto superior direito → **Painel da equipe**).
+Recarregue o site: o **Painel da equipe** aparece no menu do avatar (canto superior direito → **Painel da equipe**), no computador e no celular.
 
 **Passar o cargo de Dona para outra pessoa** (só pode haver uma): rode os dois comandos juntos. A conta nova precisa existir antes. A Dona não consegue excluir a própria conta pelo site; passe o cargo antes.
 
@@ -430,7 +441,7 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.22`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.23`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
 
 ## Como o código está organizado
 
@@ -444,7 +455,7 @@ js/
   domain/               regras puras: obras, temporadas, estatísticas, backup, cargos, limites de troca de foto/fundo, histórico de novidades (changelog.js)
   domain/textSafety.js  limpeza de textos, palavras proibidas e sites permitidos (as mesmas regras existem no banco)
   services/             backends (local e Supabase), sessão, busca (Jikan, AniList, TMDB)
-  ui/                   componentes: cards, filtros, modais, cartão de compartilhar, avatar, menu da conta (accountMenu.js), botão Nova obra (newWork.js), abas da conta, abas Anime/Mangá/Light Novel e de status (statusTabs.js), progresso de leitura
+  ui/                   componentes: cards, filtros, modais, cartão de compartilhar, avatar, menu da conta (accountMenu.js), botão Nova obra (newWork.js), menu lateral (sideMenu.js) e seus atalhos (shortcuts.js), abas da conta, abas Anime/Mangá/Light Novel e de status (statusTabs.js), progresso de leitura
   views/                telas: início, biblioteca, login, perfil, explorar, feed (atividade e pedidos), personalização, configurações, painel da equipe (admin.js)
 tools/palettes.mjs      gera css/palettes.css e as cores de css/contrast.css e confere o contraste (node tools/palettes.mjs --check)
 sql/schema.sql          tabelas, regras de segurança e funções do Supabase (pode rodar de novo a qualquer momento)

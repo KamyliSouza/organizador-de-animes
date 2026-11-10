@@ -216,11 +216,49 @@ html:not(.js) .skip-link { display: none; }
     .nav-links { margin-left: 2px; }
     .nav-link { padding: 9px 11px; gap: 6px; }
 }
-@media (max-width: 60em) and (min-width: 45.0625em) {
-    /* Equipe: o atalho do painel vira só o ícone (nome na dica e no aria-label) para o menu caber nesta faixa */
-    .nav-link-admin .nav-text { display: none; }
-    .nav-link-admin { padding-inline: 10px; }
+
+/* ---------------------------------------------------------
+   Menu lateral (computador, opcional; js/ui/sideMenu.js)
+   Só existe em telas largas: 75em (1200px com o texto normal; cresce junto com o tamanho do texto). Com a coluna de 15rem sobram
+   pelo menos 960px para o conteúdo (as telas usam 3 colunas a partir de 900px, e a 1152px os cards ficavam 5px curtos para o botão Temporadas). Ligado, o menu empurra o conteúdo
+   para a direita e o topo deixa de repetir Biblioteca, Feed e Explorar.
+   --------------------------------------------------------- */
+.side-region, .icon-button.side-toggle { display: none; }
+.side-toggle[aria-expanded="true"] { color: var(--primary-text); background: var(--notice-bg); }
+@media (min-width: 75em) {
+    body { --side-width: 15rem; }
+    .icon-button.side-toggle { display: inline-flex; }
+    body.has-sidemenu { padding-left: var(--side-width); }
+    body.has-sidemenu.is-suspended { padding-left: 0; }
+    body.has-sidemenu .side-region {
+        display: block; position: fixed; z-index: 900;
+        top: var(--nav-height); bottom: 0; left: 0; width: var(--side-width);
+        overflow-y: auto; overscroll-behavior: contain;
+        padding: 16px 12px 24px;
+        background: var(--nav-bg);
+        border-right: 1px solid var(--card-border);
+        backdrop-filter: blur(var(--blur-card));
+        -webkit-backdrop-filter: blur(var(--blur-card));
+    }
+    body.has-sidemenu .side-region:empty { display: none; }
+    body.has-sidemenu .nav-links { display: none; }
+    body.has-sidemenu .site-nav-inner { width: calc(100% - 28px); }
 }
+.side-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.side-caption { margin: 20px 14px 6px; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--subtitle-color); }
+.side-link {
+    display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; min-height: 44px;
+    padding: 10px 14px;
+    font: inherit; font-size: .95rem; font-weight: 800; line-height: 1.25; text-align: left; text-decoration: none;
+    color: var(--text-color); background: transparent; border: 0; border-radius: 14px; cursor: pointer;
+    transition: background-color .18s ease, color .18s ease;
+}
+.side-link:hover { background: var(--notice-bg); color: var(--primary-text); }
+.side-link[aria-current="page"] { background: var(--notice-bg); color: var(--primary-text); }
+.side-link:focus-visible { outline: 3px solid var(--primary-color); outline-offset: 2px; }
+.side-link .icon { flex: 0 0 auto; }
+.side-text { min-width: 0; overflow-wrap: anywhere; }
+.side-link .nav-badge { margin-left: auto; flex: 0 0 auto; }
 
 /* ---------------------------------------------------------
    Menu da conta (avatar no canto superior direito; js/ui/accountMenu.js)
