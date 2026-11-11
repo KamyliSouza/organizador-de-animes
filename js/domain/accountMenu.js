@@ -12,8 +12,11 @@ export function accountMenuItems({ username, role, path }) {
     const here = String(path || '/');
     const items = [];
     if (username) items.push({ id: 'profile', href: `#/u/${username}`, label: 'Meu perfil', icon: 'user', current: same(here, `/u/${username}`) });
-    items.push({ id: 'customize', href: '#/configuracoes', label: 'Personalização', icon: 'sparkles', current: here === '/configuracoes' });
-    items.push({ id: 'settings', href: '#/configuracoes/conta', label: 'Configurações', icon: 'sliders', current: here === '/configuracoes/conta' });
+    // Personalização é um atalho para o tema de mesmo nome; "Configurações" é o índice (e fica marcado em qualquer outro tema).
+    const inSettings = here === '/configuracoes' || here.startsWith('/configuracoes/');
+    const inCustomize = here === '/configuracoes/personalizacao';
+    items.push({ id: 'customize', href: '#/configuracoes/personalizacao', label: 'Personalização', icon: 'sparkles', current: inCustomize });
+    items.push({ id: 'settings', href: '#/configuracoes', label: 'Configurações', icon: 'sliders', current: inSettings && !inCustomize });
     if (isStaff(role)) items.push({ id: 'admin', href: '#/admin', label: 'Painel da equipe', icon: 'shield', current: here === '/admin' || here.startsWith('/admin/') });
     return items;
 }

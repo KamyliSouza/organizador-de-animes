@@ -1,9 +1,18 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.23';
+export const SITE_VERSION = '1.24';
 
 export const CHANGELOG = [
+    {
+        version: '1.24',
+        title: 'Configurações organizadas por tema',
+        items: [
+            'As Configurações agora são divididas em cinco temas: Perfil e foto, Personalização (cores, fundo do perfil e alto contraste), Privacidade, Dados e backup e Conta. Cada tema tem o seu endereço e o seu botão de salvar.',
+            'No computador, a lista de temas fica ao lado. No celular, as Configurações abrem como uma lista de cartões, e dentro de cada tema há o botão "Todas as configurações" para voltar.',
+            'Excluir a conta ficou no tema Conta, na Zona de perigo. Os endereços antigos continuam funcionando. Se você tinha algo escrito e não salvo, o site ainda avisa antes de trocar de tema.',
+        ],
+    },
     {
         version: '1.23',
         title: 'Navegação mais enxuta e menu lateral',

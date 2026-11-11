@@ -56,7 +56,7 @@ export function mount(root) {
         </header>
         <div data-results aria-live="polite"></div>
         ${state.user && state.profile && !state.profile.isPublic ? html`
-            <div class="notice-box">${icon('lock')}<div>Seu perfil está privado e não aparece aqui. <a href="#/configuracoes/conta">Tornar público</a></div></div>` : ''}
+            <div class="notice-box">${icon('lock')}<div>Seu perfil está privado e não aparece aqui. <a href="#/configuracoes/privacidade">Tornar público</a></div></div>` : ''}
         ${!state.user ? html`<div class="notice-box">${icon('info')}<div><a href="#/criar-conta">Crie sua conta</a> para ter seu próprio perfil e aparecer aqui.</div></div>` : ''}`);
 
     const results = root.querySelector('[data-results]');

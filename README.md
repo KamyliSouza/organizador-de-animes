@@ -59,7 +59,7 @@ Em **Authentication → Sign In / Providers → Email** você escolhe:
 2. No GitHub: **Settings → Pages → Build and deployment → Source: Deploy from a branch**, escolha `main` e a pasta `/ (root)`.
 3. Em um ou dois minutos o site estará em `https://SEU_USUARIO.github.io/NOME_DO_REPO/`.
 
-Pronto: crie sua conta, clique no seu avatar (canto superior direito) e abra **Configurações**, ative **Perfil público** e mande o link para quem quiser.
+Pronto: crie sua conta, clique no seu avatar (canto superior direito), abra **Configurações → Privacidade**, ative **Perfil público** e mande o link para quem quiser.
 
 ---
 
@@ -100,16 +100,30 @@ python3 -m http.server 8000
 
 ---
 
-## Conta: Personalização e Configurações
+## Conta: Configurações por tema
 
-Clicando no **seu avatar**, no canto superior direito (em qualquer tamanho de tela), abre o **menu da conta**: **Meu perfil** (a sua página pública), **Personalização**, **Configurações**, **Painel da equipe** (só para quem tem cargo) e **Sair da conta**. Ele abre com Enter, Espaço ou seta para baixo, anda com as setas e fecha com Esc. A barra inferior do celular não tem mais o botão Perfil (sem login, ou no modo sem conta, ela continua com **Entrar** / **Ajustes**). A conta tem duas abas, cada uma com o próprio botão de salvar (o que foi digitado numa aba não é salvo pela outra, e o site avisa antes de descartar alterações ao trocar de aba):
+Clicando no **seu avatar**, no canto superior direito (em qualquer tamanho de tela), abre o **menu da conta**: **Meu perfil** (a sua página pública), **Personalização** (atalho para o tema de mesmo nome), **Configurações**, **Painel da equipe** (só para quem tem cargo) e **Sair da conta**. Ele abre com Enter, Espaço ou seta para baixo, anda com as setas e fecha com Esc. A barra inferior do celular não tem mais o botão Perfil (sem login, ou no modo sem conta, ela continua com **Entrar** / **Ajustes**).
 
-- **Personalização** (`#/configuracoes`): o quadro **Seu perfil** (foto de perfil à esquerda; nome de exibição, nome de usuário e "sobre você" à direita) e, logo abaixo, os quadros **Cores** (veja "Cores do perfil") e **Acessibilidade** (veja "Acessibilidade: alto contraste"). No celular e em telas estreitas tudo vira uma coluna só.
-- **Configurações** (`#/configuracoes/conta`): privacidade (perfil público, mostrar anotações), e-mail e senha, sair da conta, backup e a zona de perigo (excluir a conta).
+As **Configurações** são divididas em cinco **temas**, cada um com o próprio endereço:
+
+- **Perfil e foto** (`#/configuracoes/perfil`): foto de perfil, nome de exibição, nome de usuário e "sobre você". Botão **Salvar perfil**.
+- **Personalização** (`#/configuracoes/personalizacao`): **Cores** (veja "Cores do perfil"), **Fundo do perfil** (veja o capítulo de mesmo nome) e **Acessibilidade** (veja "Acessibilidade: alto contraste"). Tudo salva na hora.
+- **Privacidade** (`#/configuracoes/privacidade`): perfil público, mostrar anotações e quais abas (Anime, Mangá, Light Novel) outras pessoas veem. Botão **Salvar privacidade**.
+- **Dados e backup** (`#/configuracoes/dados`): exportar e importar a biblioteca.
+- **Conta** (`#/configuracoes/conta`): e-mail, trocar a senha, sair da conta e, separada, a **Zona de perigo** (excluir a conta).
+
+Como a tela se comporta:
+
+- **No computador** (a partir de 900 px) a lista de temas fica **ao lado**, fixa ao rolar, e o tema aberto ocupa o resto. `#/configuracoes` já abre o primeiro tema.
+- **No celular** `#/configuracoes` é o **índice**: um cartão por tema, com uma frase explicando cada um. Ao abrir um tema, a lista some e aparece **Todas as configurações** para voltar (o botão Voltar do navegador também leva ao índice). Girar o aparelho ou alargar a janela no índice abre o primeiro tema.
+- Os endereços antigos continuam valendo: `#/configuracoes` abre o índice (ou o primeiro tema, no computador) e `#/configuracoes/conta` abre o tema **Conta**. A privacidade, que antes ficava em `#/configuracoes/conta`, agora tem endereço próprio (`#/configuracoes/privacidade`).
+- Cada tema tem o próprio botão de salvar: o que foi digitado num tema não é salvo por outro, e o site **avisa antes de descartar** alterações (nome, bio, usuário, privacidade, senha digitada) ao trocar de tema ou voltar ao índice.
+- **Sem login** (modo local) continua uma tela só, **Ajustes**, com Cores, Alto contraste e backup; os endereços dos temas voltam para ela.
+- O código: `js/views/settings.js` (a tela e a escolha do tema), `js/domain/settingsThemes.js` (temas e endereços), `js/ui/settingsShell.js` (lista, "Todas as configurações" e o aviso de descartar) e um arquivo por tema em `js/ui/` (`settingsProfile.js`, `settingsAppearance.js`, `settingsPrivacy.js`, `settingsAccount.js`; o de dados usa `dataPanel.js`).
 
 ## Foto de perfil
 
-- Em **Personalização → Foto de perfil → Escolher/Trocar foto**. Aceita JPG, PNG, WebP e GIF de até 12 MB.
+- Em **Configurações → Perfil e foto → Escolher/Trocar foto**. Aceita JPG, PNG, WebP e GIF de até 12 MB.
 - Ao escolher o arquivo abre a janela **Ajustar foto**: a pessoa enquadra a imagem dentro de um **círculo** (arrastar com o mouse ou o dedo, pinça com dois dedos, roda do mouse, controle de **Zoom** de 100% a 400%, e pelo teclado: setas movem a foto, `+` e `-` dão zoom, `0` e o botão **Centralizar** voltam ao início). A parte dentro do círculo é a que aparece no perfil. **Cancelar**, **Esc** ou o X não enviam nada. Só depois de **Usar esta foto** o arquivo é preparado e enviado.
 - O **navegador** corta o quadrado escolhido (sem mexer, é o quadrado central) e reduz para **128×128** em WebP (JPEG nos navegadores sem suporte a WebP), geralmente com **3 a 10 KB**. Só essa versão pequena é enviada. O servidor ainda recusa qualquer arquivo acima de **64 KB** ou que não seja WebP/JPEG.
 - Fica uma **única foto por conta**: o arquivo se chama como o ID da conta, então trocar **sobrescreve** a anterior (nada de imagens antigas acumulando). **Remover foto** e **Excluir a conta** apagam o arquivo de verdade do Storage.
@@ -130,7 +144,7 @@ Se você apagar usuários direto no painel do Supabase (*Authentication → User
 
 ## Fundo do perfil
 
-Em **Personalização → Fundo do perfil** a pessoa escolhe uma imagem que aparece **atrás do site inteiro** (biblioteca, feed, Explorar, configurações, painel...) **enquanto ela estiver com login**, exatamente como as cores. Ao abrir o perfil de **outra pessoa** (`#/u/nome`), a página usa o fundo dela enquanto você estiver ali (se ela não tem fundo, a página fica sem imagem); ao sair do perfil, volta o seu. Sem login, o visitante só vê imagem de fundo dentro de um perfil que tenha. Ao sair da conta, a imagem some na hora. O fundo é uma camada única do site (`js/core/siteBackground.js`) e a chave "Desfoque" muda o site todo na hora, antes mesmo de salvar.
+Em **Configurações → Personalização → Fundo do perfil** a pessoa escolhe uma imagem que aparece **atrás do site inteiro** (biblioteca, feed, Explorar, configurações, painel...) **enquanto ela estiver com login**, exatamente como as cores. Ao abrir o perfil de **outra pessoa** (`#/u/nome`), a página usa o fundo dela enquanto você estiver ali (se ela não tem fundo, a página fica sem imagem); ao sair do perfil, volta o seu. Sem login, o visitante só vê imagem de fundo dentro de um perfil que tenha. Ao sair da conta, a imagem some na hora. O fundo é uma camada única do site (`js/core/siteBackground.js`) e a chave "Desfoque" muda o site todo na hora, antes mesmo de salvar.
 
 - **Envio:** JPG, PNG, WebP ou GIF de até **20 MB**. O **navegador** reduz a imagem (no máximo **1600 px** no lado maior, sem ampliar) e a converte para **WebP** antes de enviar (JPEG nos navegadores sem suporte a WebP), geralmente com **60 a 200 KB**. Se a imagem não couber em 360 KB, o site baixa a qualidade e, se for preciso, as dimensões. O servidor ainda recusa qualquer arquivo acima de **384 KB** ou que não seja WebP/JPEG. Depois do envio, a tela mostra o tamanho final e o da imagem original.
 - **Uma imagem por conta:** o arquivo (bucket público `backgrounds`) se chama como o ID da conta, então trocar **sobrescreve** a anterior. **Remover fundo** apaga o arquivo. O número da versão (`bg_v`) vai no endereço da imagem, então um fundo trocado aparece na hora.
@@ -151,8 +165,8 @@ Para ninguém ficar trocando a foto ou o fundo sem parar (para fugir de denúnci
 - **No máximo 10 trocas nas últimas 24 horas**, somando foto e fundo (janela móvel: a vaga volta 24 h depois da troca).
 - **Remover** a foto ou o fundo não conta como troca. Uma tentativa recusada também não gasta troca.
 - Como o limite fica no próprio armazenamento (gatilho em `storage.objects`), vale também para quem tentar enviar direto à API, sem passar pelo site. Trocas feitas pelo painel do Supabase ou por rotinas do servidor (sem login) não são limitadas.
-- **Quem tem cargo não tem limite:** Dona, Administração e Moderação trocam foto e fundo sem espera e sem teto por dia, e essas trocas nem são registradas. Ao perder o cargo, os limites passam a valer na hora. No painel Foto/Fundo da Personalização aparece o aviso "Seu cargo na equipe não tem limite de trocas de foto e fundo". (Função `media_exempt()` no `sql/schema.sql`; exige a versão 13 do banco.)
-- Na tela (Personalização), cada painel mostra "Trocas de foto e fundo nas últimas 24 horas: X de 10". Durante a espera o botão fica travado com a contagem regressiva ("Espere 17 s para trocar a foto de novo") e libera sozinho; no limite do dia a mensagem diz em quanto tempo libera. O site também confere **antes** de abrir o recorte ou converter a imagem, para você não perder tempo preparando algo que seria recusado.
+- **Quem tem cargo não tem limite:** Dona, Administração e Moderação trocam foto e fundo sem espera e sem teto por dia, e essas trocas nem são registradas. Ao perder o cargo, os limites passam a valer na hora. Nos quadros da foto (Perfil e foto) e do fundo (Personalização) aparece o aviso "Seu cargo na equipe não tem limite de trocas de foto e fundo". (Função `media_exempt()` no `sql/schema.sql`; exige a versão 13 do banco.)
+- Na tela (Perfil e foto e Personalização), cada quadro mostra "Trocas de foto e fundo nas últimas 24 horas: X de 10". Durante a espera o botão fica travado com a contagem regressiva ("Espere 17 s para trocar a foto de novo") e libera sozinho; no limite do dia a mensagem diz em quanto tempo libera. O site também confere **antes** de abrir o recorte ou converter a imagem, para você não perder tempo preparando algo que seria recusado.
 - **Mudar os números:** edite a função `media_limits()` no fim do `sql/schema.sql` (hoje `select 30, 10`: segundos de espera e trocas por dia) e rode o SQL de novo. O site lê os números do banco.
 - Se o Supabase não deixar o SQL Editor criar o gatilho no armazenamento, o script **não para**: aparece o aviso "não foi possível criar o gatilho de limites no armazenamento" no resultado e os limites deixam de valer para envios diretos à API (o resto do site funciona). Nesse caso, avise para ver outra forma de ligar o gatilho.
 
@@ -163,7 +177,7 @@ Para ninguém ficar trocando a foto ou o fundo sem parar (para fugir de denúnci
 - As **anotações** (diário) continuam só para quem criou a conta, mesmo com o perfil público. Para mostrá-las, ative **Mostrar minhas anotações**. Isso é garantido no banco, não só na tela.
 - Quem não entrou na conta pode ver perfis públicos, mas não consegue ler nem editar nada além disso.
 - Trocar o nome de usuário muda o link do perfil (o antigo deixa de funcionar).
-- **Excluir a conta:** em **Perfil → Configurações → Zona de perigo**. É preciso digitar o nome de usuário para confirmar. Apaga a conta, o perfil, a foto, as obras e os vínculos de seguir, para sempre (exporte um backup antes se quiser guardar a lista). O link do perfil deixa de existir e o nome de usuário volta a ficar livre.
+- **Excluir a conta:** em **Configurações → Conta → Zona de perigo**. É preciso digitar o nome de usuário para confirmar. Apaga a conta, o perfil, a foto, as obras e os vínculos de seguir, para sempre (exporte um backup antes se quiser guardar a lista). O link do perfil deixa de existir e o nome de usuário volta a ficar livre.
 
 ## Seguir pessoas
 
@@ -206,7 +220,7 @@ Ao adicionar ou editar uma obra existem dois botões, **Minha análise** e **Ano
 
 ## Cores do perfil
 
-Em **Perfil → Personalização → Cores** cada pessoa escolhe uma entre 8 combinações: Ameixa (padrão), Oceano, Floresta, Pôr do sol, Cereja, Índigo, Strong Violet (violeta intenso, base `#7F29C5`) e Grafite. A escolha é salva na hora. (O **Alto contraste** deixou de ser uma cor de perfil e virou uma opção de acessibilidade própria, logo abaixo desta lista: veja "Acessibilidade: alto contraste".)
+Em **Configurações → Personalização → Cores** cada pessoa escolhe uma entre 8 combinações: Ameixa (padrão), Oceano, Floresta, Pôr do sol, Cereja, Índigo, Strong Violet (violeta intenso, base `#7F29C5`) e Grafite. A escolha é salva na hora. (O **Alto contraste** deixou de ser uma cor de perfil e virou uma opção de acessibilidade própria, logo abaixo desta lista: veja "Acessibilidade: alto contraste".)
 
 - **Para quem escolheu:** a combinação vale para o site inteiro (nos temas claro e escuro) sempre que a pessoa estiver com a sessão iniciada, em qualquer aparelho.
 - **Para quem visita:** ao abrir o perfil de outra pessoa (com ou sem login, público ou privado ainda trancado), a página usa as cores dela. Ao sair do perfil, volta para as cores de quem está visitando.
@@ -217,7 +231,7 @@ Em **Perfil → Personalização → Cores** cada pessoa escolhe uma entre 8 com
 
 ## Acessibilidade: alto contraste
 
-Em **Personalização → Acessibilidade** (no modo local, em **Ajustes**) há a chave **Alto contraste**: preto e branco no tema claro, preto e amarelo no tema escuro, bordas firmes, fundos opacos (sem vidro fosco nem brilhos), contornos de foco de 4 px e links sublinhados. Todas as cores passam no nível **AAA** (texto 7:1, componentes 4,5:1).
+Em **Configurações → Personalização → Acessibilidade** (no modo local, em **Ajustes**) há a chave **Alto contraste**: preto e branco no tema claro, preto e amarelo no tema escuro, bordas firmes, fundos opacos (sem vidro fosco nem brilhos), contornos de foco de 4 px e links sublinhados. Todas as cores passam no nível **AAA** (texto 7:1, componentes 4,5:1).
 
 - **É uma opção só de quem a liga.** Ela fica guardada **na conta** (tabela privada `user_prefs`, que só a própria pessoa lê e altera — não fica na tabela de perfis, que qualquer pessoa consegue ler) e vale em qualquer aparelho em que ela entrar. Ninguém mais a vê: o perfil público da pessoa não leva a opção, e quem visita o perfil dela continua com o próprio visual. O contrário também vale: o alto contraste de quem visita fica por cima das cores do perfil visitado.
 - **Vale por cima de tudo:** do tema claro/escuro, do "automático" do sistema e de qualquer combinação de cores (as amostras do seletor de cores continuam mostrando as cores reais de cada uma).
@@ -418,7 +432,7 @@ Se mesmo assim a capa não puder entrar, o cartão sai sem ela e mostra um aviso
 
 ## Trazer a lista da versão antiga
 
-- **Do mesmo navegador:** ao entrar pela primeira vez, a biblioteca avisa se encontrar obras salvas da versão antiga e oferece **Importar**. Também fica em **Seus dados**, na tela de configurações da conta (avatar no canto superior direito → **Configurações**).
+- **Do mesmo navegador:** ao entrar pela primeira vez, a biblioteca avisa se encontrar obras salvas da versão antiga e oferece **Importar**. Também fica em **Seus dados**, em **Configurações → Dados e backup** (avatar no canto superior direito → **Configurações**).
 - **De outro navegador/computador:** na versão antiga, exporte o backup; aqui use **Importar backup** e escolha **Adicionar** (mantém o que você já tem) ou **Substituir tudo**.
 - **Exportar** gera um arquivo `.json` com toda a sua lista, bom para guardar uma cópia. Backups antigos entram normalmente (as notas de 1 a 5 são convertidas para a escala nova).
 
@@ -441,7 +455,7 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.23`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.24`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
 
 ## Como o código está organizado
 
@@ -456,7 +470,7 @@ js/
   domain/textSafety.js  limpeza de textos, palavras proibidas e sites permitidos (as mesmas regras existem no banco)
   services/             backends (local e Supabase), sessão, busca (Jikan, AniList, TMDB)
   ui/                   componentes: cards, filtros, modais, cartão de compartilhar, avatar, menu da conta (accountMenu.js), botão Nova obra (newWork.js), menu lateral (sideMenu.js) e seus atalhos (shortcuts.js), abas da conta, abas Anime/Mangá/Light Novel e de status (statusTabs.js), progresso de leitura
-  views/                telas: início, biblioteca, login, perfil, explorar, feed (atividade e pedidos), personalização, configurações, painel da equipe (admin.js)
+  views/                telas: início, biblioteca, login, perfil, explorar, feed (atividade e pedidos), configurações por tema (settings.js, com um arquivo por tema em ui/settings*.js), painel da equipe (admin.js)
 tools/palettes.mjs      gera css/palettes.css e as cores de css/contrast.css e confere o contraste (node tools/palettes.mjs --check)
 sql/schema.sql          tabelas, regras de segurança e funções do Supabase (pode rodar de novo a qualquer momento)
 ```

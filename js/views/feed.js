@@ -197,7 +197,7 @@ export function mount(root, ctx) {
             ? html`<ul class="person-list request-list glass-panel">${list.map(requestRow)}</ul>`
             : html`<div class="glass-panel empty-state">${icon('userCheck', { size: 44 })}<h3>Nenhum pedido pendente</h3>
                 <p>Quando alguém pedir para seguir o seu perfil privado, o pedido aparece aqui e um número aparece no menu "Feed". Perfis públicos não precisam de aprovação.</p>
-                ${state.profile && !state.profile.isPublic ? '' : html`<a class="button button-secondary" href="#/configuracoes/conta">${icon('lock', { size: 17 })} Tornar o perfil privado</a>`}</div>`);
+                ${state.profile && !state.profile.isPublic ? '' : html`<a class="button button-secondary" href="#/configuracoes/privacidade">${icon('lock', { size: 17 })} Tornar o perfil privado</a>`}</div>`);
     };
 
     setHtml(body, html`<div class="center muted" style="padding:40px 0">${spinner(26)}</div>`);

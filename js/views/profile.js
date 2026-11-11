@@ -119,7 +119,7 @@ export async function mount(root, ctx) {
         ${own ? html`<div class="notice-box">${icon(profile.isPublic ? 'globe' : 'lock')}<div>
             <strong>Prévia do seu perfil.</strong> ${profile.isPublic ? 'É assim que outras pessoas veem.' : 'Ele está privado: só quem você aprovar vê a biblioteca.'}
             ${hiddenTabs.length ? html`<span data-hidden-tabs>Abas escondidas de outras pessoas: ${hiddenTabs.join(', ')}.</span> ` : ''}
-            <a href="#/configuracoes">Editar perfil</a> · <a href="#/configuracoes/conta">Privacidade</a></div></div>` : ''}
+            <a href="#/configuracoes/perfil">Editar perfil</a> · <a href="#/configuracoes/privacidade">Privacidade</a></div></div>` : ''}
         <header class="profile-head glass-panel">
             ${avatar(profile.displayName || profile.username, 84, avatarSrc(profile))}
             <div class="profile-info">

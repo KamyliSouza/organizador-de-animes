@@ -116,7 +116,7 @@ export async function mount(root) {
             } else {
                 parts.push(html`<div class="notice-box">${icon('lock')}<div>
                     <strong>Seu perfil está privado.</strong> Só você vê estas obras. Para outras pessoas verem, ative o perfil público em
-                    <a href="#/configuracoes/conta">Configurações → Privacidade</a>.
+                    <a href="#/configuracoes/privacidade">Configurações → Privacidade</a>.
                 </div></div>`);
             }
         }

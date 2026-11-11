@@ -5,6 +5,7 @@ import { icon } from './core/icons.js';
 import { navigate, onRouteChange, refresh, route, scrollToTop, setNotFound, start } from './core/router.js';
 import { currentTheme } from './core/theme.js';
 import { rankOf } from './domain/roles.js';
+import { SETTINGS_ROOT, SETTINGS_THEMES } from './domain/settingsThemes.js';
 import { initSession, isCloud, myRole, onSessionChange, refreshRequests, state } from './services/session.js';
 import { mountChrome } from './ui/chrome.js';
 import { mountSuspensionGate } from './ui/suspendedScreen.js';
@@ -32,8 +33,9 @@ function defineRoutes() {
     route('/u/:username', () => import('./views/profile.js'), { name: 'profile', title: 'Perfil' });
     route('/feed', () => import('./views/feed.js'), { name: 'feed', title: 'Feed', guard: onlyMembers });
     route('/feed/pedidos', () => import('./views/feed.js'), { name: 'feed-requests', title: 'Pedidos para seguir', guard: onlyMembers });
-    route('/configuracoes', () => import('./views/settings.js'), { name: 'settings', title: 'Personalização', guard: onlyMembers });
-    route('/configuracoes/conta', () => import('./views/settingsAccount.js'), { name: 'settings-account', title: 'Configurações', guard: onlyMembers });
+    // Configurações: o índice e um endereço por tema (js/domain/settingsThemes.js); tudo na mesma tela.
+    route(SETTINGS_ROOT, () => import('./views/settings.js'), { name: 'settings', title: 'Configurações', guard: onlyMembers });
+    for (const t of SETTINGS_THEMES) route(t.path, () => import('./views/settings.js'), { name: `settings-${t.id}`, title: t.label, guard: onlyMembers });
     route('/admin', () => import('./views/admin.js'), { name: 'admin', title: 'Painel da equipe', guard: staffRank(1) });
     route('/admin/denuncias', () => import('./views/admin.js'), { name: 'admin-reports', title: 'Denúncias', guard: staffRank(1) });
     route('/admin/registro', () => import('./views/admin.js'), { name: 'admin-log', title: 'Registro de ações', guard: staffRank(1) });
