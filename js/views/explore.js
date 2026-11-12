@@ -3,6 +3,7 @@ import { debounce, html, setHtml } from '../core/dom.js';
 import { messageOf } from '../core/errors.js';
 import { icon, spinner } from '../core/icons.js';
 import { SECTION_KEYS } from '../domain/entry.js';
+import { cleanProfileQuery } from '../domain/profileSearch.js';
 import { backend, isCloud, state } from '../services/session.js';
 import { avatar, avatarSrc } from '../ui/avatar.js';
 import { roleBadge } from '../ui/roleBadge.js';
@@ -15,9 +16,11 @@ const typeLine = (p, key) => {
     const t = p.types?.[key] || { total: 0, active: 0, completed: 0 };
     return html`<li class="type-line" data-type="${key}">
         <span class="type-name">${TYPE_NAMES[key]}</span>
-        <span><b>${t.total}</b> total</span>
-        <span><b>${t.active}</b> ${t.active === 1 ? 'ativa' : 'ativas'}</span>
-        <span><b>${t.completed}</b> ${t.completed === 1 ? 'concluída' : 'concluídas'}</span>
+        <span class="type-counts">
+            <span><b>${t.total}</b> total</span>
+            <span><b>${t.active}</b> ${t.active === 1 ? 'ativa' : 'ativas'}</span>
+            <span><b>${t.completed}</b> ${t.completed === 1 ? 'concluída' : 'concluídas'}</span>
+        </span>
     </li>`;
 };
 
@@ -81,7 +84,7 @@ export function mount(root) {
         }
     }
 
-    const search = debounce((value) => load(value.trim()), 300);
+    const search = debounce((value) => load(cleanProfileQuery(value)), 300);
     root.querySelector('[data-search]').addEventListener('input', (e) => search(e.target.value));
     load('');
 

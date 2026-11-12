@@ -100,6 +100,32 @@ python3 -m http.server 8000
 
 ---
 
+## Mapa do site
+
+Um resumo de **onde fica cada coisa** (cada assunto tem a sua seção logo abaixo). O site funciona de dois jeitos: **com o Supabase** (login, perfis, Explorar, Feed e painel da equipe) ou **no modo local** (só a biblioteca e os Ajustes, salvos no navegador).
+
+| Endereço | O que abre | Quem entra |
+| --- | --- | --- |
+| `#/` | Biblioteca (com login ou no modo local) ou a página inicial (visitante) | todo mundo |
+| `#/entrar`, `#/criar-conta`, `#/recuperar` | Entrar, criar conta e "esqueci a senha" | só visitantes (quem já entrou volta para a biblioteca) |
+| `#/nova-senha` | Trocar a senha (link do e-mail) | quem entrou |
+| `#/explorar` | Perfis públicos, com busca por nome ou @usuário | todo mundo (precisa do Supabase) |
+| `#/u/usuario` | Perfil público; no seu, é a prévia de como os outros veem | todo mundo (perfil privado fica trancado) |
+| `#/feed` e `#/feed/pedidos` | Atividade de quem você segue e pedidos para seguir | quem entrou |
+| `#/configuracoes` e um endereço por tema: `/perfil`, `/personalizacao`, `/privacidade`, `/dados`, `/conta` | Configurações (no modo local: Ajustes, numa tela só) | quem entrou |
+| `#/admin`, `#/admin/denuncias`, `#/admin/registro` | Painel da equipe: Membros, Denúncias e Registro | moderação, administração e Dona |
+| `#/admin/configuracoes` | Painel da equipe, aba Site (cadastros, aviso, palavras proibidas, sites permitidos) | administração e Dona |
+| qualquer outro | "Página não encontrada", com o botão de voltar ao início | todo mundo |
+
+- **Em todas as telas:** barra superior com Biblioteca, Feed e Explorar (a bolinha do Feed conta os pedidos para seguir), botão **Nova obra**, botão de tema claro/escuro e o menu do avatar (Meu perfil, Personalização, Configurações, Painel da equipe para a equipe, e Sair). No celular, a barra de baixo traz Biblioteca, Feed e Explorar (visitante: Início, Explorar e Entrar; modo local: Biblioteca e Ajustes). O aviso da administração fica fixo no topo, o botão Voltar do navegador fecha a janela aberta e o foco vai para o conteúdo a cada tela. O rodapé tem os créditos, a versão (que abre as Novidades), as fontes dos dados e o link do código.
+- **Biblioteca:** abas Anime, Mangá e Light Novel (com contagem e a última aberta lembrada), sub-abas de status com contagem, busca por título ou tag, **Filtros** (categoria, ordem e "Só favoritos"), modo cards ou lista compacta, menu lateral opcional com atalhos (Agenda, Favoritos, Estatísticas), Agenda (só no Anime) e Estatísticas.
+- **Cada obra:** status, **+1 Ep**, temporadas e episódios (ou progresso de capítulos e volumes), nota, tags, favorito, análise (com spoiler), anotações privadas, detalhes, cartão de compartilhar, editar e excluir (com confirmação). Obras repetidas e a busca nas fontes (AniList, MyAnimeList/Jikan e TMDB opcional) estão nas seções abaixo.
+- **Perfil público:** foto, nome, selo de cargo, @, bio, números do topo, **Seguir**, **Copiar link**, **Estatísticas**, **Denunciar** (e **Gerenciar**, para a equipe), abas Biblioteca, Favoritos e Análises e o quadro "Assistindo agora".
+
+Esta tabela é a lista usada para conferir o site antes de publicar uma versão: se algo mudar de lugar, atualize aqui também. Telas de 240 px a 1440 px, todas as paletas de cores, o alto contraste e os tamanhos de letra do navegador devem continuar funcionando.
+
+---
+
 ## Conta: Configurações por tema
 
 Clicando no **seu avatar**, no canto superior direito (em qualquer tamanho de tela), abre o **menu da conta**: **Meu perfil** (a sua página pública), **Personalização** (atalho para o tema de mesmo nome), **Configurações**, **Painel da equipe** (só para quem tem cargo) e **Sair da conta**. Ele abre com Enter, Espaço ou seta para baixo, anda com as setas e fecha com Esc. A barra inferior do celular não tem mais o botão Perfil (sem login, ou no modo sem conta, ela continua com **Entrar** / **Ajustes**).
@@ -257,7 +283,7 @@ A biblioteca (e o perfil de quem você visita) tem três abas: **Anime** (inclui
 - **Mesmo nome em tipos diferentes:** o anime e o mangá de "Death Note" podem existir juntos, e o filme e a série também. O aviso de **obra repetida** só vale dentro do mesmo tipo (categoria) e diz qual é o tipo na mensagem. A busca do formulário mostra o tipo de cada resultado e marca com "já na sua lista" o que você já tem *daquele tipo*.
 - **Busca na biblioteca:** o campo de busca vale para a aba atual. Se o mesmo nome aparece em outra aba, um aviso abaixo da lista mostra onde ("Também há resultados para essa busca em: Mangá (1)") e o botão leva você até lá, mantendo a busca.
 - **Progresso das obras dos outros:** no perfil de outra pessoa, o card (e a linha do modo lista) diz onde ela está: **"Episódio: 4 da Temporada: 2"** em anime e série, **"Volume: 5, Capítulo: 10"** em mangá e light novel. A temporada conta só as de TV (OVA, filme e especial aparecem pelo nome, como "Episódio: 2 de OVA Especial"); com uma temporada só, aparece apenas "Episódio: 7". Filmes e obras que ainda não começaram mantêm o texto de sempre. Na sua própria biblioteca nada muda.
-- **Explorar em três linhas:** cada cartão do Explorar resume a biblioteca por tipo, **Animes**, **Mangás** e **Light Novels**, cada um com *total*, *ativas* (assistindo ou lendo agora) e *concluídas*. Só entram as abas ligadas da pessoa; uma aba escondida não aparece (nem nas contas).
+- **Explorar em três linhas:** cada cartão do Explorar resume a biblioteca por tipo, **Animes**, **Mangás** e **Light Novels**, cada um com *total*, *ativas* (assistindo ou lendo agora) e *concluídas*. Só entram as abas ligadas da pessoa; uma aba escondida não aparece (nem nas contas). Em telas estreitas, os três números de cada linha descem juntos para baixo do nome, sem quebrar no meio. A busca aceita o nome, o nome de usuário e o `@` na frente (por exemplo, `@ana`); a busca de **Membros** do painel da equipe funciona do mesmo jeito.
 - **Categorias:** *Mangá* e *Light novel*. Manhwa (Coreia) e manhua (China) são cadastrados como *Mangá* e ganham um selo de origem ("Manhwa", "Manhua") nos cards, na lista e nos detalhes.
 - **Progresso por contadores:** capítulos lidos / total e volumes lidos / total. O botão **+1 Cap** soma um capítulo (só em obras *Lendo*) e **Progresso** abre a janela para ajustar os quatro números. Total **0** quer dizer "não sei" (obra em publicação): o card mostra só o que já foi lido, sem barra de progresso. Os lidos nunca passam do total.
 - **Status de leitura:** *Lendo*, *Quero ler*, *Concluído*, *Em espera* e *Dropado* (por baixo são os mesmos status dos animes, só mudam os nomes). Ao escolher *Concluído*, capítulos e volumes vão até o total, quando ele é conhecido. Obras *Quero ler* ainda não têm +1 Cap: para começar, mude o status para *Lendo*.
@@ -465,7 +491,7 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.25`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.26`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
 
 ## Como o código está organizado
 

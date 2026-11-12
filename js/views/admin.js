@@ -8,6 +8,7 @@ import { icon, spinner } from '../core/icons.js';
 import { timeAgo } from '../core/time.js';
 import { toast } from '../core/toast.js';
 import { safeHttpsUrl, strikeCountText, suspensionLabel } from '../domain/access.js';
+import { cleanProfileQuery } from '../domain/profileSearch.js';
 import { REMOVED_MARK, mediaState, removableFields, wipeField } from '../domain/reportSnapshot.js';
 import { LOG_CATEGORIES, contextView, quickActionsFor, quickResultMessage, reportRef } from '../domain/reportContext.js';
 import { parseHostList } from '../domain/textSafety.js';
@@ -103,7 +104,7 @@ function mountMembers(box, { be, role }) {
         }
     }
 
-    const run = debounce((value) => { query = value.trim(); load(); }, 300);
+    const run = debounce((value) => { query = cleanProfileQuery(value); load(); }, 300);
     search.addEventListener('input', (e) => run(e.target.value));
     const offs = [
         on(list, 'click', '[data-more]', (_, btn) => { btn.disabled = true; load({ append: true }); }),

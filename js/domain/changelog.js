@@ -1,9 +1,19 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.25';
+export const SITE_VERSION = '1.26';
 
 export const CHANGELOG = [
+    {
+        version: '1.26',
+        title: 'Revisão final e acabamento',
+        items: [
+            'Passamos por todas as telas e botões do site, um por um: biblioteca, obras, configurações, perfil, Explorar, feed e painel da equipe. Tudo continua no lugar, no celular, no tablet e no computador, com alto contraste e com letras maiores.',
+            'No Explorar, os três números de cada tipo (total, ativas e concluídas) agora ficam juntos: em telas estreitas eles descem todos para a linha de baixo, sem quebrar no meio.',
+            'A busca do Explorar (e a de Membros, no painel da equipe) agora entende o @ na frente do nome de usuário: digitar @ana acha a Ana, como o campo promete.',
+            'O README ganhou o "Mapa do site", com o endereço e o dono de cada tela, para quem for cuidar do projeto.',
+        ],
+    },
     {
         version: '1.25',
         title: 'Perfil público mais fácil de percorrer',
