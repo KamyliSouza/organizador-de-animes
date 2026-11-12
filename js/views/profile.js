@@ -9,16 +9,19 @@ import { viewPalette } from '../core/palette.js';
 import { refresh } from '../core/router.js';
 import { viewBackground } from '../core/siteBackground.js';
 import { toast } from '../core/toast.js';
-import { SECTIONS, SECTION_KEYS, entriesInSections, normalizeSections, sectionOf } from '../domain/entry.js';
+import { SECTIONS, SECTION_KEYS, entriesInSections, normalizeSections } from '../domain/entry.js';
+import { DEFAULT_PANE, PANE_KEYS, favoritesOf, inProgressLabel, nowWatching, paneCounts, profileCounters, reviewsOf } from '../domain/profileSummary.js';
 import { canAct, isStaff } from '../domain/roles.js';
 import { backend, isCloud, myRole, state } from '../services/session.js';
 import { avatar, avatarSrc } from '../ui/avatar.js';
 import { openConnectionsModal } from '../ui/connectionsModal.js';
 import { openDetailsModal, openStatsModal } from '../ui/infoModals.js';
 import { mountLibraryBrowser } from '../ui/libraryBrowser.js';
-import { bindFavoritesStrip, favoritesStripHtml } from '../ui/favoritesStrip.js';
 import { openMemberModal } from '../ui/memberModal.js';
+import { applyImageFallback } from '../ui/mediaCard.js';
+import { countersHtml, favoritesPaneHtml, nowCardHtml, paneTabsHtml, reviewsPaneHtml } from '../ui/profilePanes.js';
 import { openReportModal } from '../ui/reportModal.js';
+import { bindReviews } from '../ui/reviewBlock.js';
 import { roleBadge } from '../ui/roleBadge.js';
 import { bindSectionTabs, loadSection, sectionCounts, sectionTabsHtml } from '../ui/sectionTabs.js';
 
@@ -42,8 +45,6 @@ function followButton(profile) {
             return html`<button type="button" class="button button-primary" data-act="follow">${icon('userPlus', { size: 17 })} ${profile.isPublic ? 'Seguir' : 'Pedir para seguir'}</button>`;
     }
 }
-
-const countButton = (kind, n, one, many) => html`<button type="button" class="link-button count-link" data-conn="${kind}"><b>${n}</b> ${n === 1 ? one : many}</button>`;
 
 function lockedCard(profile) {
     const text = !state.user
@@ -114,20 +115,21 @@ export async function mount(root, ctx) {
     // Equipe gerencia por aqui (o banco confere o cargo de novo). Denunciar: qualquer pessoa com conta ativa, menos no próprio perfil.
     const canManage = !own && canAct(myRole(), profile.role);
     const canReport = !own && Boolean(state.user) && !state.access.suspended;
+    const counters = profileCounters(entries);
 
     setHtml(root, html`
         ${own ? html`<div class="notice-box">${icon(profile.isPublic ? 'globe' : 'lock')}<div>
             <strong>Prévia do seu perfil.</strong> ${profile.isPublic ? 'É assim que outras pessoas veem.' : 'Ele está privado: só quem você aprovar vê a biblioteca.'}
             ${hiddenTabs.length ? html`<span data-hidden-tabs>Abas escondidas de outras pessoas: ${hiddenTabs.join(', ')}.</span> ` : ''}
             <a href="#/configuracoes/perfil">Editar perfil</a> · <a href="#/configuracoes/privacidade">Privacidade</a></div></div>` : ''}
-        <header class="profile-head glass-panel">
+        <header class="profile-head glass-panel ${canView ? 'has-counters' : ''}">
             ${avatar(profile.displayName || profile.username, 84, avatarSrc(profile))}
             <div class="profile-info">
                 <h1>${profile.displayName}${roleBadge(profile.role)}</h1>
                 <p class="handle">@${profile.username}${!profile.isPublic ? html` <span class="badge badge-muted" title="Perfil privado">${icon('lock', { size: 11 })} Privado</span>` : ''}</p>
                 ${canView && profile.bio ? html`<p class="bio">${profile.bio}</p>` : ''}
-                ${canView && profile.followersCount != null ? html`<p class="follow-counts">${countButton('followers', profile.followersCount, 'seguidor', 'seguidores')} · ${countButton('following', profile.followingCount ?? 0, 'seguindo', 'seguindo')}</p>` : ''}
             </div>
+            ${canView ? countersHtml({ ...counters, inProgressName: inProgressLabel(keys), followers: profile.followersCount, following: profile.followingCount }) : ''}
             <div class="profile-actions">
                 ${followButton(profile)}
                 ${canView ? html`
@@ -138,20 +140,32 @@ export async function mount(root, ctx) {
             </div>
         </header>
         ${canView ? html`
-        <div data-sections ${keys.length < 2 ? html`hidden` : ''}></div>
-        <div id="section-panel" class="stack" data-panel ${keys.length < 2 ? '' : html`role="tabpanel"`}>
-            <div data-favorites-wrap></div>
-            <div data-browser class="stack"></div>
+        <div class="profile-body">
+            <div data-now-wrap></div>
+            <div class="profile-main">
+                <div data-pane-tabs></div>
+                <div id="profile-pane" class="stack" role="tabpanel" data-pane-panel>
+                    <div data-sections ${keys.length < 2 ? html`hidden` : ''}></div>
+                    <div id="section-panel" class="stack" data-panel ${keys.length < 2 ? '' : html`role="tabpanel"`}>
+                        <div data-pane-body="library"><div data-browser class="stack"></div></div>
+                        <div data-pane-body="favorites" hidden></div>
+                        <div data-pane-body="reviews" hidden></div>
+                    </div>
+                </div>
+            </div>
         </div>` : lockedCard(profile)}`);
 
     const offs = [];
-    let browser = null;
+    let profileBrowser = null;
     let switchSectionRef = null;     // troca de aba (definida abaixo, usada pelo aviso "também há resultados em...")
 
     if (canView) {
         const sectionsEl = root.querySelector('[data-sections]');
         const panel = root.querySelector('[data-panel]');
-        const favWrap = root.querySelector('[data-favorites-wrap]');
+        const paneTabsEl = root.querySelector('[data-pane-tabs]');
+        const panePanel = root.querySelector('[data-pane-panel]');
+        const nowWrap = root.querySelector('[data-now-wrap]');
+        const bodies = Object.fromEntries(PANE_KEYS.map((k) => [k, root.querySelector(`[data-pane-body="${k}"]`)]));
 
         // Aba inicial: a que a pessoa usou por último; se não estiver ativa neste perfil ou estiver vazia, abre a primeira ativa que tiver obras.
         const counts = sectionCounts(entries);
@@ -159,41 +173,83 @@ export async function mount(root, ctx) {
         let section = loadSection();
         if (!keys.includes(section)) section = keys[0];
         if (counts[section] === 0) section = keys.find((k) => counts[k] > 0) || section;
+        let pane = DEFAULT_PANE;                           // Biblioteca, Favoritos ou Análises (sempre abre na Biblioteca)
 
-        // Obras fixadas pela pessoa na aba atual: todas aparecem, numa faixa com rolagem lateral
-        const strip = bindFavoritesStrip(favWrap);
-        offs.push(() => strip.destroy());
-        const paintFavorites = () => {
-            setHtml(favWrap, favoritesStripHtml(entries.filter((e) => e.favorite && sectionOf(e) === section), section));
-            strip.update();
-        };
         const paintTabs = () => {
             if (!tabsOn) { panel.removeAttribute('aria-labelledby'); return; }
             setHtml(sectionsEl, sectionTabsHtml({ active: section, counts, panelId: 'section-panel', keys }));
             panel.setAttribute('aria-labelledby', `tab-${section}`);
         };
+        const paintPaneTabs = () => {
+            setHtml(paneTabsEl, paneTabsHtml({ active: pane, counts: paneCounts(entries, section) }));
+            panePanel.setAttribute('aria-labelledby', `pane-tab-${pane}`);
+        };
+        // "Assistindo agora" / "Lendo agora": segue a aba (Anime, Mangá ou Light Novel) escolhida.
+        const paintNow = () => {
+            const now = nowWatching(entries, section);
+            setHtml(nowWrap, nowCardHtml(now, section));
+            nowWrap.toggleAttribute('data-empty', now.length === 0);   // sem nada em andamento, o quadro some no celular (no computador fica com um aviso)
+        };
+        // Favoritos e Análises são desenhados na hora (dependem da aba); a Biblioteca fica montada e só é escondida, para guardar busca e filtros.
+        const paintPane = () => {
+            for (const k of PANE_KEYS) bodies[k].hidden = k !== pane;
+            for (const k of ['favorites', 'reviews']) if (k !== pane) bodies[k].replaceChildren();   // só a aba aberta fica desenhada
+            if (pane === 'favorites') setHtml(bodies.favorites, favoritesPaneHtml(favoritesOf(entries, section), section));
+            if (pane === 'reviews') setHtml(bodies.reviews, reviewsPaneHtml(reviewsOf(entries, section), section));
+        };
 
-        browser = mountLibraryBrowser(root.querySelector('[data-browser]'), {
+        const browser = mountLibraryBrowser(root.querySelector('[data-browser]'), {
             entries, readonly: true, section,
             actions: { details: (entry) => openDetailsModal(entry) },
             onSectionRequest: (next) => switchSectionRef?.(next),
         });
+        profileBrowser = browser;
         paintTabs();
-        paintFavorites();
+        paintPaneTabs();
+        paintNow();
+        paintPane();
 
         const switchSection = (next) => {
             if (!keys.includes(next) || next === section) return;
             section = next;
             browser.setSection(section);
             paintTabs();
-            paintFavorites();
+            paintPaneTabs();
+            paintNow();
+            paintPane();
         };
         switchSectionRef = switchSection;
+        const switchPane = (next) => {
+            if (!PANE_KEYS.includes(next) || next === pane) return;
+            pane = next;
+            paintPaneTabs();
+            paintPane();
+        };
         if (tabsOn) offs.push(bindSectionTabs(sectionsEl, switchSection, keys));
-        offs.push(on(root, 'click', '[data-favorites] [data-action="details"], [data-favorites] [data-action="cover"]', (_, btn) => {
-            const entry = entries.find((e) => e.id === btn.closest('[data-id]')?.dataset.id);
-            if (entry) openDetailsModal(entry);
-        }));
+        offs.push(bindSectionTabs(paneTabsEl, switchPane, PANE_KEYS, 'paneTab'));
+
+        /** Leva para a Biblioteca (sem busca nem filtros); com `watching`, só as obras em andamento, na aba que tiver alguma (a atual primeiro). */
+        const goLibrary = ({ watching = false } = {}) => {
+            if (watching) {
+                const target = nowWatching(entries, section).length ? section : keys.find((k) => nowWatching(entries, k).length);
+                if (target) switchSection(target);
+            }
+            switchPane('library');
+            browser.clear();
+            if (watching) browser.setStatus('watching');
+            paneTabsEl.querySelector('[aria-selected="true"]')?.focus({ preventScroll: true });
+            const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+            paneTabsEl.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
+        };
+        offs.push(on(root, 'click', '[data-goto]', (_, btn) => goLibrary({ watching: btn.dataset.goto === 'watching' })));
+        offs.push(on(root, 'click', '[data-now-all]', () => goLibrary({ watching: true })));
+
+        const openEntry = (id) => { const entry = entries.find((e) => e.id === id); if (entry) openDetailsModal(entry); };
+        offs.push(on(root, 'click', '[data-now-open]', (_, btn) => openEntry(btn.dataset.nowOpen)));
+        offs.push(on(root, 'click', '[data-favorites] [data-action="details"], [data-favorites] [data-action="cover"], [data-reviews] [data-action="details"], [data-reviews] [data-action="cover"]', (_, btn) => openEntry(btn.closest('[data-id]')?.dataset.id)));
+        offs.push(bindReviews(bodies.reviews));
+        // Capa que não carrega: some a imagem e fica o ícone (o "error" não sobe, por isso a fase de captura).
+        for (const area of [nowWrap, bodies.favorites, bodies.reviews]) offs.push(on(area, 'error', 'img[data-fallback]', (_, img) => applyImageFallback(img), true));
         offs.push(on(root, 'click', '[data-act="stats"]', () => openStatsModal(entries, { section, sections: keys })));
     }
 
@@ -245,5 +301,5 @@ export async function mount(root, ctx) {
         openConnectionsModal({ username: profile.username, kind: btn.dataset.conn, own, be, onChanged: () => refresh() });
     }));
 
-    return () => { offs.forEach((off) => off()); browser?.destroy(); restorePalette?.(); restoreBackground(); };
+    return () => { offs.forEach((off) => off()); profileBrowser?.destroy(); restorePalette?.(); restoreBackground(); };
 }

@@ -242,6 +242,7 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, sect
 
     /** Tira status, categoria, busca e "só favoritos" (a ordem e o modo ficam): usado por "ver na biblioteca" e pelo botão da lista vazia. */
     function clearAll() {
+        search.cancel();                 // uma busca digitada há instantes não pode voltar depois da limpeza
         filters.status = 'all'; filters.category = 'all'; filters.query = ''; filters.favorites = false;
         searchInput.value = '';
         syncControls();
@@ -283,6 +284,7 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, sect
     return {
         reveal,
         showFavorites,
+        clear: clearAll,                 // tira status, categoria, busca e "só favoritos" (usado pelos números do perfil)
         getStatus: () => filters.status,
         setStatus,
         setSection,

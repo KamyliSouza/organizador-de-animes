@@ -163,7 +163,7 @@ export function mediaRowHtml(entry, { readonly = false } = {}) {
 
 /** Troca uma capa que não carregou pelo ícone padrão. */
 export function applyImageFallback(img) {
-    const holder = img.closest('.poster, .thumb, .feed-cover');
+    const holder = img.closest('.poster, .thumb, .feed-cover, .now-cover');
     if (!holder) return;
     img.remove();
     if (!holder.classList.contains('thumb') && !holder.querySelector('.poster-empty')) {

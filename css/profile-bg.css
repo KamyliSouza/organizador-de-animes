@@ -56,7 +56,7 @@
     backdrop-filter: blur(var(--blur-card));
     -webkit-backdrop-filter: blur(var(--blur-card));
 }
-:root:not([data-contrast="high"]) [data-bg] .fav-head, :root:not([data-contrast="high"]) [data-bg] .notice-box {
+:root:not([data-contrast="high"]) [data-bg] .notice-box {
     padding: 8px 14px;
     background-color: var(--card-bg);
     border: 2px solid var(--card-border);

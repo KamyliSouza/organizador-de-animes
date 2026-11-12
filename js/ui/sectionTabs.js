@@ -41,21 +41,24 @@ export function sectionTabsHtml({ active, counts, panelId, keys = SECTION_KEYS }
  * Liga cliques e setas. `onSelect(section)` decide o que mudar; depois de redesenhar as abas,
  * o foco volta para a aba escolhida (quando foi pelo teclado).
  * `keys` = as abas que existem no seletor (as setas só andam entre elas).
+ * `dataKey` = o nome do data-atributo que guarda o id da aba ("section" = data-section; as abas Biblioteca/Favoritos/Análises do perfil usam "paneTab").
  * @returns {() => void} desligar
  */
-export function bindSectionTabs(container, onSelect, keys = SECTION_KEYS) {
+export function bindSectionTabs(container, onSelect, keys = SECTION_KEYS, dataKey = 'section') {
+    const attr = `data-${dataKey.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)}`;
     const select = (section, { focus = false } = {}) => {
         onSelect(section);
-        if (focus) container.querySelector(`[data-section="${section}"]`)?.focus({ preventScroll: true });
+        if (focus) container.querySelector(`[${attr}="${section}"]`)?.focus({ preventScroll: true });
     };
+    const tabOf = (e) => (e.target instanceof Element ? e.target.closest(`[${attr}]`) : null);
     const onClick = (e) => {
-        const tab = e.target instanceof Element ? e.target.closest('[data-section]') : null;
-        if (tab && container.contains(tab)) select(tab.dataset.section, { focus: true });
+        const tab = tabOf(e);
+        if (tab && container.contains(tab)) select(tab.dataset[dataKey], { focus: true });
     };
     const onKey = (e) => {
-        const tab = e.target instanceof Element ? e.target.closest('[data-section]') : null;
+        const tab = tabOf(e);
         if (!tab || !container.contains(tab)) return;
-        const i = keys.indexOf(tab.dataset.section);
+        const i = keys.indexOf(tab.dataset[dataKey]);
         let next = null;
         if (e.key === 'ArrowRight') next = keys[(i + 1) % keys.length];
         else if (e.key === 'ArrowLeft') next = keys[(i - 1 + keys.length) % keys.length];

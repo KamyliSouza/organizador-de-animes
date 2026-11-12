@@ -49,10 +49,85 @@
 .profile-info .handle { color: var(--primary-text); font-weight: 800; }
 .profile-info .bio { margin-top: 8px; color: var(--notice-text); overflow-wrap: anywhere; white-space: pre-line; }
 .profile-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.follow-counts { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: center; color: var(--subtitle-color); font-weight: 800; font-size: .9rem; }
-.count-link { font-size: inherit; color: var(--subtitle-color); }
-.count-link b { color: var(--text-color); }
-.count-link:hover { color: var(--primary-text); }
+/* Números do cabeçalho: obras, em andamento, seguidores e seguindo (cada um é um botão) */
+.profile-counters { list-style: none; margin: 0; padding: 0; flex: 1 1 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px 8px; }
+.profile-counter {
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px;
+    width: 100%; min-height: 48px; padding: 4px 6px;
+    font: inherit; line-height: 1.15; text-align: center; color: var(--subtitle-color);
+    background: transparent; border: 0; border-radius: var(--radius-small); cursor: pointer;
+}
+.profile-counter b { font-size: 1.35rem; font-weight: 800; color: var(--text-color); }
+.profile-counter span { font-size: .82rem; font-weight: 700; overflow-wrap: anywhere; }
+.profile-counter:hover { color: var(--primary-text); background: var(--primary-soft); }
+.profile-counter:focus-visible { outline: 3px solid var(--primary-color); outline-offset: 2px; }
+
+/* Abas Biblioteca / Favoritos / Análises e o quadro "Assistindo agora" */
+.profile-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start; }
+.profile-main { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.profile-main .section-tabs { margin-bottom: 0; }
+.profile-body > [data-now-wrap][data-empty] { display: none; }   /* no celular, sem nada em andamento o quadro some */
+.pane-tabs { display: flex; flex-wrap: wrap; gap: 0 4px; padding: 0 8px; border-radius: var(--radius-small); scroll-margin-top: calc(var(--nav-height) + 12px); }
+.pane-tab {
+    flex: 0 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 48px; padding: 0 22px;
+    font: inherit; font-weight: 800; font-size: .95rem; color: var(--subtitle-color);
+    background: transparent; border: 0; border-bottom: 3px solid transparent; cursor: pointer;
+}
+.pane-tab:hover { color: var(--text-color); }
+.pane-tab[aria-selected="true"] { color: var(--text-color); border-bottom-color: var(--primary-text); }
+.pane-tab:focus-visible { outline: 3px solid var(--primary-color); outline-offset: -3px; border-radius: 10px; }
+.pane-tab .count, .now-card h2 .count {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 22px; height: 20px; padding: 0 6px;
+    font-size: .72rem; line-height: 1; font-weight: 800;
+    color: var(--subtitle-color); background: var(--primary-soft); border-radius: var(--radius-pill);
+}
+.now-card { display: flex; flex-direction: column; gap: 10px; padding: 18px; min-width: 0; }
+.now-card h2 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 1.05rem; }
+.now-card h2 .icon { color: var(--primary-text); }
+.now-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.now-item {
+    display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 6px;
+    font: inherit; color: inherit; text-align: left;
+    background: transparent; border: 0; border-radius: var(--radius-small); cursor: pointer;
+}
+.now-item:hover { background: var(--primary-soft); }
+.now-item:focus-visible { outline: 3px solid var(--primary-color); outline-offset: 2px; }
+.now-cover {
+    flex: 0 0 auto; width: 44px; aspect-ratio: 2 / 3; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--primary-text); background: var(--primary-soft); border: 1px solid var(--card-border); border-radius: 8px;
+}
+.now-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.now-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.now-title { font-weight: 800; font-size: .95rem; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.now-progress { font-size: .84rem; color: var(--subtitle-color); overflow-wrap: anywhere; }
+.now-all { align-self: flex-start; }
+@media (min-width: 56.25em) {
+    /* computador: números ao lado do nome, botões numa linha embaixo; "Assistindo agora" numa coluna à direita das abas */
+    .profile-head.has-counters { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "avatar info counters" "actions actions actions"; gap: 16px 20px; }
+    .profile-head.has-counters > .avatar { grid-area: avatar; }
+    .profile-head.has-counters .profile-info { grid-area: info; }
+    .profile-head.has-counters .profile-counters { grid-area: counters; display: flex; justify-content: flex-end; gap: 8px; }
+    .profile-head.has-counters .profile-counter { width: auto; min-width: 4.5rem; padding-inline: 10px; }
+    .profile-head.has-counters .profile-actions { grid-area: actions; }
+    .profile-body { grid-template-columns: minmax(0, 1fr) 19rem; }
+    .profile-body > .profile-main { grid-column: 1; grid-row: 1; }
+    .profile-body > [data-now-wrap] { grid-column: 2; grid-row: 1; }
+    .profile-body > [data-now-wrap][data-empty] { display: block; }
+    .profile-main .media-grid { grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); }   /* a coluna é mais estreita por causa do quadro ao lado */
+}
+@media (max-width: 38.75em) {
+    .pane-tabs { padding: 0 4px; gap: 0 2px; }
+    .pane-tab { flex: 1 1 auto; gap: 6px; padding: 0 8px; font-size: .86rem; }
+}
+@media (max-width: 30em) {
+    .pane-tab .icon { display: none; }
+}
+@media (max-width: 26em) {
+    .profile-counters { grid-template-columns: repeat(2, minmax(0, 1fr)); }   /* quatro números lado a lado não cabem: dois por linha */
+}
 
 /* ---------------------------------------------------------
    Explorar

@@ -1,9 +1,18 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.24';
+export const SITE_VERSION = '1.25';
 
 export const CHANGELOG = [
+    {
+        version: '1.25',
+        title: 'Perfil público mais fácil de percorrer',
+        items: [
+            'O topo do perfil agora mostra quatro números: obras, assistindo (ou lendo), seguidores e seguindo. Dá para tocar em cada um: seguidores e seguindo abrem as listas, e obras e assistindo levam direto para a Biblioteca.',
+            'Novas abas no perfil: Biblioteca, Favoritos e Análises. Os favoritos aparecem todos juntos, e as análises ficam numa lista própria, com spoiler escondido e texto longo recolhido.',
+            'Um quadro "Assistindo agora" (ou "Lendo agora") mostra as obras em andamento da aba escolhida. No computador ele fica ao lado; no celular, logo abaixo do cabeçalho. Todos os botões de antes continuam no lugar.',
+        ],
+    },
     {
         version: '1.24',
         title: 'Configurações organizadas por tema',

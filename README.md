@@ -179,6 +179,16 @@ Para ninguém ficar trocando a foto ou o fundo sem parar (para fugir de denúnci
 - Trocar o nome de usuário muda o link do perfil (o antigo deixa de funcionar).
 - **Excluir a conta:** em **Configurações → Conta → Zona de perigo**. É preciso digitar o nome de usuário para confirmar. Apaga a conta, o perfil, a foto, as obras e os vínculos de seguir, para sempre (exporte um backup antes se quiser guardar a lista). O link do perfil deixa de existir e o nome de usuário volta a ficar livre.
 
+## Perfil público: números, abas e "Assistindo agora"
+
+O perfil de alguém (`#/u/usuario`) ficou mais fácil de percorrer. Todos os botões de sempre continuam (**Seguir**, **Copiar link**, **Estatísticas**, **Gerenciar**, **Denunciar**).
+
+- **Números no cabeçalho:** *obras* (todas as abas ativas do perfil), *assistindo* (quantas estão em andamento; o nome vira *lendo* em perfis só de Mangá e Light Novel e *em andamento* quando há os dois tipos), *seguidores* e *seguindo*. Cada número é um botão: seguidores e seguindo abrem as listas de pessoas; obras e assistindo levam para a **Biblioteca** (sem busca nem filtros), e **assistindo** já deixa só as obras em andamento (na aba Anime, Mangá ou Light Novel que tiver alguma, a atual primeiro). Perfil privado ainda trancado não mostra nenhum número.
+- **Abas Biblioteca, Favoritos e Análises:** ficam acima de Anime, Mangá e Light Novel e valem para a aba escolhida embaixo, com o número de cada uma. *Biblioteca* é a lista de sempre (status, busca, Filtros, cards ou lista); ao trocar de aba e voltar, a busca e os filtros continuam. *Favoritos* mostra **todas** as obras favoritas em cards (sem limite). *Análises* lista o que a pessoa escreveu sobre as obras, da mais recente para a mais antiga, com spoiler escondido atrás de "Mostrar análise" e texto longo recolhido em "Ler mais". Sempre abre na Biblioteca.
+- **Assistindo agora:** um quadro com as três obras em andamento mais recentes da aba escolhida (capa, título e "Ep. 5 de 24", ou "Cap. 120 / 450 · Vol. 14" em leitura); clicar numa obra abre os detalhes e **Ver todos** leva à Biblioteca só com as obras em andamento. Nas abas Mangá e Light Novel o título é **Lendo agora**. No computador (a partir de 900 px) fica numa coluna à direita das abas; no celular aparece logo abaixo do cabeçalho e some quando não há nada em andamento.
+- **Nada muda no que as outras pessoas podem ver:** as abas escondidas, as anotações privadas e o perfil privado funcionam como antes, e **não há mudança no banco** (nada para rodar no Supabase).
+- **Código:** as contas (números, o que entra em cada aba, "assistindo agora") ficam em `js/domain/profileSummary.js`; o desenho em `js/ui/profilePanes.js`; a montagem da tela em `js/views/profile.js`.
+
 ## Seguir pessoas
 
 - No perfil de alguém (`#/u/usuario`) há o botão **Seguir**. Em **perfil público** o vínculo é imediato. Em **perfil privado** o botão é **Pedir para seguir**: o pedido fica *pendente* até a pessoa dona do perfil aprovar. Quem pediu pode **cancelar** o pedido a qualquer momento.
@@ -266,7 +276,7 @@ A tela da biblioteca (e o perfil de quem você visita) ficou com menos caixas e 
 - **Abas de status:** *Todas · Assistindo · Quero ver · Concluídas · Em espera · Dropadas* (em Mangá e Light Novel, *Lendo* e *Quero ler*), cada uma com o **número de obras** e uma bolinha na cor do status. Elas **substituem os cartões de números** e continuam filtrando a lista. Os números são sempre os da aba atual, não mudam com a busca, e se atualizam sozinhos quando você muda o status de uma obra, soma um episódio ou adiciona/exclui. Teclado: setas, *Home* e *End* andam entre as abas de status.
 - **Busca** (título ou tag), botão **Filtros** e o alternador **cards / lista** (lembrado neste navegador).
 - **Filtros:** abre um painel com **Categoria** (Anime, Filme, Série; só aparece na aba Anime) e **Ordenar por** (Mais recentes, Título A-Z, Melhor nota, Maior progresso). Quando algo está diferente do padrão, o botão mostra um número com os ajustes ativos e o painel tem **Limpar filtros**. Se a lista ficar vazia por causa dos filtros ou da busca, o aviso "Nenhuma obra encontrada" traz o botão **Limpar filtros e busca**.
-- **Favoritos:** continuam por aba, como antes: o coração em cada obra e, no perfil, a faixa **Favoritos** com rolagem lateral.
+- **Favoritos:** continuam por aba, como antes: o coração em cada obra e, no perfil, a aba **Favoritos** (veja "Perfil público").
 - O código está em `js/ui/libraryBrowser.js` (busca, Filtros e lista) e `js/ui/statusTabs.js` (abas de status e contagem); a biblioteca e o perfil usam o mesmo.
 
 ## Navegação enxuta e menu lateral (computador)
@@ -409,7 +419,7 @@ A nota vai de **0,5 a 5 estrelas, em passos de meia estrela** (ou fica sem nota)
 
 ## Favoritos
 
-O coração no card fixa a obra como favorita. **Não há limite**: dá para favoritar quantas obras quiser, e cada aba (Anime, Mangá, Light Novel) mostra só os favoritos dela. No perfil, os favoritos aparecem numa seção **Favoritos** logo acima da biblioteca, inclusive para quem visita o perfil público, numa **faixa de uma linha só com rolagem lateral**: deslize com o dedo, use a barra de rolagem, Shift + roda do mouse, as setas do teclado (com a faixa selecionada) ou os botões **‹ ›** (que só aparecem quando os favoritos passam da largura da tela). No banco o campo é só um marcador; nada limita a quantidade.
+O coração no card fixa a obra como favorita. **Não há limite**: dá para favoritar quantas obras quiser, e cada aba (Anime, Mangá, Light Novel) mostra só os favoritos dela. No perfil, os favoritos ficam na aba **Favoritos** (ao lado de Biblioteca e Análises), inclusive para quem visita o perfil público, em cards, todos de uma vez (antes eram uma faixa com rolagem lateral). Na sua própria biblioteca, use **Filtros → Só favoritos** ou o atalho **Favoritos** do menu lateral. No banco o campo é só um marcador; nada limita a quantidade.
 
 ## Botão voltar
 
@@ -455,7 +465,7 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.24`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.25`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
 
 ## Como o código está organizado
 
@@ -466,10 +476,10 @@ js/
   main.js               inicia tudo e define as rotas
   config.js             o único arquivo que você precisa editar
   core/                 DOM seguro, roteador, modal, toasts, tema, cores, alto contraste, fundo do site (siteBackground.js), ícones (inclui a logo 菫)
-  domain/               regras puras: obras, temporadas, estatísticas, backup, cargos, limites de troca de foto/fundo, histórico de novidades (changelog.js)
+  domain/               regras puras: obras, temporadas, estatísticas, backup, cargos, limites de troca de foto/fundo, histórico de novidades (changelog.js), contas do perfil público (profileSummary.js)
   domain/textSafety.js  limpeza de textos, palavras proibidas e sites permitidos (as mesmas regras existem no banco)
   services/             backends (local e Supabase), sessão, busca (Jikan, AniList, TMDB)
-  ui/                   componentes: cards, filtros, modais, cartão de compartilhar, avatar, menu da conta (accountMenu.js), botão Nova obra (newWork.js), menu lateral (sideMenu.js) e seus atalhos (shortcuts.js), abas da conta, abas Anime/Mangá/Light Novel e de status (statusTabs.js), progresso de leitura
+  ui/                   componentes: cards, filtros, modais, cartão de compartilhar, avatar, menu da conta (accountMenu.js), botão Nova obra (newWork.js), menu lateral (sideMenu.js) e seus atalhos (shortcuts.js), abas da conta, abas Anime/Mangá/Light Novel e de status (statusTabs.js), números, abas e "Assistindo agora" do perfil (profilePanes.js), progresso de leitura
   views/                telas: início, biblioteca, login, perfil, explorar, feed (atividade e pedidos), configurações por tema (settings.js, com um arquivo por tema em ui/settings*.js), painel da equipe (admin.js)
 tools/palettes.mjs      gera css/palettes.css e as cores de css/contrast.css e confere o contraste (node tools/palettes.mjs --check)
 sql/schema.sql          tabelas, regras de segurança e funções do Supabase (pode rodar de novo a qualquer momento)
