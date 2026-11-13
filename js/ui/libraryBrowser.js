@@ -4,6 +4,7 @@ import { debounce, html, on, setHtml } from '../core/dom.js';
 import { icon } from '../core/icons.js';
 import { DEFAULT_SECTION, SECTIONS, SECTION_KEYS, STATUSES, filterEntries, normalizeSection, sortEntries } from '../domain/entry.js';
 import { applyImageFallback, mediaCardHtml, mediaRowHtml } from './mediaCard.js';
+import { bindCardMenus } from './cardMenu.js';
 import { STATUS_TAB_KEYS, statusCounts, statusTabsHtml, updateStatusCounts } from './statusTabs.js';
 
 const VIEW_KEY = 'kamylist_view_mode';
@@ -212,6 +213,7 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, sect
     const search = debounce((value) => { filters.query = value; renderResults(); }, 150);
     offs.push(on(root, 'input', 'input[data-filter="query"]', (_, i) => search(i.value)));
 
+    offs.push(bindCardMenus(results));
     offs.push(on(results, 'click', '[data-action]', (_, btn) => {
         let action = btn.dataset.action;
         if (action === 'add') { actions.add?.(); return; }

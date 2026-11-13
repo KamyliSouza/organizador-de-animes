@@ -418,6 +418,17 @@ Tudo isto fica em **Gerenciar** (Membros ou o botão de uma denúncia) e exige a
 - **Nomes proibidos:** a lista vale para nomes de usuário e nomes de exibição **que contêm** a palavra (sem diferenciar maiúsculas nem acentos). Cuidado com palavras curtas: elas valem também dentro de outras palavras. Vale para contas novas e para quem editar o nome; quem já tinha um nome assim só é barrado ao tentar mudá-lo, e a equipe pode renomear.
 - **Cadastros fechados:** o banco recusa qualquer conta nova, **inclusive** a criada manualmente em *Authentication → Users → Add user* do Supabase. Quem já tem conta continua entrando normalmente. A página "Criar conta" avisa antes de a pessoa preencher tudo. Para criar contas à mão, reabra os cadastros no painel.
 
+## Card da obra (v1.27)
+
+Na biblioteca (modo **cards**) cada obra é um card de **tamanho fixo**: a grade usa linhas de altura igual e a capa tem altura fixa, então o que varia é só o conteúdo.
+
+- **Sobre a capa:** selos de tipo e origem, selo de **status** (é um seletor: tocar nele troca o status) e o coração de favorito. Clicar na capa abre os detalhes.
+- **Corpo:** título, tags, nota em meia estrela, link **Detalhes** e o progresso.
+- **Rodapé por status:** *Assistindo/Lendo* mostra o botão **+1 Ep/+1 Cap** e o link de temporadas ou progresso; *Quero ver/Quero ler* mostra só o menu; os demais status mostram um botão largo de temporadas ou progresso.
+- **Menu "⋯":** Compartilhar, Editar e Excluir. Abre com clique ou Enter, fecha com Esc ou clique fora, setas/Home/End percorrem as opções e o foco volta ao botão. O código está em `js/ui/cardMenu.js`; a marcação em `js/ui/mediaCard.js`.
+- Perfis de outras pessoas mostram o card somente leitura (sem seletor, +1, favoritar nem menu). O **modo lista** não mudou.
+- Alto contraste: selos e botões sobre a capa ficam pretos, com borda branca de 2px.
+
 ## Status das obras
 
 **Assistindo**, **Quero ver**, **Concluído**, **Em espera** e **Dropado**. *Em espera* é para o anime que você pausou e pretende retomar; *Dropado* é para o que você abandonou. As duas aparecem com a capa em tons de cinza e têm contador próprio no topo.
@@ -491,7 +502,7 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.26`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.27`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
 
 ## Como o código está organizado
 

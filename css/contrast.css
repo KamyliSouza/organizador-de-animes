@@ -176,3 +176,12 @@
 :root[data-contrast="high"] .button[aria-disabled="true"] { opacity: .7; border-style: dashed; }
 :root[data-contrast="high"] .poster-empty,
 :root[data-contrast="high"] .empty-state > .icon { opacity: 1; }
+
+/* card da obra: selos e botões sobre a capa em preto puro com borda branca; o menu "⋯" com a borda forte de sempre */
+:root[data-contrast="high"] .media-card .mc-top .badge,
+:root[data-contrast="high"] .media-card .status-pill,
+:root[data-contrast="high"] .mc-top .icon-button,
+:root[data-contrast="high"] .mc-top .fav-badge,
+:root[data-contrast="high"] .mc-cover .poster .air-day { background: #000; border: 2px solid #fff; color: #fff; }
+:root[data-contrast="high"] .mc-top .icon-button.fav[aria-pressed="true"],
+:root[data-contrast="high"] .mc-top .fav-badge { color: #ff9db0; }

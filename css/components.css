@@ -366,12 +366,9 @@
 .media-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 14px; }   /* todas as linhas com a mesma altura */
 
 .media-card {
-    display: grid;
-    grid-template-columns: 96px minmax(0, 1fr);
-    align-items: start;
-    gap: 14px;
-    padding: 12px;
-    min-height: 224px;
+    position: relative;
+    display: flex; flex-direction: column;
+    padding: 0;
     border-radius: 20px;
     transition: border-color .2s ease, transform .2s ease;
 }
@@ -399,6 +396,75 @@
     color: #fff; background: rgba(20, 10, 22, .78);
     border-radius: 8px;
 }
+
+/* ---------------------------------------------------------
+   Card da obra (v1.27): capa em cima, texto sempre em fundo sólido
+   --------------------------------------------------------- */
+.mc-cover { position: relative; flex: none; height: 11.5rem; border-radius: 18px 18px 0 0; overflow: hidden; }
+.mc-cover .poster { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; border: 0; border-radius: 0; background: transparent; overflow: visible; }
+/* A foto (ou o ícone de capa vazia) some num degradê para o fundo do card; os selos ficam por cima e não entram no degradê */
+.mc-cover .poster > img, .mc-cover .poster > .poster-empty {
+    -webkit-mask-image: linear-gradient(to bottom, #000 56%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 56%, transparent 100%);
+}
+.mc-cover .poster > img { object-position: center 22%; }
+.mc-cover .poster > .poster-empty { background: var(--primary-soft); padding-bottom: 2.2rem; }
+.mc-cover .poster .air-day {
+    left: .6rem; right: auto; bottom: .5rem; width: auto; max-width: calc(100% - 1.2rem);
+    display: inline-flex; align-items: center; gap: 4px; padding: 5px 9px; font-size: .74rem; border-radius: var(--radius-pill);
+    background: rgba(14, 10, 20, .9); border: 1px solid rgba(255, 255, 255, .3);
+}
+.mc-top { position: absolute; z-index: 2; top: .6rem; left: .6rem; right: .6rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; pointer-events: none; }
+.mc-top > * { pointer-events: auto; }
+.mc-top > .mc-pills { pointer-events: none; }   /* o vão entre os selos deixa o toque passar para a capa */
+.mc-top > .mc-pills > * { pointer-events: auto; }
+.mc-pills { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.media-card .mc-top .badge, .media-card .status-pill {
+    color: #fff; background: rgba(14, 10, 20, .9); border: 1px solid rgba(255, 255, 255, .3); max-width: 100%;
+}
+.media-card .mc-top .badge { padding: 6px 10px; }
+/* o fundo do perfil dá aos selos uma base clara (profile-bg.css): sobre a capa eles ficam sempre escuros, com mais especificidade */
+:root .media-card .mc-top .mc-pills .badge, :root .media-card .mc-top .mc-pills .status-pill { background-color: rgba(14, 10, 20, .9); background-image: none; color: #fff; }
+.media-card .mc-top .badge.has-dot::before, .status-pill::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--badge-color); }
+.status-pill { position: relative; display: inline-flex; align-items: center; gap: 0; min-width: 0; border-radius: var(--radius-pill); padding-left: 10px; }
+.status-pill::after { content: ""; position: absolute; right: 11px; top: 50%; width: 6px; height: 6px; border: solid #fff; border-width: 0 2px 2px 0; transform: translateY(-72%) rotate(45deg); pointer-events: none; }
+.media-card .status-pill .status-select {
+    -webkit-appearance: none; appearance: none; width: auto; max-width: 100%; min-height: 32px; margin: 0; padding: 4px 26px 4px 6px;
+    color: #fff; background: transparent; border: 0; border-radius: var(--radius-pill); box-shadow: none;
+    font: inherit; font-size: .74rem; font-weight: 800; cursor: pointer;
+}
+.status-pill .status-select option { color: CanvasText; background: Canvas; }
+.media-card .status-pill:focus-within { outline: 3px solid var(--primary-color); outline-offset: 2px; }
+.media-card .status-pill .status-select:focus { outline: none; }
+.mc-top .icon-button { flex: none; width: 44px; height: 44px; color: #fff; background: rgba(14, 10, 20, .9); border: 1px solid rgba(255, 255, 255, .3); }
+.mc-top .icon-button:hover { color: #fff; background: rgba(14, 10, 20, 1); }
+.mc-top .icon-button.fav[aria-pressed="true"], .mc-top .fav-badge { color: #ff7a93; }
+.mc-top .fav-badge { position: static; flex: none; width: 36px; height: 36px; border: 1px solid rgba(255, 255, 255, .3); background: rgba(14, 10, 20, .9); }
+.mc-top .fav-badge svg { fill: currentColor; }
+.media-card .media-body { flex: 1 1 auto; padding: .35rem 1rem 1rem; gap: 8px; }
+.mc-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 1.6rem; min-width: 0; }
+.mc-line .media-tags { flex: 1 1 0; min-width: 0; }
+.mc-line .stars { flex: none; }
+.mc-line .media-tags > * { max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.media-card .media-meta { min-height: 32px; flex-wrap: wrap; min-width: 0; }
+.media-card .media-meta .link-button { min-height: 32px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; font-weight: 800; max-width: 100%; }
+.media-card .media-progress { min-height: 3.2rem; }
+.media-card .media-actions { position: relative; flex-wrap: wrap; gap: 6px; padding-top: 2px; }
+.media-card .media-actions > .button { flex: 1 1 0; min-width: 0; min-height: 44px; }
+.media-card .media-actions .mc-spacer { flex: 1 1 0; }
+.media-card .media-actions .menu-toggle { flex: none; width: 44px; padding: 0; }
+.media-card .media-actions .mc-wide { flex: 1 1 6.5rem; min-width: min-content; white-space: normal; text-align: center; overflow-wrap: normal; word-break: normal; }   /* nunca quebra no meio da palavra: se faltar espaço, o ⋯ desce para a linha de baixo */
+.card-menu-wrap { flex: none; }
+.card-menu {
+    position: absolute; z-index: 6; right: 0; bottom: calc(100% + 6px);
+    display: flex; flex-direction: column; gap: 2px; width: min(220px, 100%); padding: 6px;
+    color: var(--text-color); background: var(--modal-bg); border: 2px solid var(--card-border-strong); border-radius: var(--radius-card); box-shadow: var(--shadow-card);
+}
+.card-menu[hidden] { display: none; }
+.card-menu .account-item.danger { color: var(--danger); }
+.card-menu .account-item.danger .icon { color: var(--danger); }
+.media-card.menu-open { z-index: 7; }
+.mc-cover .poster:focus-visible { outline-offset: -5px; }
 
 .media-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; align-self: stretch; }
 .media-badges { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -686,8 +752,8 @@
 /* Telas bem estreitas = celulares pequenos ou página com zoom/texto ampliado */
 @media (max-width: 27.5em) {
     .stat-icon { width: 36px; height: 36px; border-radius: 12px; }
-    .media-card { grid-template-columns: 76px minmax(0, 1fr); gap: 10px; padding: 10px; }
-    .media-card .poster { width: 76px; border-radius: 12px; }
+    .mc-cover { height: 10.5rem; }
+    .media-card .media-body { padding: .3rem .8rem .8rem; }
     .media-actions .button-sm { white-space: normal; text-align: center; min-width: 0; overflow-wrap: anywhere; }
     .modal-header { padding: 14px 16px 10px; }
     .modal-body { padding: 14px 16px 18px; }
@@ -782,3 +848,10 @@ h1 .role-badge, h2 .role-badge, h3 .role-badge { font-size: .7rem; }
 .crop-zoom { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .crop-zoom label { font-weight: 800; font-size: .88rem; }
 .crop-zoom input[type="range"] { flex: 1 1 auto; min-width: 0; accent-color: var(--primary-color); min-height: 28px; }
+
+/* Card da obra em telas minúsculas (≤ 20em) ou com fonte enorme: botões e links encolhem em vez de estourar o card */
+@media (max-width: 20em) {
+    .media-card .media-actions .mc-wide, .media-card .media-actions > .button { font-size: .8em; letter-spacing: 0; padding-inline: .3rem; }
+    .media-card .media-meta { font-size: .76rem; gap: 2px 6px; }
+    .media-card .media-meta .link-button { gap: 2px; }
+}

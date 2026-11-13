@@ -1,9 +1,19 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.26';
+export const SITE_VERSION = '1.27';
 
 export const CHANGELOG = [
+    {
+        version: '1.27',
+        title: 'Novo visual dos cards das obras',
+        items: [
+            'Os cards da biblioteca ganharam um visual novo: a capa ocupa o topo, com o tipo da obra, a origem e o status sobre a imagem, e o coração de favorito no canto.',
+            'Todos os cards têm exatamente o mesmo tamanho, em qualquer tela. O que muda é o que aparece dentro: em "Assistindo" há o botão +1 Ep (ou +1 Cap) e o link de temporadas ou progresso; em "Quero ver" fica só o essencial; nos outros status aparece um botão largo para ver temporadas ou o progresso.',
+            'Compartilhar, Editar e Excluir agora ficam no menu "⋯" de cada card. Ele abre com um toque, fecha com Esc ou tocando fora, e dá para navegar pelas opções com as setas do teclado.',
+            'O status continua sendo trocado direto no card, tocando no selo sobre a capa. Nada foi removido: favoritar, nota, tags, Detalhes e o modo lista funcionam como antes.',
+        ],
+    },
     {
         version: '1.26',
         title: 'Revisão final e acabamento',

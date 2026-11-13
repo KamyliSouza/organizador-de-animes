@@ -90,36 +90,82 @@ function favoriteButton(entry) {
     return html`<button type="button" class="icon-button sm fav" data-action="favorite" aria-pressed="${String(Boolean(entry.favorite))}" aria-label="${label}" title="${entry.favorite ? 'Tirar dos favoritos' : 'Favoritar (fixa no perfil)'}">${icon('heart', { size: 16 })}</button>`;
 }
 
+/** Selo de status do card do dono: o próprio seletor, com a bolinha da cor do status (continua um <select> de verdade, com nome para leitor de tela). */
+const statusPill = (entry) => html`
+    <span class="status-pill badge-${entry.status}">
+        <select class="status-select" data-change="status" aria-label="Status de ${entry.title}" title="Mudar o status">
+            ${statusesOf(sectionOf(entry)).map(([key, st]) => html`<option value="${key}" ${key === entry.status ? 'selected' : ''}>${st.label}</option>`)}
+        </select>
+    </span>`;
+
+/** Coração do dono, em cima da capa (44 px), e o coração só de leitura do perfil de outra pessoa. */
+const coverHeart = (entry, readonly) => readonly
+    ? (entry.favorite ? html`<span class="fav-badge" title="Favorito" role="img" aria-label="Favorito">${icon('heart', { size: 18 })}</span>` : '')
+    : html`<button type="button" class="icon-button fav cover-fav" data-action="favorite" aria-pressed="${String(Boolean(entry.favorite))}" aria-label="${entry.favorite ? `Tirar ${entry.title} dos favoritos` : `Favoritar ${entry.title}`}" title="${entry.favorite ? 'Tirar dos favoritos' : 'Favoritar (fixa no perfil)'}">${icon('heart', { size: 20 })}</button>`;
+
+/** Link "Temporadas (2)" / "Progresso" ao lado de Detalhes: só enquanto a obra está em andamento (nos outros status o botão grande faz esse papel). */
+function progressLink(entry) {
+    if (entry.status !== 'watching') return '';
+    return isReading(entry)
+        ? html`<button type="button" class="link-button" data-action="progress">Progresso ${icon('chevronRight', { size: 14 })}</button>`
+        : html`<button type="button" class="link-button" data-action="seasons">Temporadas (${entry.seasons.length}) ${icon('chevronRight', { size: 14 })}</button>`;
+}
+
+/** O menu "⋯" do card: Compartilhar, Editar e Excluir (continuam com os mesmos data-action de antes). */
+const cardMenu = (entry) => html`
+    <span class="card-menu-wrap">
+        <button type="button" class="button button-secondary menu-toggle" data-menu-toggle aria-haspopup="menu" aria-expanded="false" aria-label="Mais ações de ${entry.title}" title="Mais ações">${icon('more', { size: 20 })}</button>
+        <div class="card-menu" role="menu" aria-label="Ações de ${entry.title}" hidden>
+            <button type="button" role="menuitem" class="account-item" data-action="share">${icon('share', { size: 18 })}<span>Compartilhar</span></button>
+            <button type="button" role="menuitem" class="account-item" data-action="edit">${icon('edit', { size: 18 })}<span>Editar</span></button>
+            <div class="account-sep" role="separator"></div>
+            <button type="button" role="menuitem" class="account-item danger" data-action="delete">${icon('trash', { size: 18 })}<span>Excluir…</span></button>
+        </div>
+    </span>`;
+
+/** Faixa de ações do dono: "+1 Ep/+1 Cap" (em andamento), ou "Temporadas/Progresso" (concluída, em espera, dropada), mais o menu. Obra "Quero ver" só tem o menu. */
+function actionsRow(entry) {
+    const lead = entry.status === 'watching' ? incButton(entry)
+        : entry.status === 'planned' ? ''
+        : (isReading(entry)
+            ? html`<button type="button" class="button button-secondary mc-wide" data-action="progress">${icon('layers', { size: 17 })} Progresso</button>`
+            : html`<button type="button" class="button button-secondary mc-wide" data-action="seasons">${icon('layers', { size: 17 })} Temporadas (${entry.seasons.length})</button>`);
+    return html`<div class="media-actions">${lead || html`<span class="mc-spacer"></span>`}${cardMenu(entry)}</div>`;
+}
+
+/**
+ * Card da obra: capa em cima (some num degradê para a superfície do card) com os selos, e o texto sempre em fundo sólido.
+ * Todos os cards têm o mesmo tamanho; o que muda é o que aparece dentro (+1 Ep só em andamento, progresso só quando já começou etc.).
+ */
 export function mediaCardHtml(entry, { readonly = false } = {}) {
     const hasDetails = Boolean(entry.description || entry.notes || entry.review);
 
     return html`
     <article class="media-card glass-panel ${entry.status === 'dropped' ? 'is-dropped' : ''}" data-id="${entry.id}">
-        ${poster(entry, true, readonly, !hasDetails)}
+        <div class="mc-cover">
+            ${poster(entry, true, false, !hasDetails)}
+            <div class="mc-top">
+                <div class="mc-pills media-badges">
+                    <span class="badge badge-${CATEGORY_CLASS[entry.category]}">${entry.category}</span>
+                    ${originLabel(entry) ? html`<span class="badge badge-muted" title="Origem">${originLabel(entry)}</span>` : ''}
+                    ${readonly ? html`<span class="badge badge-${entry.status} has-dot">${statusLabel(entry.status, sectionOf(entry))}</span>` : statusPill(entry)}
+                </div>
+                ${coverHeart(entry, readonly)}
+            </div>
+        </div>
         <div class="media-body">
-            <div class="media-badges">${badges(entry)}</div>
-            <h3 class="media-title">${entry.title}</h3>
-            <div class="media-tags">${entry.tags.slice(0, 4).map((t) => html`<span class="chip">${t}</span>`)}</div>
-            <div class="media-meta">
+            <h3 class="media-title" title="${entry.title}">${entry.title}</h3>
+            <div class="mc-line">
+                <div class="media-tags">${entry.tags.slice(0, 4).map((t) => html`<span class="chip">${t}</span>`)}</div>
                 ${starsHtml(entry.rating)}
-                ${hasDetails ? html`<button type="button" class="link-button" data-action="details">${icon('book', { size: 14 })} Detalhes</button>` : ''}
+            </div>
+            <div class="media-meta">
+                ${hasDetails ? html`<button type="button" class="link-button" data-action="details">${icon('book', { size: 14 })} Detalhes</button>` : html`<span></span>`}
+                ${readonly ? '' : progressLink(entry)}
             </div>
             <div class="media-foot">
                 ${progressBlock(entry, readonly)}
-                ${readonly ? '' : html`
-                    <div class="media-actions">
-                        <div class="status-row">
-                            <div class="status-pick">${statusSelect(entry)}</div>
-                            ${incButton(entry)}
-                        </div>
-                        ${progressButton(entry)}
-                        <span class="push">
-                            ${favoriteButton(entry)}
-                            <button type="button" class="icon-button sm" data-action="share" aria-label="Compartilhar ${entry.title}" title="Compartilhar">${icon('share', { size: 16 })}</button>
-                            <button type="button" class="icon-button sm" data-action="edit" aria-label="Editar ${entry.title}" title="Editar">${icon('edit', { size: 16 })}</button>
-                            <button type="button" class="icon-button sm danger" data-action="delete" aria-label="Excluir ${entry.title}" title="Excluir">${icon('trash', { size: 16 })}</button>
-                        </span>
-                    </div>`}
+                ${readonly ? '' : actionsRow(entry)}
             </div>
         </div>
     </article>`;
