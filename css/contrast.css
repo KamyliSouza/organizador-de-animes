@@ -185,3 +185,8 @@
 :root[data-contrast="high"] .mc-cover .poster .air-day { background: #000; border: 2px solid #fff; color: #fff; }
 :root[data-contrast="high"] .mc-top .icon-button.fav[aria-pressed="true"],
 :root[data-contrast="high"] .mc-top .fav-badge { color: #ff9db0; }
+
+/* v1.28 — barra inferior colada: a tela atual ganha contorno além do traço no topo, e "Nova obra" tem borda firme */
+:root[data-contrast="high"] .tab-bar { background: var(--bg-color); border-top: 3px solid var(--text-color); box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+:root[data-contrast="high"] .tab-link[aria-current="page"] { outline: 2px solid var(--text-color); outline-offset: -2px; background: var(--bg-color); }
+:root[data-contrast="high"] .tab-new { border: 2px solid var(--text-color); }

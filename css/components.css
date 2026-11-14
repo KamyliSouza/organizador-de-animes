@@ -609,7 +609,7 @@
 .toast-error { border-color: var(--danger); }
 .toast-error .icon { color: var(--danger); }
 .toast-info .icon { color: var(--primary-text); }
-@media (max-width: 45em) { .toast-region { bottom: 96px; right: 16px; left: 16px; width: auto; } }
+@media (max-width: 45em) { .toast-region { bottom: calc(var(--tabbar-h, 72px) + 14px); right: 16px; left: 16px; width: auto; } }
 
 /* ---------------------------------------------------------
    Temporadas e episódios
@@ -852,6 +852,10 @@ h1 .role-badge, h2 .role-badge, h3 .role-badge { font-size: .7rem; }
 /* Card da obra em telas minúsculas (≤ 20em) ou com fonte enorme: botões e links encolhem em vez de estourar o card */
 @media (max-width: 20em) {
     .media-card .media-actions .mc-wide, .media-card .media-actions > .button { font-size: .8em; letter-spacing: 0; padding-inline: .3rem; }
+    .mc-cover { height: 12rem; }
+    .mc-pills { gap: 3px; }
+    .media-card .mc-top .badge { padding: 3px 7px; font-size: .66rem; }
+    .media-card .status-pill { padding-block: 2px; font-size: .66rem; }
     .media-card .media-meta { font-size: .76rem; gap: 2px 6px; }
     .media-card .media-meta .link-button { gap: 2px; }
 }

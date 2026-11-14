@@ -418,6 +418,10 @@ Tudo isto fica em **Gerenciar** (Membros ou o botão de uma denúncia) e exige a
 - **Nomes proibidos:** a lista vale para nomes de usuário e nomes de exibição **que contêm** a palavra (sem diferenciar maiúsculas nem acentos). Cuidado com palavras curtas: elas valem também dentro de outras palavras. Vale para contas novas e para quem editar o nome; quem já tinha um nome assim só é barrado ao tentar mudá-lo, e a equipe pode renomear.
 - **Cadastros fechados:** o banco recusa qualquer conta nova, **inclusive** a criada manualmente em *Authentication → Users → Add user* do Supabase. Quem já tem conta continua entrando normalmente. A página "Criar conta" avisa antes de a pessoa preencher tudo. Para criar contas à mão, reabra os cadastros no painel.
 
+## Barra inferior colada (v1.28)
+
+No celular (até 720 px) a navegação fica numa **barra inferior colada** na base da tela, de ponta a ponta (respeita a área segura do aparelho). Os itens são Biblioteca, Feed e Explorar (ou Início/Entrar e Ajustes, conforme a conta) e, nas telas em que existe biblioteca, **Nova obra** como último item, preenchido com a cor do tema. A tela atual é marcada com `aria-current` e um traço no topo do item. A altura da barra vira a variável `--tabbar-h`, que dá ao rodapé e aos avisos o espaço certo. No computador não há barra inferior: o botão fica no topo. Código: `renderTabBar` em `js/ui/chrome.js` e `.tab-bar` em `css/base.css`.
+
 ## Card da obra (v1.27)
 
 Na biblioteca (modo **cards**) cada obra é um card de **tamanho fixo**: a grade usa linhas de altura igual e a capa tem altura fixa, então o que varia é só o conteúdo.
@@ -502,7 +506,7 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.27`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.28`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
 
 ## Como o código está organizado
 

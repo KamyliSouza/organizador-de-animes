@@ -331,42 +331,58 @@ html:not(.js) .skip-link { display: none; }
 }
 
 /* ---------------------------------------------------------
-   Barra inferior (celular)
+   Barra inferior (celular) — colada na base da tela, de ponta a ponta, com "Nova obra" como último item (v1.28)
    --------------------------------------------------------- */
 .tab-bar {
     position: fixed;
-    left: 50%;
-    bottom: max(12px, env(safe-area-inset-bottom));
-    transform: translateX(-50%);
+    left: 0;
+    right: 0;
+    bottom: 0;
     z-index: 1000;
     display: none;
-    gap: 4px;
-    width: max-content;
-    max-width: calc(100% - 24px);
-    padding: 6px;
+    align-items: stretch;
+    gap: 2px;
+    padding: 6px max(6px, env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left));
     background: var(--nav-bg);
-    border: 2px solid var(--card-border);
-    border-radius: var(--radius-pill);
-    box-shadow: var(--shadow-card);
+    border-top: 2px solid var(--card-border);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, .12);
     backdrop-filter: blur(var(--blur-card));
     -webkit-backdrop-filter: blur(var(--blur-card));
 }
 .tab-link {
-    display: flex; flex-direction: column; align-items: center; gap: 2px;
-    flex: 1 1 auto;
-    min-width: min(76px, 21vw);
-    padding: 8px 8px;
+    position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 52px;
+    padding: 7px 4px;
     color: var(--subtitle-color);
     text-decoration: none;
+    font: inherit;
     font-size: .72rem;
     font-weight: 800;
-    border-radius: var(--radius-pill);
+    line-height: 1.15;
+    text-align: center;
+    background: transparent;
+    border: 0;
+    border-radius: 14px;
+    cursor: pointer;
 }
-.tab-link[aria-current="page"] { color: var(--button-text); background: var(--button-bg); }
-.tab-link > span:not(.nav-badge) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.tab-link:hover { background: var(--primary-soft); color: var(--primary-text); }
+.tab-link:focus-visible { outline: 3px solid var(--primary-color); outline-offset: -3px; }
+.tab-link[aria-current="page"] { color: var(--primary-text); background: var(--primary-soft); box-shadow: inset 0 3px 0 var(--primary-color); }   /* o traço no topo marca a tela atual sem depender só da cor */
+.tab-link > span:not(.nav-badge) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab-new { flex: 0 0 auto; min-width: 4.9rem; margin-left: 4px; color: var(--button-text); background: var(--button-bg); }
+.tab-new:hover { background: var(--button-bg-hover); color: var(--button-text); }
+.tab-new:focus-visible { outline-color: var(--primary-text); outline-offset: 2px; }
 @media (max-width: 22.5em) {
-    .tab-bar { gap: 2px; padding: 4px; }
-    .tab-link { padding: 8px 4px; font-size: .68rem; }
+    .tab-bar { gap: 1px; padding-inline: 3px; }
+    .tab-link { padding: 7px 2px; font-size: .68rem; }
+    .tab-new { min-width: 3.6rem; margin-left: 2px; }
+}
+@media (max-width: 15em) {      /* 240px: cabem os quatro itens com o nome por inteiro */
+    .tab-link { padding-inline: 0; font-size: .6rem; letter-spacing: -.01em; }
+    .tab-new { min-width: 3.3rem; }
 }
 
 /* ---------------------------------------------------------
@@ -399,8 +415,8 @@ html:not(.js) .skip-link { display: none; }
 @media (max-width: 45em) {      /* 720px; em para virar o menu de baixo também quando o texto do navegador é aumentado */
     .nav-links, .nav-account { display: none; }
     .tab-bar { display: flex; }
-    .site-shell { margin-top: calc(var(--nav-height) + 18px); margin-bottom: 110px; }
-    .site-footer { padding-bottom: 96px; }
+    .site-shell { margin-top: calc(var(--nav-height) + 18px); margin-bottom: 24px; }
+    .site-footer { padding-bottom: calc(var(--tabbar-h, 72px) + 16px); }      /* o rodapé rola por cima da barra colada */
     .brand-text { font-size: 1.1rem; }
 }
 

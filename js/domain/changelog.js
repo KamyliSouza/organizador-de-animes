@@ -1,9 +1,18 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.27';
+export const SITE_VERSION = '1.28';
 
 export const CHANGELOG = [
+    {
+        version: '1.28',
+        title: 'Barra inferior colada, com "Nova obra" dentro dela',
+        items: [
+            'No celular, a barra de baixo agora fica colada na tela, de ponta a ponta, em vez de flutuar. Ela não cobre mais o conteúdo: a página, o rodapé e os avisos ganham o espaço exato dela.',
+            'O botão "Nova obra" deixou de flutuar por cima das obras e virou o último item da própria barra, preenchido com a cor do tema.',
+            'A tela em que você está aparece com um traço no topo do item (além da cor). No computador nada mudou: o "Nova obra" continua no topo, ao lado do seu avatar.',
+        ],
+    },
     {
         version: '1.27',
         title: 'Novo visual dos cards das obras',

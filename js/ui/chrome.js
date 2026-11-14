@@ -79,29 +79,25 @@ function renderNav(nav) {
 function renderTabBar(bar) {
     const { items, account } = navModel();
     const all = [...items, account].filter(Boolean);
+    const withNew = showsNewWork(currentPath());
+    document.body.classList.toggle('has-tabbar-new', withNew);
+    // O redesenho não tira o teclado do item em que ele está (nem do botão "Nova obra").
+    const active = document.activeElement;
+    const keep = active instanceof Element && bar.contains(active)
+        ? (active.closest('[data-new-work]') ? '[data-new-work]' : active.getAttribute('href') ? `a.tab-link[href="${active.getAttribute('href')}"]` : null)
+        : null;
     setHtml(bar, html`${all.map((i) => html`
-        <a class="tab-link" href="${i.href}" ${i.active ? html`aria-current="page"` : ''}>${icon(i.icon, { size: 20 })}<span>${i.label}</span>${badge(i)}</a>`)}`);
+        <a class="tab-link" href="${i.href}" ${i.active ? html`aria-current="page"` : ''}>${icon(i.icon, { size: 20 })}<span>${i.label}</span>${badge(i)}</a>`)}
+        ${withNew ? html`<button type="button" class="tab-link tab-new" data-new-work aria-haspopup="dialog">${icon('plus', { size: 20 })}<span>Nova obra</span></button>` : ''}`);
+    if (keep) bar.querySelector(keep)?.focus({ preventScroll: true });
 }
 
-/** Botão flutuante "Nova obra" (celular). Só é redesenhado quando aparece ou some, para o teclado não perder o foco nele. */
-let fabShown = null;
-function renderFab(region) {
-    if (!region) return;
-    const show = showsNewWork(currentPath());
-    document.body.classList.toggle('has-fab', show);
-    if (show === fabShown) return;
-    fabShown = show;
-    setHtml(region, show
-        ? html`<button type="button" class="button button-primary new-work-fab" data-new-work aria-haspopup="dialog">${icon('plus', { size: 22 })}<span class="new-work-label">Nova obra</span></button>`
-        : '');
-}
-
-/** O botão flutuante fica logo acima da barra inferior, qualquer que seja a altura dela (texto grande, tela baixa). */
-function watchFabOffset(tabBar) {
+/** O conteúdo, o rodapé e os avisos ganham a altura exata da barra inferior (texto grande, tela baixa, área segura do aparelho). */
+function watchTabBarHeight(tabBar) {
     const sync = () => {
         const r = tabBar.getBoundingClientRect();
-        if (!r.height) return;           // barra escondida (computador): vale o padrão do CSS
-        document.documentElement.style.setProperty('--fab-bottom', `${Math.round(window.innerHeight - r.top + 12)}px`);
+        if (!r.height) { document.documentElement.style.removeProperty('--tabbar-h'); return; }   // barra escondida (computador)
+        document.documentElement.style.setProperty('--tabbar-h', `${Math.ceil(r.height)}px`);
     };
     sync();
     window.addEventListener('resize', sync);
@@ -161,7 +157,7 @@ function renderNotice(region) {
         </div>` : '');
 }
 
-export function mountChrome({ nav, tabBar, footer, notice, fab, side }) {
+export function mountChrome({ nav, tabBar, footer, notice, side }) {
     const paint = () => {
         const restoreFocus = captureAccountFocus(nav);
         // O redesenho do topo não tira o teclado dos botões "Nova obra" e "Menu lateral".
@@ -169,17 +165,17 @@ export function mountChrome({ nav, tabBar, footer, notice, fab, side }) {
         const keepFocus = active instanceof Element && nav.contains(active)
             ? (active.closest('[data-new-work]') ? '[data-new-work]' : active.closest('[data-side-toggle]') ? '[data-side-toggle]' : null)
             : null;
-        renderNav(nav); renderTabBar(tabBar); renderNotice(notice); renderFab(fab); renderSide(side);
+        renderNav(nav); renderTabBar(tabBar); renderNotice(notice); renderSide(side);
         restoreFocus();
         if (keepFocus) nav.querySelector(keepFocus)?.focus({ preventScroll: true });
-        syncFab?.();
+        syncTabBar();
     };
-    const syncFab = fab ? watchFabOffset(tabBar) : null;
+    const syncTabBar = watchTabBarHeight(tabBar);
     paint();
     renderFooter(footer);
     on(footer, 'click', '[data-patch-notes]', () => openPatchNotesModal());
     on(nav, 'click', '[data-new-work]', () => requestNewWork());
-    if (fab) on(fab, 'click', '[data-new-work]', () => requestNewWork());
+    on(tabBar, 'click', '[data-new-work]', () => requestNewWork());
     on(nav, 'click', '[data-side-toggle]', () => { setSideMenuOpen(!isSideMenuOpen()); paint(); });
     if (side) on(side, 'click', '[data-shortcut]', (_, btn) => requestShortcut(btn.dataset.shortcut));
     window.addEventListener(SECTION_EVENT, () => renderSide(side));     // Agenda só existe na aba Anime
