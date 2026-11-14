@@ -1,0 +1,296 @@
+diff -ruN a/README.md b/README.md
+--- a/README.md	2026-11-14 00:31:46.524780757 -0300
++++ b/README.md	2026-11-14 08:39:52.917102541 -0300
+@@ -418,6 +418,10 @@
+ - **Nomes proibidos:** a lista vale para nomes de usuário e nomes de exibição **que contêm** a palavra (sem diferenciar maiúsculas nem acentos). Cuidado com palavras curtas: elas valem também dentro de outras palavras. Vale para contas novas e para quem editar o nome; quem já tinha um nome assim só é barrado ao tentar mudá-lo, e a equipe pode renomear.
+ - **Cadastros fechados:** o banco recusa qualquer conta nova, **inclusive** a criada manualmente em *Authentication → Users → Add user* do Supabase. Quem já tem conta continua entrando normalmente. A página "Criar conta" avisa antes de a pessoa preencher tudo. Para criar contas à mão, reabra os cadastros no painel.
+ 
++## Barra de cima no computador largo (v1.29)
++
++A partir de 75em (1200 px) a barra de cima assume o papel do "cartão grande" (hero) de cada tela. O **título** (`data-bar-title`, ou o `h1` da tela) aparece ao lado do logo quando o menu lateral está aberto ou quando a tela não tem link ativo nos três principais (Configurações, Painel, Ajustes…); com o menu fechado, o link ativo já diz onde você está. Os botões de `.page-head-actions` ganham um **atalho** na barra, que apenas clica no botão original; com o menu lateral aberto, Agenda e Estatísticas não se repetem (já estão em "Atalhos"). O cartão sai da vista com CSS, mas o `h1` continua na página para leitores de tela, e o campo de busca de Explorar permanece. A largura da barra é a mesma com o menu aberto ou fechado. Abaixo de 75em tudo continua como antes. Código: `js/ui/pageBar.js` (espelho), `renderNav` em `js/ui/chrome.js` e o bloco "Computador largo" em `css/base.css`.
++
+ ## Barra inferior colada (v1.28)
+ 
+ No celular (até 720 px) a navegação fica numa **barra inferior colada** na base da tela, de ponta a ponta (respeita a área segura do aparelho). Os itens são Biblioteca, Feed e Explorar (ou Início/Entrar e Ajustes, conforme a conta) e, nas telas em que existe biblioteca, **Nova obra** como último item, preenchido com a cor do tema. A tela atual é marcada com `aria-current` e um traço no topo do item. A altura da barra vira a variável `--tabbar-h`, que dá ao rodapé e aos avisos o espaço certo. No computador não há barra inferior: o botão fica no topo. Código: `renderTabBar` em `js/ui/chrome.js` e `.tab-bar` em `css/base.css`.
+@@ -506,7 +510,7 @@
+ ## Logo e novidades do site
+ 
+ - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
+-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.28`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
++- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.29`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+ 
+ ## Como o código está organizado
+ 
+diff -ruN a/css/base.css b/css/base.css
+--- a/css/base.css	2026-11-14 00:31:46.524881635 -0300
++++ b/css/base.css	2026-11-14 08:39:52.917179262 -0300
+@@ -244,6 +244,42 @@
+     body.has-sidemenu .nav-links { display: none; }
+     body.has-sidemenu .site-nav-inner { width: calc(100% - 28px); }
+ }
++
++/* ---------------------------------------------------------
++   Computador largo (v1.29): a barra de cima diz onde você está e guarda as ações da tela
++   --------------------------------------------------------- */
++.nav-page, .nav-page-actions { display: none !important; }
++@media (min-width: 75em) {
++    body.has-side-toggle .site-nav-inner { width: calc(100% - 28px); }     /* mesma largura com o menu aberto ou fechado: logo e botões não pulam */
++    .nav-page:not([hidden]) { display: none !important; }
++    body.has-sidemenu .nav-page:not([hidden]), body.nav-no-active .nav-page:not([hidden]) {
++        display: flex !important; align-items: center; gap: 10px; min-width: 0; flex: 0 100 auto; overflow: hidden;
++        height: 34px; margin-left: 4px; padding-left: 14px; border-left: 2px solid var(--card-border);
++    }
++    body.has-side-toggle .nav-actions, .nav-page-actions { flex-shrink: 0; }
++    .nav-page-title { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-size: 1.05rem; font-weight: 900; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
++    .nav-page-title .icon { flex: none; color: var(--primary-text); }
++    .nav-page-hint { display: none; min-width: 0; color: var(--subtitle-color); font-size: .86rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
++    .nav-page-actions:not([hidden]) { display: flex !important; align-items: center; gap: 8px; flex: none; }
++    .nav-page-action { min-width: 40px; min-height: 40px; white-space: nowrap; }
++    .nav-page-action-label { display: none; }
++
++    /* o cartão grande da tela sai de cena: o h1 continua na página para o leitor de tela */
++    :root:root:root body.has-pagebar .page-head:not(:has(.search-field)) {
++        position: absolute; left: 0; top: 0; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
++    }
++    :root:root:root body.has-pagebar .page-head:has(.search-field) {
++        justify-content: flex-end; padding: 0; background: none; border: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none;
++    }
++    body.has-pagebar .page-head:has(.search-field) > div:first-child { position: absolute; left: 0; top: 0; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
++}
++@media (min-width: 75em) and (max-width: 89.99em) {      /* sem sobrar espaço (menu fechado, tela fora dos três links): o nome do site cede lugar ao título */
++    body.nav-no-active:not(.has-sidemenu) .brand-text { display: none; }
++}
++@media (min-width: 90em) {
++    .nav-page-hint { display: inline; }
++    .nav-page-action-label { display: inline; }
++}
+ .side-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+ .side-caption { margin: 20px 14px 6px; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--subtitle-color); }
+ .side-link {
+diff -ruN a/js/domain/changelog.js b/js/domain/changelog.js
+--- a/js/domain/changelog.js	2026-11-14 00:31:46.761820872 -0300
++++ b/js/domain/changelog.js	2026-11-14 08:39:52.917817324 -0300
+@@ -1,10 +1,20 @@
+ // Histórico de novidades do site (aparece no botão de versão do rodapé).
+ // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
+ // Escreva para a comunidade: frases curtas, sem termos técnicos.
+-export const SITE_VERSION = '1.28';
++export const SITE_VERSION = '1.29';
+ 
+ export const CHANGELOG = [
+     {
++        version: '1.29',
++        title: 'Barra de cima mais útil no computador',
++        items: [
++            'Em telas largas, o nome da tela ("Minha biblioteca", "Feed", "Explorar perfis"…) agora fica na barra de cima, e o cartão grande que ficava no topo de cada tela saiu. O conteúdo começa mais cedo e nada se repete.',
++            'Com o menu lateral aberto, Agenda e Estatísticas aparecem só nele (antes apareciam também no topo da biblioteca). Com o menu fechado, esses atalhos e as ações de cada tela (como "Atualizar" no Feed) sobem para a barra, ao lado de "Nova obra".',
++            'A barra de cima tem a mesma largura com o menu lateral aberto ou fechado: o logo e os botões não pulam mais de lugar.',
++            'No celular e em telas médias nada mudou. Leitores de tela continuam encontrando o título de cada tela.',
++        ],
++    },
++    {
+         version: '1.28',
+         title: 'Barra inferior colada, com "Nova obra" dentro dela',
+         items: [
+diff -ruN a/js/main.js b/js/main.js
+--- a/js/main.js	2026-11-14 00:31:46.763265709 -0300
++++ b/js/main.js	2026-11-14 08:39:52.918737227 -0300
+@@ -67,7 +67,7 @@
+         return;
+     }
+ 
+-    mountChrome({ nav: $('site-nav'), tabBar: $('tab-bar'), footer: $('site-footer'), notice: $('site-notice'), side: $('side-region') });
++    mountChrome({ nav: $('site-nav'), tabBar: $('tab-bar'), footer: $('site-footer'), notice: $('site-notice'), side: $('side-region'), main: $('main') });
+     mountSuspensionGate();   // conta suspensa ou banida: só a tela de aviso aparece
+     defineRoutes();
+ 
+diff -ruN a/js/ui/chrome.js b/js/ui/chrome.js
+--- a/js/ui/chrome.js	2026-11-14 00:31:46.762624380 -0300
++++ b/js/ui/chrome.js	2026-11-14 08:39:52.918410213 -0300
+@@ -11,6 +11,7 @@
+ import { SITE_VERSION } from '../domain/changelog.js';
+ import { state, isCloud, myRole, onSessionChange, refreshSession } from '../services/session.js';
+ import { accountMenuHtml, bindAccountMenu, captureAccountFocus, closeAccountMenu } from './accountMenu.js';
++import { mountPageBar } from './pageBar.js';
+ import { requestNewWork, showsNewWork } from './newWork.js';
+ import { openPatchNotesModal } from './patchNotesModal.js';
+ import { SECTION_EVENT, loadSection } from './sectionTabs.js';
+@@ -47,7 +48,9 @@
+ function renderNav(nav) {
+     const { items, cloud, user } = navModel();
+     const dark = currentTheme() === 'dark';
+-    if (!(cloud && user)) closeAccountMenu();   // saiu da conta: não deixa um "aberto" esquecido para a próxima pessoa que entrar
++    if (!(cloud && user)) closeAccountMenu();
++    document.body.classList.toggle('nav-no-active', !items.some((i) => i.active));      // telas fora dos três links (Configurações, Painel, Perfil…): o título fica sempre na barra
++    document.body.classList.toggle('has-side-toggle', showsSideMenu(currentPath()));   // saiu da conta: não deixa um "aberto" esquecido para a próxima pessoa que entrar
+ 
+     setHtml(nav, html`
+         <div class="site-nav-inner">
+@@ -59,7 +62,9 @@
+             <nav class="nav-links" aria-label="Principal">
+                 ${items.map((i) => html`<a class="nav-link" href="${i.href}" ${i.active ? html`aria-current="page"` : ''}>${icon(i.icon, { size: 17 })}<span class="nav-text">${i.label}</span>${badge(i)}</a>`)}
+             </nav>
++            <div class="nav-page" data-nav-page hidden></div>
+             <span class="nav-spacer"></span>
++            <div class="nav-page-actions" data-nav-page-actions hidden></div>
+             <div class="nav-actions">
+                 <button type="button" class="icon-button" data-theme-toggle aria-label="${dark ? 'Usar tema claro' : 'Usar tema escuro'}" title="${dark ? 'Tema claro' : 'Tema escuro'}">${icon(dark ? 'sun' : 'moon', { size: 20 })}</button>
+                 ${showsNewWork(currentPath()) ? html`<button type="button" class="button button-primary new-work-top" data-new-work aria-haspopup="dialog" title="Nova obra">${icon('plus', { size: 18 })}<span class="new-work-label">Nova obra</span></button>` : ''}
+@@ -157,7 +162,8 @@
+         </div>` : '');
+ }
+ 
+-export function mountChrome({ nav, tabBar, footer, notice, side }) {
++export function mountChrome({ nav, tabBar, footer, notice, side, main }) {
++    let pageBar = null;
+     const paint = () => {
+         const restoreFocus = captureAccountFocus(nav);
+         // O redesenho do topo não tira o teclado dos botões "Nova obra" e "Menu lateral".
+@@ -169,8 +175,10 @@
+         restoreFocus();
+         if (keepFocus) nav.querySelector(keepFocus)?.focus({ preventScroll: true });
+         syncTabBar();
++        pageBar?.sync();
+     };
+     const syncTabBar = watchTabBarHeight(tabBar);
++    if (main) pageBar = mountPageBar({ nav, main, sideOpen: () => showsSideMenu(currentPath()) && isSideMenuOpen() });
+     paint();
+     renderFooter(footer);
+     on(footer, 'click', '[data-patch-notes]', () => openPatchNotesModal());
+diff -ruN a/js/ui/pageBar.js b/js/ui/pageBar.js
+--- a/js/ui/pageBar.js	1969-12-31 21:00:00.000000000 -0300
++++ b/js/ui/pageBar.js	2026-11-14 08:39:52.918072398 -0300
+@@ -0,0 +1,121 @@
++// Barra de cima no computador largo (≥ 75em): o título da tela e as ações do "cartão grande" (hero) vivem na barra.
++// As telas continuam desenhando o <header class="page-head"> de sempre (o h1 segue na página para o leitor de tela);
++// no computador largo o CSS o esconde, e este módulo espelha o que havia nele:
++//   - o título (data-bar-title ou o h1) e a dica (data-bar-hint) vão para [data-nav-page];
++//   - cada botão/link de .page-head-actions ganha um "atalho" em [data-nav-page-actions] que apenas clica no original.
++// Nada é movido nem refeito nas telas: os botões e as ligações continuam sendo os de sempre.
++import { on } from '../core/dom.js';
++
++/** Atalhos que o menu lateral já oferece: com o menu aberto, não se repetem na barra. */
++const SIDE_ACTIONS = ['schedule', 'stats'];
++
++const WIDE = '(min-width: 75em)';
++
++function isHidden(el) {
++    return el.hidden || el.closest('[hidden]') !== null;
++}
++
++function cloneIcon(from) {
++    const svg = from?.querySelector?.('svg');
++    return svg ? svg.cloneNode(true) : null;
++}
++
++/**
++ * @param {object} opts
++ * @param {HTMLElement} opts.nav       a barra de cima (#site-nav)
++ * @param {HTMLElement} opts.main      o conteúdo da tela (#main)
++ * @param {() => boolean} opts.sideOpen  o menu lateral está aberto?
++ * @returns {{ sync: () => void, destroy: () => void }}
++ */
++export function mountPageBar({ nav, main, sideOpen }) {
++    let queued = false;
++
++    const sync = () => {
++        queued = false;
++        const head = main.querySelector('.page-head');
++        const wide = window.matchMedia(WIDE).matches;
++        const collapsed = Boolean(head) && wide;
++        document.body.classList.toggle('has-pagebar', collapsed);
++        // sem campo de busca dentro, o cartão inteiro fica só para o leitor de tela
++        if (head) {
++            const hasSearch = Boolean(head.querySelector('.search-field'));
++            head.classList.toggle('sr-only', collapsed && !hasSearch);
++            head.querySelector(':scope > div:first-child')?.classList.toggle('sr-only', collapsed && hasSearch);   // com busca: só o bloco do título some, a busca fica
++        }
++        const slot = nav.querySelector('[data-nav-page]');
++        const actionsSlot = nav.querySelector('[data-nav-page-actions]');
++        if (!slot || !actionsSlot) return;
++
++        // título e dica
++        slot.replaceChildren();
++        if (head && wide) {
++            const title = (head.dataset.barTitle || head.querySelector('h1')?.textContent || '').trim();
++            const hint = (head.dataset.barHint || '').trim();
++            const ic = cloneIcon(head.querySelector('.eyebrow'));
++            if (title) {
++                const b = document.createElement('span');
++                b.className = 'nav-page-title';
++                if (ic) { ic.setAttribute('aria-hidden', 'true'); b.append(ic); }
++                b.append(document.createTextNode(title));
++                slot.append(b);
++                if (hint) {
++                    const h = document.createElement('span');
++                    h.className = 'nav-page-hint';
++                    h.textContent = hint;
++                    slot.append(h);
++                }
++            }
++            // o título já está na página (h1) para o leitor de tela; aqui ele é só visual
++            slot.setAttribute('aria-hidden', 'true');
++        }
++        slot.hidden = !slot.firstChild;
++
++        // atalhos das ações
++        actionsSlot.replaceChildren();
++        if (head && wide) {
++            const real = [...head.querySelectorAll('.page-head-actions > *')];
++            real.forEach((el, index) => {
++                if (isHidden(el)) return;
++                if (sideOpen() && SIDE_ACTIONS.includes(el.dataset.act)) return;
++                const label = el.textContent.replace(/\s+/g, ' ').trim();
++                const b = document.createElement('button');
++                b.type = 'button';
++                b.className = 'button button-secondary button-sm nav-page-action';
++                b.dataset.pageAction = String(index);
++                b.title = label;
++                b.setAttribute('aria-label', label);
++                const ic2 = cloneIcon(el);
++                if (ic2) b.append(ic2);
++                const t = document.createElement('span');
++                t.className = 'nav-page-action-label';
++                t.textContent = label;
++                b.append(t);
++                actionsSlot.append(b);
++            });
++        }
++        actionsSlot.hidden = !actionsSlot.firstChild;
++    };
++
++    // roda já no fim da alteração (antes da pintura), para o cartão grande não "piscar" na troca de tela
++    const queue = () => {
++        if (queued) return;
++        queued = true;
++        queueMicrotask(sync);
++    };
++
++    const observer = new MutationObserver(queue);
++    observer.observe(main, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
++    const mq = window.matchMedia(WIDE);
++    mq.addEventListener('change', queue);
++
++    // clicar no atalho da barra = clicar no botão original da tela
++    const off = on(nav, 'click', '[data-page-action]', (_, btn) => {
++        const real = main.querySelectorAll('.page-head .page-head-actions > *')[Number(btn.dataset.pageAction)];
++        if (real) real.click();
++    });
++
++    return {
++        sync,
++        destroy() { observer.disconnect(); mq.removeEventListener('change', queue); off(); },
++    };
++}
+diff -ruN a/js/views/library.js b/js/views/library.js
+--- a/js/views/library.js	2026-11-14 00:31:46.763221730 -0300
++++ b/js/views/library.js	2026-11-14 08:39:52.918705506 -0300
+@@ -42,7 +42,7 @@
+     }
+ 
+     setHtml(root, html`
+-        <header class="page-head">
++        <header class="page-head" data-bar-title="${cloud ? 'Minha biblioteca' : 'Modo local'}" data-bar-hint="${cloud && name ? `Olá, ${name}!` : ''}">
+             <div>
+                 <span class="eyebrow">${icon('film', { size: 14 })} ${cloud ? 'Minha biblioteca' : 'Modo local'}</span>
+                 <h1 style="margin-top:10px">${cloud && name ? `Olá, ${name}!` : 'Minha biblioteca'}</h1>

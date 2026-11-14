@@ -418,6 +418,10 @@ Tudo isto fica em **Gerenciar** (Membros ou o botão de uma denúncia) e exige a
 - **Nomes proibidos:** a lista vale para nomes de usuário e nomes de exibição **que contêm** a palavra (sem diferenciar maiúsculas nem acentos). Cuidado com palavras curtas: elas valem também dentro de outras palavras. Vale para contas novas e para quem editar o nome; quem já tinha um nome assim só é barrado ao tentar mudá-lo, e a equipe pode renomear.
 - **Cadastros fechados:** o banco recusa qualquer conta nova, **inclusive** a criada manualmente em *Authentication → Users → Add user* do Supabase. Quem já tem conta continua entrando normalmente. A página "Criar conta" avisa antes de a pessoa preencher tudo. Para criar contas à mão, reabra os cadastros no painel.
 
+## Barra de cima no computador largo (v1.29)
+
+A partir de 75em (1200 px) a barra de cima assume o papel do "cartão grande" (hero) de cada tela. O **título** (`data-bar-title`, ou o `h1` da tela) aparece ao lado do logo quando o menu lateral está aberto ou quando a tela não tem link ativo nos três principais (Configurações, Painel, Ajustes…); com o menu fechado, o link ativo já diz onde você está. Os botões de `.page-head-actions` ganham um **atalho** na barra, que apenas clica no botão original; com o menu lateral aberto, Agenda e Estatísticas não se repetem (já estão em "Atalhos"). O cartão sai da vista com CSS, mas o `h1` continua na página para leitores de tela, e o campo de busca de Explorar permanece. A largura da barra é a mesma com o menu aberto ou fechado. Abaixo de 75em tudo continua como antes. Código: `js/ui/pageBar.js` (espelho), `renderNav` em `js/ui/chrome.js` e o bloco "Computador largo" em `css/base.css`.
+
 ## Barra inferior colada (v1.28)
 
 No celular (até 720 px) a navegação fica numa **barra inferior colada** na base da tela, de ponta a ponta (respeita a área segura do aparelho). Os itens são Biblioteca, Feed e Explorar (ou Início/Entrar e Ajustes, conforme a conta) e, nas telas em que existe biblioteca, **Nova obra** como último item, preenchido com a cor do tema. A tela atual é marcada com `aria-current` e um traço no topo do item. A altura da barra vira a variável `--tabbar-h`, que dá ao rodapé e aos avisos o espaço certo. No computador não há barra inferior: o botão fica no topo. Código: `renderTabBar` em `js/ui/chrome.js` e `.tab-bar` em `css/base.css`.
@@ -506,7 +510,7 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.28`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.29`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
 
 ## Como o código está organizado
 

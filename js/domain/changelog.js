@@ -1,9 +1,19 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.28';
+export const SITE_VERSION = '1.29';
 
 export const CHANGELOG = [
+    {
+        version: '1.29',
+        title: 'Barra de cima mais útil no computador',
+        items: [
+            'Em telas largas, o nome da tela ("Minha biblioteca", "Feed", "Explorar perfis"…) agora fica na barra de cima, e o cartão grande que ficava no topo de cada tela saiu. O conteúdo começa mais cedo e nada se repete.',
+            'Com o menu lateral aberto, Agenda e Estatísticas aparecem só nele (antes apareciam também no topo da biblioteca). Com o menu fechado, esses atalhos e as ações de cada tela (como "Atualizar" no Feed) sobem para a barra, ao lado de "Nova obra".',
+            'A barra de cima tem a mesma largura com o menu lateral aberto ou fechado: o logo e os botões não pulam mais de lugar.',
+            'No celular e em telas médias nada mudou. Leitores de tela continuam encontrando o título de cada tela.',
+        ],
+    },
     {
         version: '1.28',
         title: 'Barra inferior colada, com "Nova obra" dentro dela',

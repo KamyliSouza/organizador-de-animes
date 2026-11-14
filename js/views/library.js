@@ -42,7 +42,7 @@ export async function mount(root) {
     }
 
     setHtml(root, html`
-        <header class="page-head">
+        <header class="page-head" data-bar-title="${cloud ? 'Minha biblioteca' : 'Modo local'}" data-bar-hint="${cloud && name ? `Olá, ${name}!` : ''}">
             <div>
                 <span class="eyebrow">${icon('film', { size: 14 })} ${cloud ? 'Minha biblioteca' : 'Modo local'}</span>
                 <h1 style="margin-top:10px">${cloud && name ? `Olá, ${name}!` : 'Minha biblioteca'}</h1>

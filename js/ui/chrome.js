@@ -11,6 +11,7 @@ import { AUTO_SUSPEND_DAYS, STRIKE_LIMIT, strikeCountText } from '../domain/acce
 import { SITE_VERSION } from '../domain/changelog.js';
 import { state, isCloud, myRole, onSessionChange, refreshSession } from '../services/session.js';
 import { accountMenuHtml, bindAccountMenu, captureAccountFocus, closeAccountMenu } from './accountMenu.js';
+import { mountPageBar } from './pageBar.js';
 import { requestNewWork, showsNewWork } from './newWork.js';
 import { openPatchNotesModal } from './patchNotesModal.js';
 import { SECTION_EVENT, loadSection } from './sectionTabs.js';
@@ -47,7 +48,9 @@ const badge = (item) => (item.badge > 0
 function renderNav(nav) {
     const { items, cloud, user } = navModel();
     const dark = currentTheme() === 'dark';
-    if (!(cloud && user)) closeAccountMenu();   // saiu da conta: não deixa um "aberto" esquecido para a próxima pessoa que entrar
+    if (!(cloud && user)) closeAccountMenu();
+    document.body.classList.toggle('nav-no-active', !items.some((i) => i.active));      // telas fora dos três links (Configurações, Painel, Perfil…): o título fica sempre na barra
+    document.body.classList.toggle('has-side-toggle', showsSideMenu(currentPath()));   // saiu da conta: não deixa um "aberto" esquecido para a próxima pessoa que entrar
 
     setHtml(nav, html`
         <div class="site-nav-inner">
@@ -59,7 +62,9 @@ function renderNav(nav) {
             <nav class="nav-links" aria-label="Principal">
                 ${items.map((i) => html`<a class="nav-link" href="${i.href}" ${i.active ? html`aria-current="page"` : ''}>${icon(i.icon, { size: 17 })}<span class="nav-text">${i.label}</span>${badge(i)}</a>`)}
             </nav>
+            <div class="nav-page" data-nav-page hidden></div>
             <span class="nav-spacer"></span>
+            <div class="nav-page-actions" data-nav-page-actions hidden></div>
             <div class="nav-actions">
                 <button type="button" class="icon-button" data-theme-toggle aria-label="${dark ? 'Usar tema claro' : 'Usar tema escuro'}" title="${dark ? 'Tema claro' : 'Tema escuro'}">${icon(dark ? 'sun' : 'moon', { size: 20 })}</button>
                 ${showsNewWork(currentPath()) ? html`<button type="button" class="button button-primary new-work-top" data-new-work aria-haspopup="dialog" title="Nova obra">${icon('plus', { size: 18 })}<span class="new-work-label">Nova obra</span></button>` : ''}
@@ -157,7 +162,8 @@ function renderNotice(region) {
         </div>` : '');
 }
 
-export function mountChrome({ nav, tabBar, footer, notice, side }) {
+export function mountChrome({ nav, tabBar, footer, notice, side, main }) {
+    let pageBar = null;
     const paint = () => {
         const restoreFocus = captureAccountFocus(nav);
         // O redesenho do topo não tira o teclado dos botões "Nova obra" e "Menu lateral".
@@ -169,8 +175,10 @@ export function mountChrome({ nav, tabBar, footer, notice, side }) {
         restoreFocus();
         if (keepFocus) nav.querySelector(keepFocus)?.focus({ preventScroll: true });
         syncTabBar();
+        pageBar?.sync();
     };
     const syncTabBar = watchTabBarHeight(tabBar);
+    if (main) pageBar = mountPageBar({ nav, main, sideOpen: () => showsSideMenu(currentPath()) && isSideMenuOpen() });
     paint();
     renderFooter(footer);
     on(footer, 'click', '[data-patch-notes]', () => openPatchNotesModal());

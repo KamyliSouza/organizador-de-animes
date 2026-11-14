@@ -244,6 +244,42 @@ html:not(.js) .skip-link { display: none; }
     body.has-sidemenu .nav-links { display: none; }
     body.has-sidemenu .site-nav-inner { width: calc(100% - 28px); }
 }
+
+/* ---------------------------------------------------------
+   Computador largo (v1.29): a barra de cima diz onde você está e guarda as ações da tela
+   --------------------------------------------------------- */
+.nav-page, .nav-page-actions { display: none !important; }
+@media (min-width: 75em) {
+    body.has-side-toggle .site-nav-inner { width: calc(100% - 28px); }     /* mesma largura com o menu aberto ou fechado: logo e botões não pulam */
+    .nav-page:not([hidden]) { display: none !important; }
+    body.has-sidemenu .nav-page:not([hidden]), body.nav-no-active .nav-page:not([hidden]) {
+        display: flex !important; align-items: center; gap: 10px; min-width: 0; flex: 0 100 auto; overflow: hidden;
+        height: 34px; margin-left: 4px; padding-left: 14px; border-left: 2px solid var(--card-border);
+    }
+    body.has-side-toggle .nav-actions, .nav-page-actions { flex-shrink: 0; }
+    .nav-page-title { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-size: 1.05rem; font-weight: 900; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .nav-page-title .icon { flex: none; color: var(--primary-text); }
+    .nav-page-hint { display: none; min-width: 0; color: var(--subtitle-color); font-size: .86rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .nav-page-actions:not([hidden]) { display: flex !important; align-items: center; gap: 8px; flex: none; }
+    .nav-page-action { min-width: 40px; min-height: 40px; white-space: nowrap; }
+    .nav-page-action-label { display: none; }
+
+    /* o cartão grande da tela sai de cena: o h1 continua na página para o leitor de tela */
+    :root:root:root body.has-pagebar .page-head:not(:has(.search-field)) {
+        position: absolute; left: 0; top: 0; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+    }
+    :root:root:root body.has-pagebar .page-head:has(.search-field) {
+        justify-content: flex-end; padding: 0; background: none; border: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+    }
+    body.has-pagebar .page-head:has(.search-field) > div:first-child { position: absolute; left: 0; top: 0; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+}
+@media (min-width: 75em) and (max-width: 89.99em) {      /* sem sobrar espaço (menu fechado, tela fora dos três links): o nome do site cede lugar ao título */
+    body.nav-no-active:not(.has-sidemenu) .brand-text { display: none; }
+}
+@media (min-width: 90em) {
+    .nav-page-hint { display: inline; }
+    .nav-page-action-label { display: inline; }
+}
 .side-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .side-caption { margin: 20px 14px 6px; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--subtitle-color); }
 .side-link {
