@@ -188,5 +188,6 @@
 
 /* v1.28 — barra inferior colada: a tela atual ganha contorno além do traço no topo, e "Nova obra" tem borda firme */
 :root[data-contrast="high"] .tab-bar { background: var(--bg-color); border-top: 3px solid var(--text-color); box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
-:root[data-contrast="high"] .tab-link[aria-current="page"] { outline: 2px solid var(--text-color); outline-offset: -2px; background: var(--bg-color); }
-:root[data-contrast="high"] .tab-new { border: 2px solid var(--text-color); }
+:root[data-contrast="high"] .tab-link[aria-current="page"] .tab-ico { background: transparent; outline: 2px solid var(--text-color); outline-offset: -2px; }
+:root[data-contrast="high"] .tab-link[aria-current="page"] { text-decoration: underline; text-underline-offset: 3px; }
+:root[data-contrast="high"] .tab-new .tab-ico { border: 2px solid var(--text-color); }

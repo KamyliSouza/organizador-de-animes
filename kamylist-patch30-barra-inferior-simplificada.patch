@@ -1,0 +1,138 @@
+diff -ruN a/README.md b/README.md
+--- a/README.md	2026-11-14 08:39:52.917102541 -0300
++++ b/README.md	2026-11-14 12:52:21.390010936 -0300
+@@ -424,7 +424,7 @@
+ 
+ ## Barra inferior colada (v1.28)
+ 
+-No celular (até 720 px) a navegação fica numa **barra inferior colada** na base da tela, de ponta a ponta (respeita a área segura do aparelho). Os itens são Biblioteca, Feed e Explorar (ou Início/Entrar e Ajustes, conforme a conta) e, nas telas em que existe biblioteca, **Nova obra** como último item, preenchido com a cor do tema. A tela atual é marcada com `aria-current` e um traço no topo do item. A altura da barra vira a variável `--tabbar-h`, que dá ao rodapé e aos avisos o espaço certo. No computador não há barra inferior: o botão fica no topo. Código: `renderTabBar` em `js/ui/chrome.js` e `.tab-bar` em `css/base.css`.
++No celular (até 720 px) a navegação fica numa **barra inferior colada** na base da tela, de ponta a ponta (respeita a área segura do aparelho). Os itens são Biblioteca, Feed e Explorar (ou Início/Entrar e Ajustes, conforme a conta) e, nas telas em que existe biblioteca, **Nova obra** como último item, preenchido com a cor do tema. Os quatro itens têm largura igual; a tela atual é marcada com `aria-current`, uma pílula clara atrás do ícone (`.tab-ico`) e o nome em negrito (v1.30); "Nova obra" é uma pílula cheia. A altura da barra vira a variável `--tabbar-h`, que dá ao rodapé e aos avisos o espaço certo. No computador não há barra inferior: o botão fica no topo. Código: `renderTabBar` em `js/ui/chrome.js` e `.tab-bar` em `css/base.css`.
+ 
+ ## Card da obra (v1.27)
+ 
+@@ -510,7 +510,7 @@
+ ## Logo e novidades do site
+ 
+ - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
+-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.29`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
++- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.30`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+ 
+ ## Como o código está organizado
+ 
+diff -ruN a/css/base.css b/css/base.css
+--- a/css/base.css	2026-11-14 08:39:52.917179262 -0300
++++ b/css/base.css	2026-11-14 12:52:21.390123143 -0300
+@@ -206,7 +206,7 @@
+     border-radius: var(--radius-pill);
+ }
+ .tab-link { position: relative; }
+-.tab-link .nav-badge { position: absolute; top: 2px; right: max(4px, calc(50% - 26px)); min-width: 18px; height: 18px; padding: 0 5px; font-size: .66rem; box-shadow: 0 0 0 2px var(--nav-bg); }
++.tab-link .nav-badge { position: absolute; top: 2px; right: max(4px, calc(50% - 30px)); min-width: 18px; height: 18px; padding: 0 5px; font-size: .66rem; box-shadow: 0 0 0 2px var(--nav-bg); }
+ 
+ .nav-spacer { flex: 1 1 auto; min-width: 0; }
+ .nav-actions { display: flex; align-items: center; gap: 8px; min-width: 0; }
+@@ -387,16 +387,16 @@
+ }
+ .tab-link {
+     position: relative;
+-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+-    flex: 1 1 0;
++    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
++    flex: 1 1 0;                 /* quatro colunas iguais, inclusive "Nova obra" */
+     min-width: 0;
+-    min-height: 52px;
+-    padding: 7px 4px;
++    min-height: 56px;
++    padding: 4px 2px;
+     color: var(--subtitle-color);
+     text-decoration: none;
+     font: inherit;
+     font-size: .72rem;
+-    font-weight: 800;
++    font-weight: 700;
+     line-height: 1.15;
+     text-align: center;
+     background: transparent;
+@@ -404,21 +404,23 @@
+     border-radius: 14px;
+     cursor: pointer;
+ }
+-.tab-link:hover { background: var(--primary-soft); color: var(--primary-text); }
++.tab-ico { display: grid; place-items: center; width: 52px; height: 30px; border-radius: 999px; transition: background-color .15s; }
++.tab-link:hover .tab-ico { background: var(--primary-soft); }
+ .tab-link:focus-visible { outline: 3px solid var(--primary-color); outline-offset: -3px; }
+-.tab-link[aria-current="page"] { color: var(--primary-text); background: var(--primary-soft); box-shadow: inset 0 3px 0 var(--primary-color); }   /* o traço no topo marca a tela atual sem depender só da cor */
+-.tab-link > span:not(.nav-badge) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+-.tab-new { flex: 0 0 auto; min-width: 4.9rem; margin-left: 4px; color: var(--button-text); background: var(--button-bg); }
+-.tab-new:hover { background: var(--button-bg-hover); color: var(--button-text); }
+-.tab-new:focus-visible { outline-color: var(--primary-text); outline-offset: 2px; }
++.tab-link[aria-current="page"] { color: var(--primary-text); font-weight: 900; }
++.tab-link[aria-current="page"] .tab-ico { background: var(--primary-soft); }      /* a tela atual: pílula clara atrás do ícone + nome em negrito (não depende só da cor) */
++.tab-link > span:not(.nav-badge):not(.tab-ico) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
++.tab-new { color: var(--primary-text); font-weight: 900; }
++.tab-new .tab-ico { background: var(--button-bg); color: var(--button-text); }
++.tab-new:hover .tab-ico { background: var(--button-bg-hover); }
+ @media (max-width: 22.5em) {
+     .tab-bar { gap: 1px; padding-inline: 3px; }
+-    .tab-link { padding: 7px 2px; font-size: .68rem; }
+-    .tab-new { min-width: 3.6rem; margin-left: 2px; }
++    .tab-link { font-size: .68rem; }
++    .tab-ico { width: 44px; }
+ }
+ @media (max-width: 15em) {      /* 240px: cabem os quatro itens com o nome por inteiro */
+     .tab-link { padding-inline: 0; font-size: .6rem; letter-spacing: -.01em; }
+-    .tab-new { min-width: 3.3rem; }
++    .tab-ico { width: 36px; height: 26px; }
+ }
+ 
+ /* ---------------------------------------------------------
+diff -ruN a/css/contrast.css b/css/contrast.css
+--- a/css/contrast.css	2026-11-14 08:39:52.917247924 -0300
++++ b/css/contrast.css	2026-11-14 12:52:21.390254478 -0300
+@@ -188,5 +188,6 @@
+ 
+ /* v1.28 — barra inferior colada: a tela atual ganha contorno além do traço no topo, e "Nova obra" tem borda firme */
+ :root[data-contrast="high"] .tab-bar { background: var(--bg-color); border-top: 3px solid var(--text-color); box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+-:root[data-contrast="high"] .tab-link[aria-current="page"] { outline: 2px solid var(--text-color); outline-offset: -2px; background: var(--bg-color); }
+-:root[data-contrast="high"] .tab-new { border: 2px solid var(--text-color); }
++:root[data-contrast="high"] .tab-link[aria-current="page"] .tab-ico { background: transparent; outline: 2px solid var(--text-color); outline-offset: -2px; }
++:root[data-contrast="high"] .tab-link[aria-current="page"] { text-decoration: underline; text-underline-offset: 3px; }
++:root[data-contrast="high"] .tab-new .tab-ico { border: 2px solid var(--text-color); }
+diff -ruN a/js/domain/changelog.js b/js/domain/changelog.js
+--- a/js/domain/changelog.js	2026-11-14 08:39:52.917817324 -0300
++++ b/js/domain/changelog.js	2026-11-14 12:52:21.391235661 -0300
+@@ -1,10 +1,19 @@
+ // Histórico de novidades do site (aparece no botão de versão do rodapé).
+ // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
+ // Escreva para a comunidade: frases curtas, sem termos técnicos.
+-export const SITE_VERSION = '1.29';
++export const SITE_VERSION = '1.30';
+ 
+ export const CHANGELOG = [
+     {
++        version: '1.30',
++        title: 'Barra inferior mais limpa',
++        items: [
++            'Na barra de baixo do celular, os quatro itens agora têm a mesma largura, inclusive "Nova obra", que deixou de ser um bloco maior que os outros.',
++            'A tela atual aparece com uma pílula clara atrás do ícone e o nome em negrito (sem o traço no topo). "Nova obra" é uma pílula cheia com o "+" na cor do tema.',
++            'Em alto contraste, a tela atual ganha contorno e sublinhado, e "Nova obra" uma borda firme.',
++        ],
++    },
++    {
+         version: '1.29',
+         title: 'Barra de cima mais útil no computador',
+         items: [
+diff -ruN a/js/ui/chrome.js b/js/ui/chrome.js
+--- a/js/ui/chrome.js	2026-11-14 08:39:52.918410213 -0300
++++ b/js/ui/chrome.js	2026-11-14 12:52:21.392355092 -0300
+@@ -92,8 +92,8 @@
+         ? (active.closest('[data-new-work]') ? '[data-new-work]' : active.getAttribute('href') ? `a.tab-link[href="${active.getAttribute('href')}"]` : null)
+         : null;
+     setHtml(bar, html`${all.map((i) => html`
+-        <a class="tab-link" href="${i.href}" ${i.active ? html`aria-current="page"` : ''}>${icon(i.icon, { size: 20 })}<span>${i.label}</span>${badge(i)}</a>`)}
+-        ${withNew ? html`<button type="button" class="tab-link tab-new" data-new-work aria-haspopup="dialog">${icon('plus', { size: 20 })}<span>Nova obra</span></button>` : ''}`);
++        <a class="tab-link" href="${i.href}" ${i.active ? html`aria-current="page"` : ''}><span class="tab-ico">${icon(i.icon, { size: 20 })}</span><span>${i.label}</span>${badge(i)}</a>`)}
++        ${withNew ? html`<button type="button" class="tab-link tab-new" data-new-work aria-haspopup="dialog"><span class="tab-ico">${icon('plus', { size: 20 })}</span><span>Nova obra</span></button>` : ''}`);
+     if (keep) bar.querySelector(keep)?.focus({ preventScroll: true });
+ }
+ 

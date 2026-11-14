@@ -92,8 +92,8 @@ function renderTabBar(bar) {
         ? (active.closest('[data-new-work]') ? '[data-new-work]' : active.getAttribute('href') ? `a.tab-link[href="${active.getAttribute('href')}"]` : null)
         : null;
     setHtml(bar, html`${all.map((i) => html`
-        <a class="tab-link" href="${i.href}" ${i.active ? html`aria-current="page"` : ''}>${icon(i.icon, { size: 20 })}<span>${i.label}</span>${badge(i)}</a>`)}
-        ${withNew ? html`<button type="button" class="tab-link tab-new" data-new-work aria-haspopup="dialog">${icon('plus', { size: 20 })}<span>Nova obra</span></button>` : ''}`);
+        <a class="tab-link" href="${i.href}" ${i.active ? html`aria-current="page"` : ''}><span class="tab-ico">${icon(i.icon, { size: 20 })}</span><span>${i.label}</span>${badge(i)}</a>`)}
+        ${withNew ? html`<button type="button" class="tab-link tab-new" data-new-work aria-haspopup="dialog"><span class="tab-ico">${icon('plus', { size: 20 })}</span><span>Nova obra</span></button>` : ''}`);
     if (keep) bar.querySelector(keep)?.focus({ preventScroll: true });
 }
 

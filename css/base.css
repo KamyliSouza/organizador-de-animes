@@ -206,7 +206,7 @@ html:not(.js) .skip-link { display: none; }
     border-radius: var(--radius-pill);
 }
 .tab-link { position: relative; }
-.tab-link .nav-badge { position: absolute; top: 2px; right: max(4px, calc(50% - 26px)); min-width: 18px; height: 18px; padding: 0 5px; font-size: .66rem; box-shadow: 0 0 0 2px var(--nav-bg); }
+.tab-link .nav-badge { position: absolute; top: 2px; right: max(4px, calc(50% - 30px)); min-width: 18px; height: 18px; padding: 0 5px; font-size: .66rem; box-shadow: 0 0 0 2px var(--nav-bg); }
 
 .nav-spacer { flex: 1 1 auto; min-width: 0; }
 .nav-actions { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -387,16 +387,16 @@ html:not(.js) .skip-link { display: none; }
 }
 .tab-link {
     position: relative;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-    flex: 1 1 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    flex: 1 1 0;                 /* quatro colunas iguais, inclusive "Nova obra" */
     min-width: 0;
-    min-height: 52px;
-    padding: 7px 4px;
+    min-height: 56px;
+    padding: 4px 2px;
     color: var(--subtitle-color);
     text-decoration: none;
     font: inherit;
     font-size: .72rem;
-    font-weight: 800;
+    font-weight: 700;
     line-height: 1.15;
     text-align: center;
     background: transparent;
@@ -404,21 +404,23 @@ html:not(.js) .skip-link { display: none; }
     border-radius: 14px;
     cursor: pointer;
 }
-.tab-link:hover { background: var(--primary-soft); color: var(--primary-text); }
+.tab-ico { display: grid; place-items: center; width: 52px; height: 30px; border-radius: 999px; transition: background-color .15s; }
+.tab-link:hover .tab-ico { background: var(--primary-soft); }
 .tab-link:focus-visible { outline: 3px solid var(--primary-color); outline-offset: -3px; }
-.tab-link[aria-current="page"] { color: var(--primary-text); background: var(--primary-soft); box-shadow: inset 0 3px 0 var(--primary-color); }   /* o traço no topo marca a tela atual sem depender só da cor */
-.tab-link > span:not(.nav-badge) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tab-new { flex: 0 0 auto; min-width: 4.9rem; margin-left: 4px; color: var(--button-text); background: var(--button-bg); }
-.tab-new:hover { background: var(--button-bg-hover); color: var(--button-text); }
-.tab-new:focus-visible { outline-color: var(--primary-text); outline-offset: 2px; }
+.tab-link[aria-current="page"] { color: var(--primary-text); font-weight: 900; }
+.tab-link[aria-current="page"] .tab-ico { background: var(--primary-soft); }      /* a tela atual: pílula clara atrás do ícone + nome em negrito (não depende só da cor) */
+.tab-link > span:not(.nav-badge):not(.tab-ico) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab-new { color: var(--primary-text); font-weight: 900; }
+.tab-new .tab-ico { background: var(--button-bg); color: var(--button-text); }
+.tab-new:hover .tab-ico { background: var(--button-bg-hover); }
 @media (max-width: 22.5em) {
     .tab-bar { gap: 1px; padding-inline: 3px; }
-    .tab-link { padding: 7px 2px; font-size: .68rem; }
-    .tab-new { min-width: 3.6rem; margin-left: 2px; }
+    .tab-link { font-size: .68rem; }
+    .tab-ico { width: 44px; }
 }
 @media (max-width: 15em) {      /* 240px: cabem os quatro itens com o nome por inteiro */
     .tab-link { padding-inline: 0; font-size: .6rem; letter-spacing: -.01em; }
-    .tab-new { min-width: 3.3rem; }
+    .tab-ico { width: 36px; height: 26px; }
 }
 
 /* ---------------------------------------------------------

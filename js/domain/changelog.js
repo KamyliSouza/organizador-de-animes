@@ -1,9 +1,18 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.29';
+export const SITE_VERSION = '1.30';
 
 export const CHANGELOG = [
+    {
+        version: '1.30',
+        title: 'Barra inferior mais limpa',
+        items: [
+            'Na barra de baixo do celular, os quatro itens agora têm a mesma largura, inclusive "Nova obra", que deixou de ser um bloco maior que os outros.',
+            'A tela atual aparece com uma pílula clara atrás do ícone e o nome em negrito (sem o traço no topo). "Nova obra" é uma pílula cheia com o "+" na cor do tema.',
+            'Em alto contraste, a tela atual ganha contorno e sublinhado, e "Nova obra" uma borda firme.',
+        ],
+    },
     {
         version: '1.29',
         title: 'Barra de cima mais útil no computador',

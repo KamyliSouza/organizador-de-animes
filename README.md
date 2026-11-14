@@ -424,7 +424,7 @@ A partir de 75em (1200 px) a barra de cima assume o papel do "cartão grande" (h
 
 ## Barra inferior colada (v1.28)
 
-No celular (até 720 px) a navegação fica numa **barra inferior colada** na base da tela, de ponta a ponta (respeita a área segura do aparelho). Os itens são Biblioteca, Feed e Explorar (ou Início/Entrar e Ajustes, conforme a conta) e, nas telas em que existe biblioteca, **Nova obra** como último item, preenchido com a cor do tema. A tela atual é marcada com `aria-current` e um traço no topo do item. A altura da barra vira a variável `--tabbar-h`, que dá ao rodapé e aos avisos o espaço certo. No computador não há barra inferior: o botão fica no topo. Código: `renderTabBar` em `js/ui/chrome.js` e `.tab-bar` em `css/base.css`.
+No celular (até 720 px) a navegação fica numa **barra inferior colada** na base da tela, de ponta a ponta (respeita a área segura do aparelho). Os itens são Biblioteca, Feed e Explorar (ou Início/Entrar e Ajustes, conforme a conta) e, nas telas em que existe biblioteca, **Nova obra** como último item, preenchido com a cor do tema. Os quatro itens têm largura igual; a tela atual é marcada com `aria-current`, uma pílula clara atrás do ícone (`.tab-ico`) e o nome em negrito (v1.30); "Nova obra" é uma pílula cheia. A altura da barra vira a variável `--tabbar-h`, que dá ao rodapé e aos avisos o espaço certo. No computador não há barra inferior: o botão fica no topo. Código: `renderTabBar` em `js/ui/chrome.js` e `.tab-bar` em `css/base.css`.
 
 ## Card da obra (v1.27)
 
@@ -510,7 +510,7 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.29`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.30`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
 
 ## Como o código está organizado
 
