@@ -1,0 +1,132 @@
+diff -ruN a/README.md b/README.md
+--- a/README.md	2026-11-15 00:41:20.141244301 -0300
++++ b/README.md	2026-11-15 10:47:27.608634510 -0300
+@@ -422,6 +422,10 @@
+ 
+ A partir de 75em (1200 px) a barra de cima assume o papel do "cartão grande" (hero) de cada tela. O **título** (`data-bar-title`, ou o `h1` da tela) aparece ao lado do logo quando o menu lateral está aberto ou quando a tela não tem link ativo nos três principais (Configurações, Painel, Ajustes…); com o menu fechado, o link ativo já diz onde você está. Os botões de `.page-head-actions` ganham um **atalho** na barra, que apenas clica no botão original; com o menu lateral aberto, Agenda e Estatísticas não se repetem (já estão em "Atalhos"). O cartão sai da vista com CSS, mas o `h1` continua na página para leitores de tela, e o campo de busca de Explorar permanece. A largura da barra é a mesma com o menu aberto ou fechado. Abaixo de 75em tudo continua como antes. Código: `js/ui/pageBar.js` (espelho), `renderNav` em `js/ui/chrome.js` e o bloco "Computador largo" em `css/base.css`.
+ 
++## Celular: status dentro de Filtros (v1.32)
++
++Até 45em (720 px) as sub-abas de status (Todas · Assistindo · Quero ver · Concluídas · Em espera · Dropadas, `js/ui/statusTabs.js`) saem de cima da lista e passam para dentro do painel **Filtros** (`js/ui/libraryBrowser.js`), sob o rótulo "Status". É o **mesmo elemento** (`[data-status-tabs]`) movido para `[data-status-slot]`, então o clique, as setas/Home/End, os números e o foco continuam iguais; ao passar de 45em ele volta para cima da busca. O número do botão Filtros conta também o status diferente de "Todas" (só no celular) e "Limpar filtros" também volta o status para "Todas" (chamando `onStatusChange`). No computador nada muda.
++
+ ## Celular: tudo na barra de baixo (v1.31)
+ 
+ Até 45em (720 px) **não há barra de cima**: `.site-nav` fica escondida, `--nav-height` vale 0 e o conteúdo começa no topo (respeitando `env(safe-area-inset-top)`). Tudo o que ficava lá mora na barra inferior, agora com cinco itens: Biblioteca, Feed, Explorar, **Nova obra** e **Você** (`js/ui/youSheet.js`). "Você" tem a foto da conta no lugar do ícone e abre uma **folha** (`role="dialog"`, não modal) acima da barra, com perfil, Agenda e Estatísticas (atalhos da biblioteca, via `requestShortcut`), os itens do menu da conta (Meu perfil, Personalização, Configurações, Painel da equipe), o interruptor do **tema escuro** (`role="switch"`), Sair da conta e a versão do site. Sem conta o item vira "Conta" (Entrar, Criar conta); no modo local, "Mais" (Ajustes). Esc, clique fora, escolher um item e trocar de tela fecham a folha; o teclado entra no primeiro item. O visual reaproveita as classes `.account-*` do menu da conta. No celular a biblioteca recolhe o cartão grande (`data-collapse-mobile` em `.page-head`, escondido só com CSS); o `h1` fica para leitores de tela. As outras telas mantêm o cabeçalho. Em alto contraste a folha tem borda forte e o interruptor usa só preto e branco. O alto contraste em si continua em Personalização. No computador nada muda.
+@@ -514,7 +518,7 @@
+ ## Logo e novidades do site
+ 
+ - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
+-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.31`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
++- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.32`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+ 
+ ## Como o código está organizado
+ 
+diff -ruN a/css/components.css b/css/components.css
+--- a/css/components.css	2026-11-15 00:41:20.141667063 -0300
++++ b/css/components.css	2026-11-15 10:47:27.608924845 -0300
+@@ -351,6 +351,13 @@
+ .filters-badge[hidden] { display: none; }
+ .filters-panel { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px; border-radius: 20px; }
+ .filters-panel[hidden] { display: none; }
++.filters-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
++.filters-status { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
++.filters-status[hidden] { display: none; }
++@media (max-width: 18.5em) {
++    .filters-panel { padding: 12px; }
++    .filters-status .status-tab { flex: 1 1 100%; gap: 6px; padding-inline: 10px; font-size: .8rem; }
++}      /* tela minúscula ou letra grande: uma aba por linha, o nome nunca quebra */
+ .filters-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: 12px 16px; }
+ .filters-actions { display: flex; justify-content: flex-end; }
+ .skeleton-bar .skeleton { min-height: 44px; border-radius: 22px; }
+diff -ruN a/js/domain/changelog.js b/js/domain/changelog.js
+--- a/js/domain/changelog.js	2026-11-15 00:41:20.339422125 -0300
++++ b/js/domain/changelog.js	2026-11-15 10:47:27.611061338 -0300
+@@ -1,10 +1,19 @@
+ // Histórico de novidades do site (aparece no botão de versão do rodapé).
+ // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
+ // Escreva para a comunidade: frases curtas, sem termos técnicos.
+-export const SITE_VERSION = '1.31';
++export const SITE_VERSION = '1.32';
+ 
+ export const CHANGELOG = [
+     {
++        version: '1.32',
++        title: 'Celular: status dentro de Filtros',
++        items: [
++            'No celular, Todas, Assistindo, Quero ver, Concluídas, Em espera e Dropadas (com os números) agora ficam dentro do painel "Filtros", e a lista sobe mais.',
++            'O número no botão "Filtros" passa a contar também o status escolhido, e "Limpar filtros" volta o status para "Todas".',
++            'No computador nada mudou: as abas de status continuam acima da busca.',
++        ],
++    },
++    {
+         version: '1.31',
+         title: 'Celular: tudo na barra de baixo',
+         items: [
+diff -ruN a/js/ui/libraryBrowser.js b/js/ui/libraryBrowser.js
+--- a/js/ui/libraryBrowser.js	2026-11-15 00:41:20.340101874 -0300
++++ b/js/ui/libraryBrowser.js	2026-11-15 10:47:27.611595025 -0300
+@@ -58,12 +58,18 @@
+                     <button type="button" data-view="list" aria-label="Lista compacta" title="Lista compacta">${icon('list', { size: 16 })}</button>
+                 </div>
+             </div>
+-            <div class="filters-panel glass-panel" id="${FILTERS_ID}" data-filters-panel hidden></div>
++            <div class="filters-panel glass-panel" id="${FILTERS_ID}" data-filters-panel hidden>
++                <div class="filters-status" data-status-slot hidden><span class="field-label" aria-hidden="true">Status</span></div>
++                <div class="filters-body" data-filters-body></div>
++            </div>
+         </div>
+         <div id="${RESULTS_ID}" data-results role="tabpanel" aria-live="polite"></div>`);
+ 
++    const controls = root.querySelector('[data-toolbar]');
+     const tabsEl = root.querySelector('[data-status-tabs]');
+     const panel = root.querySelector('[data-filters-panel]');
++    const slot = root.querySelector('[data-status-slot]');
++    const body = root.querySelector('[data-filters-body]');
+     const toggle = root.querySelector('[data-filters-toggle]');
+     const badge = root.querySelector('[data-filters-badge]');
+     const searchInput = root.querySelector('input[data-filter="query"]');
+@@ -76,7 +82,7 @@
+     }
+     function renderPanel() {
+         const categories = SECTIONS[section].categories;
+-        setHtml(panel, html`
++        setHtml(body, html`
+             <div class="filters-grid">
+                 ${categories.length > 1 ? html`<div class="field">
+                     <label for="filter-category">Categoria</label>
+@@ -98,8 +104,17 @@
+             </div>`);
+     }
+ 
+-    /** Quantos ajustes do painel Filtros estão ligados (categoria diferente de "todas", ordem diferente da padrão, só favoritos). */
+-    const activeFilters = () => (filters.category !== 'all' ? 1 : 0) + (filters.sort !== 'recent' ? 1 : 0) + (filters.favorites ? 1 : 0);
++    // Celular (até 45em): as sub-abas de status saem de cima da lista e vão para dentro do painel Filtros (v1.32). É o mesmo elemento
++    // (o foco, as setas do teclado e os números continuam valendo): só muda de lugar quando a tela muda de tamanho.
++    const phone = window.matchMedia('(max-width: 45em)');
++    function placeTabs() {
++        if (phone.matches) { slot.append(tabsEl); slot.hidden = false; }
++        else { controls.insertBefore(tabsEl, controls.firstChild); slot.hidden = true; }
++    }
++    placeTabs();
++
++    /** Quantos ajustes do painel Filtros estão ligados (categoria diferente de "todas", ordem diferente da padrão, só favoritos; no celular, também o status). */
++    const activeFilters = () => (filters.category !== 'all' ? 1 : 0) + (filters.sort !== 'recent' ? 1 : 0) + (filters.favorites ? 1 : 0) + (phone.matches && filters.status !== 'all' ? 1 : 0);
+ 
+     function syncControls() {
+         for (const tab of tabsEl.querySelectorAll('[data-status]')) {
+@@ -200,9 +215,15 @@
+     offs.push(on(root, 'click', '[data-filters-toggle]', () => { filtersOpen = !filtersOpen; syncControls(); }));
+     offs.push(on(panel, 'click', '[data-filters-clear]', () => {
+         filters.category = 'all'; filters.sort = 'recent'; filters.favorites = false;
++        const statusChanged = phone.matches && filters.status !== 'all';
++        if (statusChanged) filters.status = 'all';           // no celular o status mora no painel e também é limpo
+         syncControls();
+         renderResults();
++        if (statusChanged) onStatusChange?.('all');
+     }));
++    const onPhoneChange = () => { placeTabs(); syncControls(); };
++    phone.addEventListener('change', onPhoneChange);
++    offs.push(() => phone.removeEventListener('change', onPhoneChange));
+     offs.push(on(panel, 'change', '[data-filter-favorites]', (_, box) => { filters.favorites = box.checked; syncControls(); renderResults(); }));
+     offs.push(on(panel, 'change', 'select[data-filter]', (_, s) => { filters[s.dataset.filter] = s.value; syncControls(); renderResults(); }));
+ 

@@ -351,6 +351,13 @@
 .filters-badge[hidden] { display: none; }
 .filters-panel { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px; border-radius: 20px; }
 .filters-panel[hidden] { display: none; }
+.filters-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.filters-status { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.filters-status[hidden] { display: none; }
+@media (max-width: 18.5em) {
+    .filters-panel { padding: 12px; }
+    .filters-status .status-tab { flex: 1 1 100%; gap: 6px; padding-inline: 10px; font-size: .8rem; }
+}      /* tela minúscula ou letra grande: uma aba por linha, o nome nunca quebra */
 .filters-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: 12px 16px; }
 .filters-actions { display: flex; justify-content: flex-end; }
 .skeleton-bar .skeleton { min-height: 44px; border-radius: 22px; }

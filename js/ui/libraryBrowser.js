@@ -58,12 +58,18 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, sect
                     <button type="button" data-view="list" aria-label="Lista compacta" title="Lista compacta">${icon('list', { size: 16 })}</button>
                 </div>
             </div>
-            <div class="filters-panel glass-panel" id="${FILTERS_ID}" data-filters-panel hidden></div>
+            <div class="filters-panel glass-panel" id="${FILTERS_ID}" data-filters-panel hidden>
+                <div class="filters-status" data-status-slot hidden><span class="field-label" aria-hidden="true">Status</span></div>
+                <div class="filters-body" data-filters-body></div>
+            </div>
         </div>
         <div id="${RESULTS_ID}" data-results role="tabpanel" aria-live="polite"></div>`);
 
+    const controls = root.querySelector('[data-toolbar]');
     const tabsEl = root.querySelector('[data-status-tabs]');
     const panel = root.querySelector('[data-filters-panel]');
+    const slot = root.querySelector('[data-status-slot]');
+    const body = root.querySelector('[data-filters-body]');
     const toggle = root.querySelector('[data-filters-toggle]');
     const badge = root.querySelector('[data-filters-badge]');
     const searchInput = root.querySelector('input[data-filter="query"]');
@@ -76,7 +82,7 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, sect
     }
     function renderPanel() {
         const categories = SECTIONS[section].categories;
-        setHtml(panel, html`
+        setHtml(body, html`
             <div class="filters-grid">
                 ${categories.length > 1 ? html`<div class="field">
                     <label for="filter-category">Categoria</label>
@@ -98,8 +104,17 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, sect
             </div>`);
     }
 
-    /** Quantos ajustes do painel Filtros estão ligados (categoria diferente de "todas", ordem diferente da padrão, só favoritos). */
-    const activeFilters = () => (filters.category !== 'all' ? 1 : 0) + (filters.sort !== 'recent' ? 1 : 0) + (filters.favorites ? 1 : 0);
+    // Celular (até 45em): as sub-abas de status saem de cima da lista e vão para dentro do painel Filtros (v1.32). É o mesmo elemento
+    // (o foco, as setas do teclado e os números continuam valendo): só muda de lugar quando a tela muda de tamanho.
+    const phone = window.matchMedia('(max-width: 45em)');
+    function placeTabs() {
+        if (phone.matches) { slot.append(tabsEl); slot.hidden = false; }
+        else { controls.insertBefore(tabsEl, controls.firstChild); slot.hidden = true; }
+    }
+    placeTabs();
+
+    /** Quantos ajustes do painel Filtros estão ligados (categoria diferente de "todas", ordem diferente da padrão, só favoritos; no celular, também o status). */
+    const activeFilters = () => (filters.category !== 'all' ? 1 : 0) + (filters.sort !== 'recent' ? 1 : 0) + (filters.favorites ? 1 : 0) + (phone.matches && filters.status !== 'all' ? 1 : 0);
 
     function syncControls() {
         for (const tab of tabsEl.querySelectorAll('[data-status]')) {
@@ -200,9 +215,15 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, sect
     offs.push(on(root, 'click', '[data-filters-toggle]', () => { filtersOpen = !filtersOpen; syncControls(); }));
     offs.push(on(panel, 'click', '[data-filters-clear]', () => {
         filters.category = 'all'; filters.sort = 'recent'; filters.favorites = false;
+        const statusChanged = phone.matches && filters.status !== 'all';
+        if (statusChanged) filters.status = 'all';           // no celular o status mora no painel e também é limpo
         syncControls();
         renderResults();
+        if (statusChanged) onStatusChange?.('all');
     }));
+    const onPhoneChange = () => { placeTabs(); syncControls(); };
+    phone.addEventListener('change', onPhoneChange);
+    offs.push(() => phone.removeEventListener('change', onPhoneChange));
     offs.push(on(panel, 'change', '[data-filter-favorites]', (_, box) => { filters.favorites = box.checked; syncControls(); renderResults(); }));
     offs.push(on(panel, 'change', 'select[data-filter]', (_, s) => { filters[s.dataset.filter] = s.value; syncControls(); renderResults(); }));
 

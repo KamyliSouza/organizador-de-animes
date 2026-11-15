@@ -1,9 +1,18 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.31';
+export const SITE_VERSION = '1.32';
 
 export const CHANGELOG = [
+    {
+        version: '1.32',
+        title: 'Celular: status dentro de Filtros',
+        items: [
+            'No celular, Todas, Assistindo, Quero ver, Concluídas, Em espera e Dropadas (com os números) agora ficam dentro do painel "Filtros", e a lista sobe mais.',
+            'O número no botão "Filtros" passa a contar também o status escolhido, e "Limpar filtros" volta o status para "Todas".',
+            'No computador nada mudou: as abas de status continuam acima da busca.',
+        ],
+    },
     {
         version: '1.31',
         title: 'Celular: tudo na barra de baixo',
