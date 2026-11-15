@@ -1,9 +1,20 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.30';
+export const SITE_VERSION = '1.31';
 
 export const CHANGELOG = [
+    {
+        version: '1.31',
+        title: 'Celular: tudo na barra de baixo',
+        items: [
+            'No celular, a barra de cima saiu: o conteúdo começa logo no topo da tela e sobra mais espaço para a sua lista.',
+            'Na biblioteca, o cartão grande com "Olá, ..." também saiu do celular. Leitores de tela continuam encontrando o título.',
+            'A barra de baixo agora tem cinco itens: Biblioteca, Feed, Explorar, Nova obra e "Você". Tocar em "Você" abre uma folha com seu perfil, Agenda, Estatísticas, Personalização, Configurações, o tema claro/escuro, Sair e a versão do site.',
+            'Sem conta, o último item vira "Conta" (Entrar e Criar conta); no modo local, "Mais" (Agenda, Estatísticas, Ajustes e tema).',
+            'No computador nada mudou.',
+        ],
+    },
     {
         version: '1.30',
         title: 'Barra inferior mais limpa',

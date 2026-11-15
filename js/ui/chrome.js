@@ -15,7 +15,8 @@ import { mountPageBar } from './pageBar.js';
 import { requestNewWork, showsNewWork } from './newWork.js';
 import { openPatchNotesModal } from './patchNotesModal.js';
 import { SECTION_EVENT, loadSection } from './sectionTabs.js';
-import { requestShortcut } from './shortcuts.js';
+import { requestShortcut, shortcutsFor } from './shortcuts.js';
+import { bindYouSheet, closeYouSheet, isYouOpen, youSheetHtml, youTabHtml } from './youSheet.js';
 import { SIDE_ID, isSideMenuOpen, setSideMenuOpen, showsSideMenu, sideMenuHtml } from './sideMenu.js';
 
 const isActive = (path, ...prefixes) => prefixes.some((p) => (p === '/' ? path === '/' : path === p || path.startsWith(p + '/')));
@@ -32,12 +33,9 @@ function navModel() {
     if (cloud) items.push({ href: '#/explorar', label: 'Explorar', icon: 'compass', active: isActive(path, '/explorar', '/u') });
     // O Painel da equipe (moderação, administração e Dona) fica no menu do avatar, junto da conta (js/ui/accountMenu.js).
 
-    // Quem está logada acessa perfil e configurações pelo avatar no topo (accountMenu.js); sem login ou sem conta, o atalho fica na barra inferior.
-    let account = null;
-    if (!cloud) account = { href: '#/configuracoes', label: 'Ajustes', icon: 'sliders', active: isActive(path, '/configuracoes') };
-    else if (!user) account = { href: '#/entrar', label: 'Entrar', icon: 'logIn', active: isActive(path, '/entrar', '/criar-conta', '/recuperar', '/nova-senha') };
+    // Perfil, configurações, entrar e o resto da conta ficam no último item da barra de baixo ("Você", ui/youSheet.js) e, no computador, no avatar do topo.
 
-    return { items, account, cloud, user };
+    return { items, cloud, user };
 }
 
 /** Bolinha com o número de pedidos de "seguir" esperando resposta (some quando é 0). */
@@ -81,20 +79,41 @@ function renderNav(nav) {
         </div>`);
 }
 
+function youContext() {
+    const { cloud, user } = navModel();
+    return { cloud, user, profile: state.profile, role: myRole(), path: currentPath() };
+}
+
 function renderTabBar(bar) {
-    const { items, account } = navModel();
-    const all = [...items, account].filter(Boolean);
+    const { items } = navModel();
     const withNew = showsNewWork(currentPath());
     document.body.classList.toggle('has-tabbar-new', withNew);
-    // O redesenho não tira o teclado do item em que ele está (nem do botão "Nova obra").
+    // O redesenho não tira o teclado do item em que ele está (nem dos botões "Nova obra" e "Você").
     const active = document.activeElement;
     const keep = active instanceof Element && bar.contains(active)
-        ? (active.closest('[data-new-work]') ? '[data-new-work]' : active.getAttribute('href') ? `a.tab-link[href="${active.getAttribute('href')}"]` : null)
+        ? (active.closest('[data-new-work]') ? '[data-new-work]' : active.closest('[data-you-toggle]') ? '[data-you-toggle]' : active.getAttribute('href') ? `a.tab-link[href="${active.getAttribute('href')}"]` : null)
         : null;
-    setHtml(bar, html`${all.map((i) => html`
+    setHtml(bar, html`${items.map((i) => html`
         <a class="tab-link" href="${i.href}" ${i.active ? html`aria-current="page"` : ''}><span class="tab-ico">${icon(i.icon, { size: 20 })}</span><span>${i.label}</span>${badge(i)}</a>`)}
-        ${withNew ? html`<button type="button" class="tab-link tab-new" data-new-work aria-haspopup="dialog"><span class="tab-ico">${icon('plus', { size: 20 })}</span><span>Nova obra</span></button>` : ''}`);
+        ${withNew ? html`<button type="button" class="tab-link tab-new" data-new-work aria-haspopup="dialog"><span class="tab-ico">${icon('plus', { size: 20 })}</span><span>Nova obra</span></button>` : ''}
+        ${youTabHtml({ ...youContext(), open: isYouOpen() })}`);
     if (keep) bar.querySelector(keep)?.focus({ preventScroll: true });
+}
+
+/** A folha "Você" (celular): só existe no HTML enquanto está aberta; o foco volta ao mesmo item depois de cada redesenho (tema, sessão...). */
+function renderYou(host) {
+    if (!host) return;
+    const active = document.activeElement;
+    const items = [...host.querySelectorAll('[data-you-item]')];
+    const index = active instanceof Element && host.contains(active) ? items.indexOf(active) : -1;
+    if (!isYouOpen()) { setHtml(host, ''); return; }
+    setHtml(host, youSheetHtml({
+        ...youContext(),
+        dark: currentTheme() === 'dark',
+        canLibrary: showsNewWork(currentPath()),          // quem tem biblioteca (modo local ou conta logada) tem Agenda e Estatísticas
+        showAgenda: shortcutsFor(loadSection()).includes('schedule'),
+    }));
+    if (index >= 0) host.querySelectorAll('[data-you-item]')[index]?.focus({ preventScroll: true });
 }
 
 /** O conteúdo, o rodapé e os avisos ganham a altura exata da barra inferior (texto grande, tela baixa, área segura do aparelho). */
@@ -164,6 +183,9 @@ function renderNotice(region) {
 
 export function mountChrome({ nav, tabBar, footer, notice, side, main }) {
     let pageBar = null;
+    const youHost = document.createElement('div');       // a folha "Você" (celular) fica logo antes da barra de baixo, na ordem do teclado
+    youHost.id = 'you-host';
+    tabBar.before(youHost);
     const paint = () => {
         const restoreFocus = captureAccountFocus(nav);
         // O redesenho do topo não tira o teclado dos botões "Nova obra" e "Menu lateral".
@@ -171,7 +193,7 @@ export function mountChrome({ nav, tabBar, footer, notice, side, main }) {
         const keepFocus = active instanceof Element && nav.contains(active)
             ? (active.closest('[data-new-work]') ? '[data-new-work]' : active.closest('[data-side-toggle]') ? '[data-side-toggle]' : null)
             : null;
-        renderNav(nav); renderTabBar(tabBar); renderNotice(notice); renderSide(side);
+        renderNav(nav); renderTabBar(tabBar); renderYou(youHost); renderNotice(notice); renderSide(side);
         restoreFocus();
         if (keepFocus) nav.querySelector(keepFocus)?.focus({ preventScroll: true });
         syncTabBar();
@@ -192,7 +214,7 @@ export function mountChrome({ nav, tabBar, footer, notice, side, main }) {
     let lastPath = currentPath();
     onRouteChange(() => {
         const now = currentPath();
-        if (now !== lastPath) { lastPath = now; closeAccountMenu(); }
+        if (now !== lastPath) { lastPath = now; closeAccountMenu(); closeYouSheet(); }
         paint();
     });
     onSessionChange(paint);
@@ -200,10 +222,11 @@ export function mountChrome({ nav, tabBar, footer, notice, side, main }) {
 
     bindAccountMenu(nav);
     on(nav, 'click', '[data-theme-toggle]', () => toggleTheme());
-    on(nav, 'click', '[data-logout]', async (ev, btn) => {
+    const logout = async (btn) => {
         btn.disabled = true;
         try {
             await state.backend.auth.signOut();
+            closeYouSheet();
             await refreshSession();
             navigate('/');
             toast('Você saiu da conta.', { type: 'info' });
@@ -211,5 +234,11 @@ export function mountChrome({ nav, tabBar, footer, notice, side, main }) {
             btn.disabled = false;
             toast(messageOf(err), { type: 'error' });
         }
+    };
+    on(nav, 'click', '[data-logout]', (ev, btn) => logout(btn));
+    bindYouSheet({
+        bar: tabBar, host: youHost,
+        repaint: () => { renderTabBar(tabBar); renderYou(youHost); syncTabBar(); },
+        actions: { shortcut: requestShortcut, theme: toggleTheme, logout, notes: openPatchNotesModal },
     });
 }

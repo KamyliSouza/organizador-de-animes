@@ -418,8 +418,12 @@ html:not(.js) .skip-link { display: none; }
     .tab-link { font-size: .68rem; }
     .tab-ico { width: 44px; }
 }
-@media (max-width: 15em) {      /* 240px: cabem os quatro itens com o nome por inteiro */
-    .tab-link { padding-inline: 0; font-size: .6rem; letter-spacing: -.01em; }
+@media (max-width: 18.5em) {      /* ≈296px: cabem os cinco itens com o nome por inteiro */
+    .tab-link { padding-inline: 0; font-size: .62rem; letter-spacing: -.01em; }
+}
+@media (max-width: 15em) {      /* 240px */
+    .tab-bar { gap: 0; padding-inline: 1px; }
+    .tab-link { font-size: .58rem; }
     .tab-ico { width: 36px; height: 26px; }
 }
 
@@ -450,10 +454,53 @@ html:not(.js) .skip-link { display: none; }
 .version-button:hover { color: var(--primary-text); border-color: var(--card-border-strong); background: var(--notice-bg); }
 .version-button:focus-visible { outline: 3px solid var(--primary-color); outline-offset: 2px; }
 
+/* ---------------------------------------------------------
+   Folha "Você" (celular, v1.31; js/ui/youSheet.js): abre acima da barra de baixo e reaproveita o visual do menu da conta
+   --------------------------------------------------------- */
+.you-scrim, .you-sheet { display: none; }
+.tab-link[aria-expanded="true"] { color: var(--primary-text); font-weight: 900; }
+.tab-link[aria-expanded="true"] .tab-ico { background: var(--primary-soft); }
+/* com a folha aberta, só "Você" fica marcado (a tela de trás deixa de parecer a atual) */
+.tab-bar:has([aria-expanded="true"]) .tab-link[aria-current="page"]:not([aria-expanded]) { color: var(--subtitle-color); font-weight: 700; }
+.tab-bar:has([aria-expanded="true"]) .tab-link[aria-current="page"]:not([aria-expanded]) .tab-ico { background: transparent; }
+.tab-you .avatar { --size: 26px; width: 26px; height: 26px; font-size: .8rem; }
+.tab-you .avatar .avatar-img { width: 100%; height: 100%; }
+@media (max-width: 45em) {
+    .you-scrim { display: block; position: fixed; inset: 0 0 var(--tabbar-h, 72px) 0; z-index: 1090; background: rgba(20, 10, 30, .45); }
+    .you-sheet {
+        display: flex; flex-direction: column;
+        position: fixed; z-index: 1100;
+        left: max(8px, env(safe-area-inset-left)); right: max(8px, env(safe-area-inset-right));
+        bottom: calc(var(--tabbar-h, 72px) + 8px);
+        max-height: calc(100vh - var(--tabbar-h, 72px) - 24px);
+        max-height: calc(100dvh - var(--tabbar-h, 72px) - 24px);
+        overflow-y: auto; overscroll-behavior: contain;
+        padding: 8px;
+        color: var(--text-color); background: var(--modal-bg);
+        border: 2px solid var(--card-border-strong); border-radius: var(--radius-card);
+        box-shadow: var(--shadow-card);
+    }
+    .you-head-ico { display: grid; place-items: center; flex: none; width: 44px; height: 44px; border-radius: 50%; color: var(--primary-text); background: var(--primary-soft); }
+    .you-switch { justify-content: flex-start; }
+    .you-track { position: relative; flex: none; margin-left: auto; width: 46px; height: 26px; border-radius: 999px; background: var(--card-border-strong); transition: background-color .18s ease; }
+    .you-track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--modal-bg); transition: transform .18s ease; }
+    .you-switch[aria-checked="true"] .you-track { background: var(--button-bg); }
+    .you-switch[aria-checked="true"] .you-track::after { transform: translateX(20px); }
+    .you-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 8px; margin-top: 6px; padding: 10px 10px 4px; border-top: 1px solid var(--card-border); }
+    .you-foot-brand { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; max-width: 100%; overflow-wrap: anywhere; font-weight: 900; color: var(--text-color); }
+    .you-foot-mark { display: inline-flex; flex: none; }
+}
+@media (prefers-reduced-motion: reduce) { .you-track, .you-track::after { transition: none; } }
+
 @media (max-width: 45em) {      /* 720px; em para virar o menu de baixo também quando o texto do navegador é aumentado */
-    .nav-links, .nav-account { display: none; }
+    :root { --nav-height: 0px; }      /* celular: sem barra de cima (v1.31); tudo fica na barra de baixo */
+    /* a biblioteca (data-collapse-mobile) esconde o cartão grande; o h1 continua na página para o leitor de tela. O :root:root:root vence o painel do fundo do perfil */
+    :root:root:root .page-head[data-collapse-mobile] {
+        position: absolute; left: 0; top: 0; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; box-shadow: none;
+    }
+    .site-nav { display: none; }
     .tab-bar { display: flex; }
-    .site-shell { margin-top: calc(var(--nav-height) + 18px); margin-bottom: 24px; }
+    .site-shell { margin-top: calc(var(--nav-height) + 18px + env(safe-area-inset-top, 0px)); margin-bottom: 24px; }
     .site-footer { padding-bottom: calc(var(--tabbar-h, 72px) + 16px); }      /* o rodapé rola por cima da barra colada */
     .brand-text { font-size: 1.1rem; }
 }
