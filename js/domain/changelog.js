@@ -1,9 +1,16 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.32';
+export const SITE_VERSION = '1.33';
 
 export const CHANGELOG = [
+    {
+        version: '1.33',
+        title: 'Celular: "Nova obra" no centro da barra',
+        items: [
+            'No celular, o botão "Nova obra" agora fica bem no meio da barra de baixo (entre o Feed e o Explorar), mais fácil de alcançar com o polegar.',
+        ],
+    },
     {
         version: '1.32',
         title: 'Celular: status dentro de Filtros',

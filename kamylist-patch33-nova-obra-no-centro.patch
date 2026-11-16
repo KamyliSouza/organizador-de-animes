@@ -1,0 +1,62 @@
+diff -ruN a/README.md b/README.md
+--- a/README.md	2026-11-15 10:47:27.608634510 -0300
++++ b/README.md	2026-11-16 10:38:16.699308495 -0300
+@@ -428,7 +428,7 @@
+ 
+ ## Celular: tudo na barra de baixo (v1.31)
+ 
+-Até 45em (720 px) **não há barra de cima**: `.site-nav` fica escondida, `--nav-height` vale 0 e o conteúdo começa no topo (respeitando `env(safe-area-inset-top)`). Tudo o que ficava lá mora na barra inferior, agora com cinco itens: Biblioteca, Feed, Explorar, **Nova obra** e **Você** (`js/ui/youSheet.js`). "Você" tem a foto da conta no lugar do ícone e abre uma **folha** (`role="dialog"`, não modal) acima da barra, com perfil, Agenda e Estatísticas (atalhos da biblioteca, via `requestShortcut`), os itens do menu da conta (Meu perfil, Personalização, Configurações, Painel da equipe), o interruptor do **tema escuro** (`role="switch"`), Sair da conta e a versão do site. Sem conta o item vira "Conta" (Entrar, Criar conta); no modo local, "Mais" (Ajustes). Esc, clique fora, escolher um item e trocar de tela fecham a folha; o teclado entra no primeiro item. O visual reaproveita as classes `.account-*` do menu da conta. No celular a biblioteca recolhe o cartão grande (`data-collapse-mobile` em `.page-head`, escondido só com CSS); o `h1` fica para leitores de tela. As outras telas mantêm o cabeçalho. Em alto contraste a folha tem borda forte e o interruptor usa só preto e branco. O alto contraste em si continua em Personalização. No computador nada muda.
++Até 45em (720 px) **não há barra de cima**: `.site-nav` fica escondida, `--nav-height` vale 0 e o conteúdo começa no topo (respeitando `env(safe-area-inset-top)`). Tudo o que ficava lá mora na barra inferior, agora com cinco itens: Biblioteca, Feed, **Nova obra** (no centro, desde a v1.33), Explorar e **Você** (`js/ui/youSheet.js`). "Você" tem a foto da conta no lugar do ícone e abre uma **folha** (`role="dialog"`, não modal) acima da barra, com perfil, Agenda e Estatísticas (atalhos da biblioteca, via `requestShortcut`), os itens do menu da conta (Meu perfil, Personalização, Configurações, Painel da equipe), o interruptor do **tema escuro** (`role="switch"`), Sair da conta e a versão do site. Sem conta o item vira "Conta" (Entrar, Criar conta); no modo local, "Mais" (Ajustes). Esc, clique fora, escolher um item e trocar de tela fecham a folha; o teclado entra no primeiro item. O visual reaproveita as classes `.account-*` do menu da conta. No celular a biblioteca recolhe o cartão grande (`data-collapse-mobile` em `.page-head`, escondido só com CSS); o `h1` fica para leitores de tela. As outras telas mantêm o cabeçalho. Em alto contraste a folha tem borda forte e o interruptor usa só preto e branco. O alto contraste em si continua em Personalização. No computador nada muda.
+ 
+ ## Barra inferior colada (v1.28)
+ 
+@@ -518,7 +518,7 @@
+ ## Logo e novidades do site
+ 
+ - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
+-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.32`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
++- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.33`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+ 
+ ## Como o código está organizado
+ 
+diff -ruN a/js/domain/changelog.js b/js/domain/changelog.js
+--- a/js/domain/changelog.js	2026-11-15 10:47:27.611061338 -0300
++++ b/js/domain/changelog.js	2026-11-16 10:38:16.699977476 -0300
+@@ -1,10 +1,17 @@
+ // Histórico de novidades do site (aparece no botão de versão do rodapé).
+ // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
+ // Escreva para a comunidade: frases curtas, sem termos técnicos.
+-export const SITE_VERSION = '1.32';
++export const SITE_VERSION = '1.33';
+ 
+ export const CHANGELOG = [
+     {
++        version: '1.33',
++        title: 'Celular: "Nova obra" no centro da barra',
++        items: [
++            'No celular, o botão "Nova obra" agora fica bem no meio da barra de baixo (entre o Feed e o Explorar), mais fácil de alcançar com o polegar.',
++        ],
++    },
++    {
+         version: '1.32',
+         title: 'Celular: status dentro de Filtros',
+         items: [
+diff -ruN a/js/ui/chrome.js b/js/ui/chrome.js
+--- a/js/ui/chrome.js	2026-11-15 10:47:27.612160383 -0300
++++ b/js/ui/chrome.js	2026-11-16 10:38:16.700499535 -0300
+@@ -93,9 +93,13 @@
+     const keep = active instanceof Element && bar.contains(active)
+         ? (active.closest('[data-new-work]') ? '[data-new-work]' : active.closest('[data-you-toggle]') ? '[data-you-toggle]' : active.getAttribute('href') ? `a.tab-link[href="${active.getAttribute('href')}"]` : null)
+         : null;
+-    setHtml(bar, html`${items.map((i) => html`
+-        <a class="tab-link" href="${i.href}" ${i.active ? html`aria-current="page"` : ''}><span class="tab-ico">${icon(i.icon, { size: 20 })}</span><span>${i.label}</span>${badge(i)}</a>`)}
++    // "Nova obra" fica no meio da barra (v1.33): com Biblioteca, Feed, Explorar e "Você" ela vem entre o Feed e o Explorar.
++    const mid = withNew ? Math.floor((items.length + 2) / 2) : items.length;
++    const link = (i) => html`
++        <a class="tab-link" href="${i.href}" ${i.active ? html`aria-current="page"` : ''}><span class="tab-ico">${icon(i.icon, { size: 20 })}</span><span>${i.label}</span>${badge(i)}</a>`;
++    setHtml(bar, html`${items.slice(0, mid).map(link)}
+         ${withNew ? html`<button type="button" class="tab-link tab-new" data-new-work aria-haspopup="dialog"><span class="tab-ico">${icon('plus', { size: 20 })}</span><span>Nova obra</span></button>` : ''}
++        ${items.slice(mid).map(link)}
+         ${youTabHtml({ ...youContext(), open: isYouOpen() })}`);
+     if (keep) bar.querySelector(keep)?.focus({ preventScroll: true });
+ }

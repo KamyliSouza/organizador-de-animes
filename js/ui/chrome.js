@@ -93,9 +93,13 @@ function renderTabBar(bar) {
     const keep = active instanceof Element && bar.contains(active)
         ? (active.closest('[data-new-work]') ? '[data-new-work]' : active.closest('[data-you-toggle]') ? '[data-you-toggle]' : active.getAttribute('href') ? `a.tab-link[href="${active.getAttribute('href')}"]` : null)
         : null;
-    setHtml(bar, html`${items.map((i) => html`
-        <a class="tab-link" href="${i.href}" ${i.active ? html`aria-current="page"` : ''}><span class="tab-ico">${icon(i.icon, { size: 20 })}</span><span>${i.label}</span>${badge(i)}</a>`)}
+    // "Nova obra" fica no meio da barra (v1.33): com Biblioteca, Feed, Explorar e "Você" ela vem entre o Feed e o Explorar.
+    const mid = withNew ? Math.floor((items.length + 2) / 2) : items.length;
+    const link = (i) => html`
+        <a class="tab-link" href="${i.href}" ${i.active ? html`aria-current="page"` : ''}><span class="tab-ico">${icon(i.icon, { size: 20 })}</span><span>${i.label}</span>${badge(i)}</a>`;
+    setHtml(bar, html`${items.slice(0, mid).map(link)}
         ${withNew ? html`<button type="button" class="tab-link tab-new" data-new-work aria-haspopup="dialog"><span class="tab-ico">${icon('plus', { size: 20 })}</span><span>Nova obra</span></button>` : ''}
+        ${items.slice(mid).map(link)}
         ${youTabHtml({ ...youContext(), open: isYouOpen() })}`);
     if (keep) bar.querySelector(keep)?.focus({ preventScroll: true });
 }
