@@ -43,7 +43,7 @@ export function youTabHtml({ cloud, user, profile, path, open }) {
 }
 
 /** A folha aberta. Vazia quando fechada. */
-export function youSheetHtml({ cloud, user, profile, role, path, dark, canLibrary, showAgenda }) {
+export function youSheetHtml({ cloud, user, profile, role, path, dark, canLibrary, showAgenda, install = 'none', update = false }) {
     const w = who({ cloud, user, profile });
     const links = w.kind === 'user'
         ? accountMenuItems({ username: w.username, role, path })
@@ -70,6 +70,8 @@ export function youSheetHtml({ cloud, user, profile, role, path, dark, canLibrar
                     <button type="button" class="account-item" data-you-item data-you-shortcut="stats">${icon('chart', { size: 18 })}<span>Estatísticas</span></button>
                     <div class="account-sep" role="separator"></div>` : ''}
                 ${links.map((i) => html`<a class="account-item" data-you-item href="${i.href}" ${i.current ? html`aria-current="page"` : ''}>${icon(i.icon, { size: 18 })}<span>${i.label}</span></a>`)}
+                ${update ? html`<button type="button" class="account-item" data-you-item data-you-update>${icon('refresh', { size: 18 })}<span>Atualizar o site</span></button>` : ''}
+                ${install !== 'none' ? html`<button type="button" class="account-item" data-you-item data-you-install>${icon('download', { size: 18 })}<span>Instalar o app</span></button>` : ''}
                 <button type="button" class="account-item you-switch" role="switch" aria-checked="${String(dark)}" data-you-item data-you-theme>${icon(dark ? 'moon' : 'sun', { size: 18 })}<span>Tema escuro</span><span class="you-track" aria-hidden="true"></span></button>
                 ${w.kind === 'user' ? html`
                     <div class="account-sep" role="separator"></div>
@@ -84,7 +86,7 @@ export function youSheetHtml({ cloud, user, profile, role, path, dark, canLibrar
 
 /**
  * Liga a barra e a folha. `bar` é a barra de baixo (redesenhada de tempos em tempos) e `host` o lugar da folha: os ouvintes ficam neles.
- * `repaint()` redesenha os dois; `actions` = { shortcut(name), theme(), logout(btn), notes() }. Devolve a função que desfaz tudo.
+ * `repaint()` redesenha os dois; `actions` = { shortcut(name), theme(), logout(btn), notes(), install(), update() }. Devolve a função que desfaz tudo.
  */
 export function bindYouSheet({ bar, host, repaint, actions }) {
     const toggleBtn = () => bar.querySelector('[data-you-toggle]');
@@ -109,6 +111,8 @@ export function bindYouSheet({ bar, host, repaint, actions }) {
     offs.push(on(host, 'click', '[data-you-theme]', () => actions.theme()));
     offs.push(on(host, 'click', '[data-you-logout]', (_, btn) => { actions.logout(btn); }));
     offs.push(on(host, 'click', '[data-you-notes]', () => { setOpen(false); actions.notes(); }));
+    offs.push(on(host, 'click', '[data-you-install]', () => { setOpen(false); actions.install(); }));
+    offs.push(on(host, 'click', '[data-you-update]', () => { setOpen(false); actions.update(); }));
     offs.push(on(host, 'click', 'a[href]', () => setTimeout(() => setOpen(false), 0)));     // escolheu uma tela: a folha fecha (depois do clique, para o link não sumir antes de navegar)
 
     const onKeyDown = (ev) => {

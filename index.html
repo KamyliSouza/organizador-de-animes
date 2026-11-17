@@ -13,9 +13,17 @@
 
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
 
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="KamyList">
+
+    <!-- Fonte: a folha de estilo do Google abre sem travar a pintura (media="print" até carregar; o js/boot.js liga) e o texto aparece na fonte do sistema até ela chegar -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>   <!-- biblioteca do Supabase (modo nuvem) -->
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" media="print" data-font-css>
 
     <link rel="stylesheet" href="css/tokens.css">
     <link rel="stylesheet" href="css/palettes.css">
@@ -24,6 +32,69 @@
     <link rel="stylesheet" href="css/views.css">
     <link rel="stylesheet" href="css/profile-bg.css">   <!-- fundo escolhido em Personalização → Fundo do perfil (vale no site todo) -->
     <link rel="stylesheet" href="css/contrast.css">   <!-- alto contraste (opção de acessibilidade): por último, vale por cima de tudo -->
+
+    <!-- modulepreload:start (gerado por tools/modulepreload.mjs; não edite à mão) -->
+    <link rel="modulepreload" href="js/config.js">
+    <link rel="modulepreload" href="js/core/contrast.js">
+    <link rel="modulepreload" href="js/core/dialogs.js">
+    <link rel="modulepreload" href="js/core/dom.js">
+    <link rel="modulepreload" href="js/core/errors.js">
+    <link rel="modulepreload" href="js/core/icons.js">
+    <link rel="modulepreload" href="js/core/modal.js">
+    <link rel="modulepreload" href="js/core/palette.js">
+    <link rel="modulepreload" href="js/core/pwa.js">
+    <link rel="modulepreload" href="js/core/router.js">
+    <link rel="modulepreload" href="js/core/siteBackground.js">
+    <link rel="modulepreload" href="js/core/theme.js">
+    <link rel="modulepreload" href="js/core/time.js">
+    <link rel="modulepreload" href="js/core/toast.js">
+    <link rel="modulepreload" href="js/domain/access.js">
+    <link rel="modulepreload" href="js/domain/accountMenu.js">
+    <link rel="modulepreload" href="js/domain/backup.js">
+    <link rel="modulepreload" href="js/domain/changelog.js">
+    <link rel="modulepreload" href="js/domain/entry.js">
+    <link rel="modulepreload" href="js/domain/mediaLimits.js">
+    <link rel="modulepreload" href="js/domain/palettes.js">
+    <link rel="modulepreload" href="js/domain/reportContext.js">
+    <link rel="modulepreload" href="js/domain/reportSnapshot.js">
+    <link rel="modulepreload" href="js/domain/roles.js">
+    <link rel="modulepreload" href="js/domain/settingsThemes.js">
+    <link rel="modulepreload" href="js/domain/stats.js">
+    <link rel="modulepreload" href="js/domain/textSafety.js">
+    <link rel="modulepreload" href="js/main.js">
+    <link rel="modulepreload" href="js/services/local-backend.js">
+    <link rel="modulepreload" href="js/services/schema.js">
+    <link rel="modulepreload" href="js/services/search/index.js">
+    <link rel="modulepreload" href="js/services/session.js">
+    <link rel="modulepreload" href="js/services/supabase-backend.js">
+    <link rel="modulepreload" href="js/ui/accountMenu.js">
+    <link rel="modulepreload" href="js/ui/avatar.js">
+    <link rel="modulepreload" href="js/ui/cardMenu.js">
+    <link rel="modulepreload" href="js/ui/chrome.js">
+    <link rel="modulepreload" href="js/ui/infoModals.js">
+    <link rel="modulepreload" href="js/ui/libraryBrowser.js">
+    <link rel="modulepreload" href="js/ui/mediaCard.js">
+    <link rel="modulepreload" href="js/ui/mediaFormModal.js">
+    <link rel="modulepreload" href="js/ui/newWork.js">
+    <link rel="modulepreload" href="js/ui/pageBar.js">
+    <link rel="modulepreload" href="js/ui/patchNotesModal.js">
+    <link rel="modulepreload" href="js/ui/readProgressModal.js">
+    <link rel="modulepreload" href="js/ui/reviewBlock.js">
+    <link rel="modulepreload" href="js/ui/roleBadge.js">
+    <link rel="modulepreload" href="js/ui/seasonsModal.js">
+    <link rel="modulepreload" href="js/ui/sectionTabs.js">
+    <link rel="modulepreload" href="js/ui/shareModal.js">
+    <link rel="modulepreload" href="js/ui/shortcuts.js">
+    <link rel="modulepreload" href="js/ui/sideMenu.js">
+    <link rel="modulepreload" href="js/ui/starRating.js">
+    <link rel="modulepreload" href="js/ui/stars.js">
+    <link rel="modulepreload" href="js/ui/statusTabs.js">
+    <link rel="modulepreload" href="js/ui/suspendedScreen.js">
+    <link rel="modulepreload" href="js/ui/textEditorModal.js">
+    <link rel="modulepreload" href="js/ui/youSheet.js">
+    <link rel="modulepreload" href="js/views/home.js">
+    <link rel="modulepreload" href="js/views/library.js">
+    <!-- modulepreload:end -->
 
     <!-- Marca que o JavaScript está ligado, aplica o tema salvo e vigia a inicialização -->
     <script src="js/boot.js"></script>

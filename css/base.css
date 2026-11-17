@@ -442,6 +442,10 @@ html:not(.js) .skip-link { display: none; }
     -webkit-backdrop-filter: blur(var(--blur-card));
 }
 .site-footer p + p { margin-top: 6px; }
+.footer-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 12px; }   /* Instalar o app / Atualizar o site (core/pwa.js) */
+.footer-actions .button { max-width: 100%; white-space: normal; text-align: center; }
+@media (max-width: 18.5em) { .footer-actions .button { flex: 1 1 100%; } }
+.install-steps { margin: 0; padding-inline-start: 1.4em; display: grid; gap: 8px; }
 /* Botão discreto da versão: abre as novidades do site */
 .version-button {
     display: inline-flex; align-items: center; justify-content: center;

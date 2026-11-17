@@ -518,7 +518,22 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.33`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.34`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+
+## Desempenho e app instalável (v1.34)
+
+**Abrir mais rápido**
+- `index.html` tem uma lista de `<link rel="modulepreload">` com todos os módulos do primeiro desenho (o navegador baixa tudo de uma vez, em vez de descobrir um `import` por vez). A lista é **gerada**: `node tools/modulepreload.mjs --write` (e `--check` confere). Rode depois de criar, apagar ou renomear arquivos em `js/`.
+- A fonte (Nunito, Google Fonts) não trava mais a primeira pintura: a folha de estilo nasce com `media="print"` e o `js/boot.js` a liga quando chega; até lá o texto usa a fonte do sistema. Não foi possível hospedar a fonte no próprio site (o registro de pacotes recusou o download neste ambiente); se quiser, baixe os arquivos `.woff2` do Nunito, coloque em `fonts/` e troque o `<link>` por um `@font-face`.
+- Listas com 60 obras ou mais ganham a classe `is-long` (`js/ui/libraryBrowser.js`) e o CSS usa `content-visibility: auto` nos cartões/linhas: o navegador pula o desenho do que está fora da tela.
+
+**App instalável (PWA)**
+- `manifest.webmanifest` + ícones em `icons/` (gerados de `favicon.svg` por `node tools/make-icons.mjs`; precisa do Playwright, só quem mantém o site). `start_url` e `scope` são relativos (`./`): funcionam na pasta do GitHub Pages.
+- `sw.js` é o service worker. **Depois de mexer em qualquer arquivo do site, rode `node tools/build-sw.mjs --write`**: ele regrava a lista de arquivos e a versão (um resumo do conteúdo). Se esquecer, os aparelhos que já têm o site instalado continuam com a versão guardada. `--check` confere.
+- Regras do cache: todos os arquivos são baixados juntos, numa pasta com o nome da versão (tudo ou nada, nunca uma mistura de versões); uma versão nova fica esperando e só assume quando a pessoa toca em **Atualizar o site** (rodapé e folha "Você"); `js/config.js` (as chaves) nunca entra na lista: vai pela internet primeiro e só usa a cópia guardada se a internet falhar; fontes do Google e a biblioteca do Supabase (jsDelivr) ficam guardadas no primeiro uso; Supabase (dados), Jikan, AniList e TMDB **não** passam pelo cache.
+- `js/core/pwa.js` registra o worker, guarda o evento `beforeinstallprompt` (botão **Instalar o app**; no iOS o botão abre o passo a passo "Compartilhar → Adicionar à Tela de Início"), avisa quando a internet cai/volta (`<html data-offline>`) e mostra o botão de atualizar.
+- Só funciona em `https://` (ou `localhost`). **Saída de emergência:** abrir o site com `?nosw` no endereço (ex.: `…/organizador-de-animes/?nosw`) apaga tudo o que o worker guardou e recomeça do zero (o site volta a se instalar limpo).
+- Nesta versão o site **abre** sem internet (a casca), a partir da segunda visita; ler a biblioteca offline é o próximo patch.
 
 ## Como o código está organizado
 

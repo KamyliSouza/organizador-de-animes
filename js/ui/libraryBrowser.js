@@ -7,6 +7,9 @@ import { applyImageFallback, mediaCardHtml, mediaRowHtml } from './mediaCard.js'
 import { bindCardMenus } from './cardMenu.js';
 import { STATUS_TAB_KEYS, statusCounts, statusTabsHtml, updateStatusCounts } from './statusTabs.js';
 
+// Listas longas (a partir daqui) deixam o navegador pular o desenho do que está fora da tela (content-visibility, ver components.css).
+const LONG_LIST = 60;
+
 const VIEW_KEY = 'kamylist_view_mode';
 const LEGACY_VIEW_KEY = 'media_tracker_view_mode';
 
@@ -176,9 +179,9 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, sect
         }
 
         if (view === 'cards') {
-            setHtml(results, html`<div class="media-grid">${list.map((e) => mediaCardHtml(e, { readonly }))}</div>${others}`);
+            setHtml(results, html`<div class="media-grid${list.length >= LONG_LIST ? ' is-long' : ''}">${list.map((e) => mediaCardHtml(e, { readonly }))}</div>${others}`);
         } else {
-            setHtml(results, html`<div class="media-list">${list.map((e) => mediaRowHtml(e, { readonly }))}</div>${others}`);
+            setHtml(results, html`<div class="media-list${list.length >= LONG_LIST ? ' is-long' : ''}">${list.map((e) => mediaRowHtml(e, { readonly }))}</div>${others}`);
         }
     }
 

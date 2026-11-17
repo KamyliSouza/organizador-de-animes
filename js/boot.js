@@ -28,6 +28,17 @@
         if (localStorage.getItem('kamylist_contrast') === 'high') root.setAttribute('data-contrast', 'high');
     } catch (e) { /* ok */ }
 
+    // A folha de estilo da fonte (Google) nasce com media="print" para não travar a pintura; quando chega, passa a valer para a tela.
+    var fontCss = document.querySelector('link[data-font-css]');
+    if (fontCss) {
+        var showFont = function () { fontCss.media = 'all'; };
+        if (fontCss.sheet) showFont();
+        else {
+            fontCss.addEventListener('load', showFont);
+            fontCss.addEventListener('error', showFont);
+        }
+    }
+
     setTimeout(function () {
         var box = document.querySelector('.boot-loading');   // some quando o app assume a tela
         if (!box) return;

@@ -5,6 +5,7 @@ import { brandKanji, icon } from '../core/icons.js';
 import { currentPath, navigate, onRouteChange } from '../core/router.js';
 import { currentTheme, onThemeChange, toggleTheme } from '../core/theme.js';
 import { timeAgo } from '../core/time.js';
+import { applyUpdate, installKind, onPwaChange, promptInstall, updateReady } from '../core/pwa.js';
 import { toast } from '../core/toast.js';
 import { messageOf } from '../core/errors.js';
 import { AUTO_SUSPEND_DAYS, STRIKE_LIMIT, strikeCountText } from '../domain/access.js';
@@ -116,6 +117,8 @@ function renderYou(host) {
         dark: currentTheme() === 'dark',
         canLibrary: showsNewWork(currentPath()),          // quem tem biblioteca (modo local ou conta logada) tem Agenda e Estatísticas
         showAgenda: shortcutsFor(loadSection()).includes('schedule'),
+        install: installKind(),                          // 'prompt' | 'ios' | 'none' (core/pwa.js)
+        update: updateReady(),
     }));
     if (index >= 0) host.querySelectorAll('[data-you-item]')[index]?.focus({ preventScroll: true });
 }
@@ -157,6 +160,10 @@ function renderSide(region) {
 
 function renderFooter(footer) {
     setHtml(footer, html`
+        ${installKind() !== 'none' || updateReady() ? html`<p class="footer-actions">
+            ${updateReady() ? html`<button type="button" class="button button-primary" data-update>${icon('refresh', { size: 18 })}<span>Atualizar o site</span></button>` : ''}
+            ${installKind() !== 'none' ? html`<button type="button" class="button button-secondary" data-install>${icon('download', { size: 18 })}<span>Instalar o app</span></button>` : ''}
+        </p>` : ''}
         <p>© ${new Date().getFullYear()} ${config.siteName}. Feito para organizar e compartilhar animes.
         <button type="button" class="version-button" data-patch-notes aria-haspopup="dialog" title="Ver as novidades do site">v${SITE_VERSION}<span class="sr-only"> — ver as novidades do site</span></button></p>
         <p>Dados das obras: MyAnimeList (via Jikan), AniList${config.tmdbApiKey ? ' e TMDB' : ''}.
@@ -208,6 +215,9 @@ export function mountChrome({ nav, tabBar, footer, notice, side, main }) {
     paint();
     renderFooter(footer);
     on(footer, 'click', '[data-patch-notes]', () => openPatchNotesModal());
+    on(footer, 'click', '[data-install]', () => promptInstall());
+    on(footer, 'click', '[data-update]', () => applyUpdate());
+    onPwaChange(() => { renderFooter(footer); renderYou(youHost); syncTabBar(); });     // pode instalar / há versão nova
     on(nav, 'click', '[data-new-work]', () => requestNewWork());
     on(tabBar, 'click', '[data-new-work]', () => requestNewWork());
     on(nav, 'click', '[data-side-toggle]', () => { setSideMenuOpen(!isSideMenuOpen()); paint(); });
@@ -243,6 +253,6 @@ export function mountChrome({ nav, tabBar, footer, notice, side, main }) {
     bindYouSheet({
         bar: tabBar, host: youHost,
         repaint: () => { renderTabBar(tabBar); renderYou(youHost); syncTabBar(); },
-        actions: { shortcut: requestShortcut, theme: toggleTheme, logout, notes: openPatchNotesModal },
+        actions: { shortcut: requestShortcut, theme: toggleTheme, logout, notes: openPatchNotesModal, install: promptInstall, update: applyUpdate },
     });
 }

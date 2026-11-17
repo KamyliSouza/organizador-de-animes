@@ -2,6 +2,7 @@
 import { config } from './config.js';
 import { html, setHtml } from './core/dom.js';
 import { icon } from './core/icons.js';
+import { initPwa } from './core/pwa.js';
 import { navigate, onRouteChange, refresh, route, scrollToTop, setNotFound, start } from './core/router.js';
 import { currentTheme } from './core/theme.js';
 import { rankOf } from './domain/roles.js';
@@ -69,6 +70,7 @@ async function boot() {
 
     mountChrome({ nav: $('site-nav'), tabBar: $('tab-bar'), footer: $('site-footer'), notice: $('site-notice'), side: $('side-region'), main: $('main') });
     mountSuspensionGate();   // conta suspensa ou banida: só a tela de aviso aparece
+    initPwa();               // service worker, "Instalar o app", atualização e aviso de internet (depois do site montado: os botões já têm onde aparecer)
     defineRoutes();
 
     // Sessão mudou por fora (outra aba saiu da conta, token expirou...): remonta a tela atual.

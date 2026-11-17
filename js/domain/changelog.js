@@ -1,9 +1,20 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.33';
+export const SITE_VERSION = '1.34';
 
 export const CHANGELOG = [
+    {
+        version: '1.34',
+        title: 'Mais rápido e instalável como app',
+        items: [
+            'O site abre mais depressa: os arquivos são pedidos todos de uma vez, a fonte não trava mais a primeira tela e listas grandes (60 obras ou mais) rolam mais leves.',
+            'Agora você pode instalar o KamyList no celular ou no computador: use o botão "Instalar o app" (no rodapé e no menu "Você"). No iPhone, o botão mostra o passo a passo.',
+            'O site guarda seus arquivos no aparelho e abre mesmo sem internet (os dados da biblioteca offline chegam na próxima atualização).',
+            'Quando sair uma versão nova, aparece o botão "Atualizar o site": ele só troca quando você toca, então nada se perde se você estiver editando.',
+            'Aviso quando a internet cai e quando volta.',
+        ],
+    },
     {
         version: '1.33',
         title: 'Celular: "Nova obra" no centro da barra',
