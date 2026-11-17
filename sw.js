@@ -8,7 +8,7 @@
 // Depois de mexer em qualquer arquivo do site, rode:  node tools/build-sw.mjs --write   (atualiza a lista e a versão abaixo)
 
 // precache:start (gerado por tools/build-sw.mjs; não edite à mão)
-const VERSION = 'be40f3d844dc';
+const VERSION = 'd0e88d8837fa';
 const PRECACHE = [
     'css/base.css',
     'css/components.css',
@@ -30,11 +30,14 @@ const PRECACHE = [
     'js/core/errors.js',
     'js/core/icons.js',
     'js/core/modal.js',
+    'js/core/offlineStore.js',
+    'js/core/online.js',
     'js/core/palette.js',
     'js/core/pwa.js',
     'js/core/router.js',
     'js/core/siteBackground.js',
     'js/core/theme.js',
+    'js/core/themeColor.js',
     'js/core/time.js',
     'js/core/toast.js',
     'js/domain/access.js',
@@ -58,6 +61,8 @@ const PRECACHE = [
     'js/services/backgroundImage.js',
     'js/services/http.js',
     'js/services/local-backend.js',
+    'js/services/offline-backend.js',
+    'js/services/offlineCache.js',
     'js/services/schema.js',
     'js/services/search/anilist.js',
     'js/services/search/index.js',
@@ -82,6 +87,7 @@ const PRECACHE = [
     'js/ui/mediaLimits.js',
     'js/ui/memberModal.js',
     'js/ui/newWork.js',
+    'js/ui/offlineGate.js',
     'js/ui/pageBar.js',
     'js/ui/palettePicker.js',
     'js/ui/patchNotesModal.js',
@@ -150,8 +156,27 @@ self.addEventListener('activate', (event) => {
     })());
 });
 
+// Aquecimento: a página pede para guardar a biblioteca do Supabase (jsDelivr) e os módulos que ela importa (o "+esm" aponta para /npm/...).
+async function warm(url, seen = new Set(), depth = 0) {
+    if (seen.has(url) || depth > 4 || seen.size >= 25) return;
+    let u;
+    try { u = new URL(url); } catch { return; }
+    if (u.origin !== 'https://cdn.jsdelivr.net') return;          // só o jsDelivr
+    seen.add(url);
+    try {
+        const req = new Request(url, { mode: 'cors' });
+        const res = await fetch(req);
+        if (!res.ok) return;
+        await (await caches.open(RUNTIME)).put(req, res.clone());
+        const code = await res.text();
+        for (const m of code.matchAll(/(?:from|import)\s*["'](\/npm\/[^"']+)["']/g)) await warm(new URL(m[1], url).href, seen, depth + 1);
+    } catch { /* sem rede agora: fica para a próxima visita */ }
+}
+
 self.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
+    const data = event.data || {};
+    if (data.type === 'SKIP_WAITING') self.skipWaiting();
+    else if (data.type === 'WARM_SDK' && typeof data.url === 'string') event.waitUntil(warm(data.url));
 });
 
 const fromPrecache = async (path) => (await caches.open(PRE)).match(new URL(path, SCOPE), { ignoreSearch: true });

@@ -518,7 +518,22 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.34`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.35`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+
+## Ver offline e cor do app (v1.35)
+
+**Ver offline (só leitura)**
+- Com internet, o site guarda neste aparelho (IndexedDB `kamylist-offline`, `js/core/offlineStore.js`) duas coisas: a **conta** (usuário, perfil, cargo; sem senha nem token) e a **lista de obras** (`js/services/offlineCache.js`). A cópia da biblioteca é regravada a cada mudança (junta cliques seguidos, ~0,8 s) e ao carregar.
+- Sem internet (navegador offline **ou** chamada ao Supabase falhando), a biblioteca abre em `readonly` com um aviso (`[data-offline-notice]`) e a data da cópia: busca, filtros, Detalhes, Agenda e Estatísticas funcionam; **adicionar/editar/excluir/+1 Ep ficam desligados** e o botão "Nova obra" some. Quando a internet volta o aviso muda e a página recarrega sozinha (se não houver janela aberta).
+- Login vencido sem como renovar (offline): o site segue com a conta da cópia em vez de mandar para "Entrar" (`state.fromCache` em `js/services/session.js`). Ao voltar a internet o Supabase renova o login e os dados de verdade substituem a cópia.
+- Se a biblioteca do Supabase (jsDelivr) ainda não estava guardada, `js/services/offline-backend.js` faz as chamadas falharem como falha de rede e a biblioteca mostra a cópia. O service worker guarda o jsDelivr no uso e a página pede o "aquecimento" (`WARM_SDK`) na 1ª visita.
+- Telas que dependem do banco (Feed, Explorar, Configurações, perfis, entrar, painel) mostram "Esta tela precisa de internet" (`js/ui/offlineGate.js`) e abrem sozinhas quando a conexão volta. O modo local (sem Supabase) não é afetado.
+- **Privacidade:** sair da conta apaga a cópia; entrar com outra pessoa apaga a biblioteca da anterior. Quem usa um aparelho compartilhado deve sair da conta ao terminar (como já era).
+- Limites honestos: as capas e fotos vêm de outros sites e só aparecem offline se o navegador ainda as tiver guardadas; sem elas aparece o desenho padrão. Mudanças feitas offline **não** existem (não há fila de edição).
+
+**Cor do app (barra do navegador / do aplicativo instalado)**
+- `js/core/themeColor.js` mantém `<meta name="theme-color">` igual à cor principal que o CSS está usando (`--primary-color`): segue a **paleta do perfil** (inclusive ao ver o perfil de alguém com outra paleta), o **claro/escuro** (do sistema ou do botão de tema) e o **alto contraste** (preto no claro, amarelo no escuro). Muda na hora, sem recarregar.
+- A última cor fica em `localStorage.kamylist_theme_color` e o `js/boot.js` a aplica antes de qualquer coisa: o app já abre com a cor certa. Limite dos navegadores: a cor do manifesto e a tela de abertura (splash) são fixas.
 
 ## Desempenho e app instalável (v1.34)
 
@@ -533,7 +548,7 @@ Para buscar séries e filmes:
 - Regras do cache: todos os arquivos são baixados juntos, numa pasta com o nome da versão (tudo ou nada, nunca uma mistura de versões); uma versão nova fica esperando e só assume quando a pessoa toca em **Atualizar o site** (rodapé e folha "Você"); `js/config.js` (as chaves) nunca entra na lista: vai pela internet primeiro e só usa a cópia guardada se a internet falhar; fontes do Google e a biblioteca do Supabase (jsDelivr) ficam guardadas no primeiro uso; Supabase (dados), Jikan, AniList e TMDB **não** passam pelo cache.
 - `js/core/pwa.js` registra o worker, guarda o evento `beforeinstallprompt` (botão **Instalar o app**; no iOS o botão abre o passo a passo "Compartilhar → Adicionar à Tela de Início"), avisa quando a internet cai/volta (`<html data-offline>`) e mostra o botão de atualizar.
 - Só funciona em `https://` (ou `localhost`). **Saída de emergência:** abrir o site com `?nosw` no endereço (ex.: `…/organizador-de-animes/?nosw`) apaga tudo o que o worker guardou e recomeça do zero (o site volta a se instalar limpo).
-- Nesta versão o site **abre** sem internet (a casca), a partir da segunda visita; ler a biblioteca offline é o próximo patch.
+- O site **abre** sem internet a partir da segunda visita; a leitura offline da biblioteca está descrita em "Ver offline" acima.
 
 ## Como o código está organizado
 

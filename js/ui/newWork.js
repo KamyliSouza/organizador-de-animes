@@ -2,6 +2,7 @@
 // Na biblioteca, quem abre o formulário é a própria tela (ela guarda a lista na memória e atualiza os cartões na hora).
 // Nas outras telas o formulário abre daqui, com a aba lembrada, e a obra é salva do mesmo jeito (mesmos dados, mesmas regras).
 import { messageOf } from '../core/errors.js';
+import { isOffline } from '../core/online.js';
 import { currentPath, navigate, refresh } from '../core/router.js';
 import { toast } from '../core/toast.js';
 import { sectionOf } from '../domain/entry.js';
@@ -21,7 +22,10 @@ export const canAddWork = () => !isCloud() || Boolean(state.user);
 
 /** Telas em que o botão não aparece: a de nova senha (a pessoa está no meio de trocar a senha). */
 const HIDDEN_ON = ['/nova-senha'];
-export const showsNewWork = (path = currentPath()) => canAddWork() && !HIDDEN_ON.includes(path);
+/** Tem biblioteca nesta tela (mesmo sem internet, quando ela abre só para leitura): Agenda e Estatísticas continuam à mão. */
+export const hasLibraryHere = (path = currentPath()) => canAddWork() && !HIDDEN_ON.includes(path);
+/** O botão "Nova obra" só aparece com internet (a conta guarda no banco; offline a biblioteca é só leitura). O modo local não depende de rede. */
+export const showsNewWork = (path = currentPath()) => hasLibraryHere(path) && !(isCloud() && isOffline());
 
 let opening = false;
 

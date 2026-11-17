@@ -2,7 +2,8 @@
 // As regras de quem pode ver/editar o quê estão no banco (sql/schema.sql);
 // este arquivo só conversa com ele.
 import { config } from '../config.js';
-import { AppError } from '../core/errors.js';
+import { AppError, isNetworkError } from '../core/errors.js';
+import { markNetworkFailure } from '../core/online.js';
 import { safeUrl } from '../core/dom.js';
 import { cleanUnicode } from '../domain/textSafety.js';
 import { SECTION_KEYS, normalizeEntry, normalizeSections } from '../domain/entry.js';
@@ -223,7 +224,8 @@ export async function createSupabaseBackend() {
 
         auth: {
             async getUser() {
-                const { data } = await sb.auth.getSession();
+                const { data, error } = await sb.auth.getSession();
+                if (!data?.session && error && isNetworkError(error)) markNetworkFailure();   // login vencido e sem como renovar: o site segue pela cópia offline
                 const u = data?.session?.user;
                 return u ? { id: u.id, email: u.email || '' } : null;
             },

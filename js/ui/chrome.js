@@ -5,6 +5,7 @@ import { brandKanji, icon } from '../core/icons.js';
 import { currentPath, navigate, onRouteChange } from '../core/router.js';
 import { currentTheme, onThemeChange, toggleTheme } from '../core/theme.js';
 import { timeAgo } from '../core/time.js';
+import { onConnectionChange } from '../core/online.js';
 import { applyUpdate, installKind, onPwaChange, promptInstall, updateReady } from '../core/pwa.js';
 import { toast } from '../core/toast.js';
 import { messageOf } from '../core/errors.js';
@@ -13,7 +14,7 @@ import { SITE_VERSION } from '../domain/changelog.js';
 import { state, isCloud, myRole, onSessionChange, refreshSession } from '../services/session.js';
 import { accountMenuHtml, bindAccountMenu, captureAccountFocus, closeAccountMenu } from './accountMenu.js';
 import { mountPageBar } from './pageBar.js';
-import { requestNewWork, showsNewWork } from './newWork.js';
+import { hasLibraryHere, requestNewWork, showsNewWork } from './newWork.js';
 import { openPatchNotesModal } from './patchNotesModal.js';
 import { SECTION_EVENT, loadSection } from './sectionTabs.js';
 import { requestShortcut, shortcutsFor } from './shortcuts.js';
@@ -115,7 +116,7 @@ function renderYou(host) {
     setHtml(host, youSheetHtml({
         ...youContext(),
         dark: currentTheme() === 'dark',
-        canLibrary: showsNewWork(currentPath()),          // quem tem biblioteca (modo local ou conta logada) tem Agenda e Estatísticas
+        canLibrary: hasLibraryHere(currentPath()),          // quem tem biblioteca (modo local ou conta logada) tem Agenda e Estatísticas
         showAgenda: shortcutsFor(loadSection()).includes('schedule'),
         install: installKind(),                          // 'prompt' | 'ios' | 'none' (core/pwa.js)
         update: updateReady(),
@@ -233,6 +234,7 @@ export function mountChrome({ nav, tabBar, footer, notice, side, main }) {
     });
     onSessionChange(paint);
     onThemeChange(paint);
+    onConnectionChange(paint);      // sem internet some o "Nova obra" (a biblioteca fica só para leitura)
 
     bindAccountMenu(nav);
     on(nav, 'click', '[data-theme-toggle]', () => toggleTheme());

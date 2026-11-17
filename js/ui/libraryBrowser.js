@@ -32,13 +32,14 @@ const FILTERS_ID = 'filters-panel';
  * @param {object} opts
  * @param {Array} opts.entries
  * @param {boolean} [opts.readonly]
+ * @param {boolean} [opts.ownReadonly]  só leitura da PRÓPRIA biblioteca (cópia offline): os textos de lista vazia falam de "você", não de "esta pessoa"
  * @param {'anime'|'manga'|'novel'} [opts.section]  Aba mostrada (Anime, Mangá ou Light Novel). Troque depois com setSection().
  * @param {Record<string,(entry:object, el:Element)=>void>} [opts.actions]  inc, seasons, progress, details, share, edit, delete, add, status
  *        ("cover" = clique na capa = "details"; "status" recebe o novo valor em el.value)
  * @param {(status:string)=>void} [opts.onStatusChange]  chamado quando o filtro de status muda (sub-abas)
  * @param {(section:string)=>void} [opts.onSectionRequest]  chamado quando a pessoa clica numa aba que também tem a obra buscada
  */
-export function mountLibraryBrowser(root, { entries = [], readonly = false, section: initialSection = DEFAULT_SECTION, actions = {}, onStatusChange = null, onSectionRequest = null }) {
+export function mountLibraryBrowser(root, { entries = [], readonly = false, ownReadonly = false, section: initialSection = DEFAULT_SECTION, actions = {}, onStatusChange = null, onSectionRequest = null }) {
     const filters = { status: 'all', category: 'all', sort: 'recent', query: '', favorites: false };
     let section = normalizeSection(initialSection);
     let view = loadView();
@@ -170,8 +171,8 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, sect
             setHtml(results, html`
                 <div class="empty-state glass-panel">
                     ${icon('film', { size: 44 })}
-                    <h3>${empty ? (readonly ? 'Nada por aqui ainda' : (all.length === 0 ? 'Sua biblioteca está vazia' : EMPTY_TITLE[section])) : 'Nenhuma obra encontrada'}</h3>
-                    <p>${empty ? (readonly ? 'Esta pessoa ainda não adicionou obras aqui.' : FIRST_WORK[section]) : 'Tente mudar os filtros ou a busca.'}</p>
+                    <h3>${empty ? (readonly && !ownReadonly ? 'Nada por aqui ainda' : (all.length === 0 ? 'Sua biblioteca está vazia' : EMPTY_TITLE[section])) : 'Nenhuma obra encontrada'}</h3>
+                    <p>${empty ? (readonly && !ownReadonly ? 'Esta pessoa ainda não adicionou obras aqui.' : FIRST_WORK[section]) : 'Tente mudar os filtros ou a busca.'}</p>
                     ${empty && !readonly && actions.add ? html`<button type="button" class="button button-primary" data-action="add">${icon('plus', { size: 18 })} Adicionar obra</button>` : ''}
                     ${!empty && narrowed ? html`<button type="button" class="button button-secondary" data-clear-all>Limpar filtros e busca</button>` : ''}
                 </div>${others}`);

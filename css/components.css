@@ -871,3 +871,9 @@ h1 .role-badge, h2 .role-badge, h3 .role-badge { font-size: .7rem; }
    (cartão ≈ 22rem, linha ≈ 5rem) para não inflar as linhas do grid; "auto" faz o navegador lembrar a altura real depois de desenhar. */
 .media-grid.is-long > .media-card { content-visibility: auto; contain-intrinsic-height: auto 22rem; }
 .media-list.is-long > .media-row { content-visibility: auto; contain-intrinsic-height: auto 5rem; }
+
+/* Offline (v1.35): aviso da biblioteca em cópia e telas que precisam de internet */
+.offline-panel .stack-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.offline-panel .stack-row .button { max-width: 100%; white-space: normal; text-align: center; }
+.offline-notice .notice-actions .button { max-width: 100%; white-space: normal; text-align: center; }     /* telas de 240–280 px e fonte grande: o texto do botão quebra em vez de vazar */
+.offline-notice .grow { min-width: 0; overflow-wrap: anywhere; }

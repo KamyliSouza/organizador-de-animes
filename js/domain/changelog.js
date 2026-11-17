@@ -1,9 +1,19 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.34';
+export const SITE_VERSION = '1.35';
 
 export const CHANGELOG = [
+    {
+        version: '1.35',
+        title: 'Biblioteca offline e cor do app',
+        items: [
+            'Sem internet, sua biblioteca abre em modo só leitura, com a última cópia guardada neste aparelho: dá para ver as obras, os detalhes, a Agenda e as Estatísticas, buscar e filtrar. Adicionar e editar voltam com a internet.',
+            'A cópia é atualizada a cada mudança feita com internet e apagada quando você sai da conta.',
+            'Quando a internet volta, a biblioteca se atualiza sozinha. As telas que precisam de internet (Feed, Explorar, Configurações...) mostram um aviso claro em vez de um erro.',
+            'A barra do navegador e do app instalado agora segue a cor do seu perfil. Sem cor de perfil, segue o claro/escuro do sistema; no alto contraste fica preta (claro) ou amarela (escuro).',
+        ],
+    },
     {
         version: '1.34',
         title: 'Mais rápido e instalável como app',

@@ -4,11 +4,12 @@ import { html, setHtml } from './core/dom.js';
 import { icon } from './core/icons.js';
 import { initPwa } from './core/pwa.js';
 import { navigate, onRouteChange, refresh, route, scrollToTop, setNotFound, start } from './core/router.js';
-import { currentTheme } from './core/theme.js';
+import { initThemeColor } from './core/themeColor.js';
 import { rankOf } from './domain/roles.js';
 import { SETTINGS_ROOT, SETTINGS_THEMES } from './domain/settingsThemes.js';
 import { initSession, isCloud, myRole, onSessionChange, refreshRequests, state } from './services/session.js';
 import { mountChrome } from './ui/chrome.js';
+import { offlineGate } from './ui/offlineGate.js';
 import { mountSuspensionGate } from './ui/suspendedScreen.js';
 
 const $ = (id) => document.getElementById(id);
@@ -25,22 +26,22 @@ const staffRank = (min) => () => {
 
 function defineRoutes() {
     route('/', () => import('./views/home.js'), { name: 'home' });
-    route('/entrar', () => import('./views/auth.js'), { name: 'login', title: 'Entrar', guard: onlyVisitors });
-    route('/criar-conta', () => import('./views/auth.js'), { name: 'signup', title: 'Criar conta', guard: onlyVisitors });
-    route('/recuperar', () => import('./views/auth.js'), { name: 'forgot', title: 'Recuperar senha', guard: onlyVisitors });
+    route('/entrar', offlineGate(() => import('./views/auth.js')), { name: 'login', title: 'Entrar', guard: onlyVisitors });
+    route('/criar-conta', offlineGate(() => import('./views/auth.js')), { name: 'signup', title: 'Criar conta', guard: onlyVisitors });
+    route('/recuperar', offlineGate(() => import('./views/auth.js')), { name: 'forgot', title: 'Recuperar senha', guard: onlyVisitors });
     // Link do e-mail de "esqueci a senha": a pessoa chega já logada numa sessão de recuperação.
-    route('/nova-senha', () => import('./views/auth.js'), { name: 'recovery', title: 'Nova senha', guard: () => (isCloud() && state.user ? undefined : '/entrar') });
-    route('/explorar', () => import('./views/explore.js'), { name: 'explore', title: 'Explorar' });
-    route('/u/:username', () => import('./views/profile.js'), { name: 'profile', title: 'Perfil' });
-    route('/feed', () => import('./views/feed.js'), { name: 'feed', title: 'Feed', guard: onlyMembers });
-    route('/feed/pedidos', () => import('./views/feed.js'), { name: 'feed-requests', title: 'Pedidos para seguir', guard: onlyMembers });
+    route('/nova-senha', offlineGate(() => import('./views/auth.js')), { name: 'recovery', title: 'Nova senha', guard: () => (isCloud() && state.user ? undefined : '/entrar') });
+    route('/explorar', offlineGate(() => import('./views/explore.js')), { name: 'explore', title: 'Explorar' });
+    route('/u/:username', offlineGate(() => import('./views/profile.js')), { name: 'profile', title: 'Perfil' });
+    route('/feed', offlineGate(() => import('./views/feed.js')), { name: 'feed', title: 'Feed', guard: onlyMembers });
+    route('/feed/pedidos', offlineGate(() => import('./views/feed.js')), { name: 'feed-requests', title: 'Pedidos para seguir', guard: onlyMembers });
     // Configurações: o índice e um endereço por tema (js/domain/settingsThemes.js); tudo na mesma tela.
-    route(SETTINGS_ROOT, () => import('./views/settings.js'), { name: 'settings', title: 'Configurações', guard: onlyMembers });
-    for (const t of SETTINGS_THEMES) route(t.path, () => import('./views/settings.js'), { name: `settings-${t.id}`, title: t.label, guard: onlyMembers });
-    route('/admin', () => import('./views/admin.js'), { name: 'admin', title: 'Painel da equipe', guard: staffRank(1) });
-    route('/admin/denuncias', () => import('./views/admin.js'), { name: 'admin-reports', title: 'Denúncias', guard: staffRank(1) });
-    route('/admin/registro', () => import('./views/admin.js'), { name: 'admin-log', title: 'Registro de ações', guard: staffRank(1) });
-    route('/admin/configuracoes', () => import('./views/admin.js'), { name: 'admin-settings', title: 'Configurações do site', guard: staffRank(2) });
+    route(SETTINGS_ROOT, offlineGate(() => import('./views/settings.js')), { name: 'settings', title: 'Configurações', guard: onlyMembers });
+    for (const t of SETTINGS_THEMES) route(t.path, offlineGate(() => import('./views/settings.js')), { name: `settings-${t.id}`, title: t.label, guard: onlyMembers });
+    route('/admin', offlineGate(() => import('./views/admin.js')), { name: 'admin', title: 'Painel da equipe', guard: staffRank(1) });
+    route('/admin/denuncias', offlineGate(() => import('./views/admin.js')), { name: 'admin-reports', title: 'Denúncias', guard: staffRank(1) });
+    route('/admin/registro', offlineGate(() => import('./views/admin.js')), { name: 'admin-log', title: 'Registro de ações', guard: staffRank(1) });
+    route('/admin/configuracoes', offlineGate(() => import('./views/admin.js')), { name: 'admin-settings', title: 'Configurações do site', guard: staffRank(2) });
     setNotFound(() => import('./views/notFound.js'));
 }
 
@@ -59,7 +60,7 @@ function showFatal(err) {
 
 async function boot() {
     $('skip-link').addEventListener('click', () => $('main').focus());
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', currentTheme() === 'dark' ? '#d178cd' : '#B35EAF');
+    initThemeColor();        // a barra do navegador/app segue a paleta do perfil, o claro/escuro e o alto contraste (core/themeColor.js)
 
     try {
         await initSession({ onRecovery: () => navigate('/nova-senha') });

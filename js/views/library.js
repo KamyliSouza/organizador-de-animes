@@ -1,11 +1,14 @@
 // Tela principal: a sua biblioteca (adicionar, editar, +1 Ep, temporadas...).
 import { copyText, html, on, setHtml } from '../core/dom.js';
 import { confirmDialog } from '../core/dialogs.js';
-import { messageOf } from '../core/errors.js';
+import { isNetworkError, messageOf } from '../core/errors.js';
+import { hasOpenModal } from '../core/modal.js';
+import { isOffline, markNetworkFailure, markNetworkOk, onConnectionChange } from '../core/online.js';
 import { icon } from '../core/icons.js';
 import { toast } from '../core/toast.js';
 import { SECTIONS, addNextChapter, addNextEpisode, applyStatus, isReading, sectionOf, statusLabel } from '../domain/entry.js';
 import { readLegacyEntries } from '../domain/backup.js';
+import { loadLibrary, saveLibrary } from '../services/offlineCache.js';
 import { REQUIRED_SCHEMA } from '../services/schema.js';
 import { backend, isCloud, state } from '../services/session.js';
 import { openDetailsModal, openScheduleModal, openStatsModal } from '../ui/infoModals.js';
@@ -30,15 +33,26 @@ export async function mount(root) {
         <div class="media-grid"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>`);
 
     let entries;
+    let offlineMode = false;     // true = sem internet: mostra a cópia guardada neste aparelho, só para leitura
+    let savedAt = 0;
     try {
         entries = await be.library.listMine();
+        markNetworkOk();
+        if (cloud && state.user) saveLibrary(state.user.id, entries);        // cópia para ver offline
     } catch (err) {
-        console.error(err);
-        setHtml(root, html`<div class="glass-panel empty-state">${icon('alert', { size: 40 })}<h3>Não foi possível carregar sua biblioteca</h3>
-            <p>${messageOf(err, 'Verifique sua conexão e tente de novo.')}</p>
-            <button type="button" class="button button-primary" data-retry>Tentar de novo</button></div>`);
-        root.querySelector('[data-retry]').addEventListener('click', () => location.reload());
-        return;
+        const netDown = cloud && Boolean(state.user) && (isOffline() || state.fromCache || isNetworkError(err));
+        const snap = netDown ? await loadLibrary(state.user.id) : null;
+        if (snap) {
+            entries = snap.entries; savedAt = snap.savedAt; offlineMode = true;
+            if (isNetworkError(err)) markNetworkFailure();
+        } else {
+            console.error(err);
+            setHtml(root, html`<div class="glass-panel empty-state">${icon(netDown ? 'info' : 'alert', { size: 40 })}<h3>${netDown ? 'Sem internet' : 'Não foi possível carregar sua biblioteca'}</h3>
+                <p>${netDown ? 'Este aparelho ainda não tem uma cópia da sua biblioteca. Abra o site uma vez com internet e carregue a biblioteca: depois ela abre também offline.' : messageOf(err, 'Verifique sua conexão e tente de novo.')}</p>
+                <button type="button" class="button button-primary" data-retry>Tentar de novo</button></div>`);
+            root.querySelector('[data-retry]').addEventListener('click', () => location.reload());
+            return;
+        }
     }
 
     setHtml(root, html`
@@ -75,9 +89,21 @@ export async function mount(root) {
         root.querySelector('[data-lead]').textContent = LEADS[section];
         root.querySelector('[data-act="schedule"]').hidden = section !== 'anime';
     };
+    // A cópia offline acompanha cada mudança feita com internet (adiar um pouco junta cliques seguidos em uma gravação só).
+    let snapTimer = null;
+    const saveSnapshotNow = () => {
+        if (snapTimer) { clearTimeout(snapTimer); snapTimer = null; }
+        if (cloud && state.user && !offlineMode) saveLibrary(state.user.id, entries);
+    };
     const refresh = () => {
         paintTabs();
         browser?.setEntries(entries);     // atualiza também os números das sub-abas de status
+        if (cloud && state.user && !offlineMode) { clearTimeout(snapTimer); snapTimer = setTimeout(saveSnapshotNow, 800); }
+    };
+    const blocked = () => {
+        if (!offlineMode) return false;
+        toast('Sem internet: a biblioteca está só para leitura. Volte a ficar online para adicionar ou editar.', { type: 'info' });
+        return true;
     };
     function switchSection(next) {
         if (!SECTIONS[next] || next === section) return;
@@ -93,6 +119,19 @@ export async function mount(root) {
 
     function renderBanners() {
         const parts = [];
+
+        if (offlineMode) {        // só este aviso: o resto (link do perfil, importação, banco) precisa de internet
+            const when = savedAt ? new Date(savedAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+            const back = !isOffline();
+            parts.push(html`<div class="notice-box is-warn offline-notice" role="status" data-offline-notice>${icon('info')}<div class="grow">
+                ${back
+                    ? html`<strong>A internet voltou.</strong> Atualize para ver a biblioteca de verdade e voltar a editar.`
+                    : html`<strong>Você está offline.</strong> Mostrando a cópia da sua biblioteca${when ? html` de ${when}` : ''}. Dá para ver as obras, os detalhes, a Agenda e as Estatísticas; para adicionar ou editar, espere a internet voltar.`}
+                <div class="notice-actions"><button type="button" class="button ${back ? 'button-primary' : 'button-secondary'} button-sm" data-act="reload">${icon('refresh', { size: 15 })} ${back ? 'Atualizar a biblioteca' : 'Tentar de novo'}</button></div>
+            </div></div>`);
+            setHtml(banners, html`${parts}`);
+            return;
+        }
 
         if (schemaOutdated) {
             parts.push(html`<div class="notice-box is-warn" role="alert">${icon('alert')}<div>
@@ -167,6 +206,7 @@ export async function mount(root) {
 
     // --- ações ----------------------------------------------------------------------
     function openForm(entry = null) {
+        if (blocked()) return;
         openMediaForm({
             entry,
             section: entry ? sectionOf(entry) : section,
@@ -192,6 +232,7 @@ export async function mount(root) {
     }
 
     function increment(entry) {
+        if (blocked()) return;
         if ((isReading(entry) ? addNextChapter(entry) : addNextEpisode(entry))) schedulePersist(entry.id);
         refresh();
     }
@@ -237,14 +278,18 @@ export async function mount(root) {
         },
     };
 
-    browser = mountLibraryBrowser(root.querySelector('[data-browser]'), { entries, section, actions, onSectionRequest: switchSection });
+    // Offline: só "Detalhes" (a capa e o botão Detalhes); os cartões saem sem seletor de status, +1 Ep, favorito e menu de edição.
+    browser = mountLibraryBrowser(root.querySelector('[data-browser]'), offlineMode
+        ? { entries, section, actions: { details: actions.details }, readonly: true, ownReadonly: true, onSectionRequest: switchSection }
+        : { entries, section, actions, onSectionRequest: switchSection });
     const offTabs = bindSectionTabs(sectionsEl, switchSection);
     // O botão "Nova obra" do topo (computador) e o flutuante (celular) abrem o formulário daqui enquanto a biblioteca está na tela.
-    const offNewWork = registerLibraryOpener(() => openForm(null));
+    const offNewWork = offlineMode ? () => {} : registerLibraryOpener(() => openForm(null));
 
     // --- cabeçalho e avisos ---------------------------------------------------------
     const off = on(root, 'click', '[data-act]', async (_, btn) => {
         switch (btn.dataset.act) {
+            case 'reload': location.reload(); break;
             case 'stats': openStatsModal(entries, { section }); break;
             case 'schedule': openScheduleModal({ getEntries: () => entries, onIncrement: increment }); break;
             case 'copy-link': {
@@ -292,11 +337,18 @@ export async function mount(root) {
         stats: () => openStatsModal(entries, { section }),
     });
 
-    if (cloud && state.user) {
+    // Sem internet: quando ela volta o aviso muda e, se não houver janela aberta, a página recarrega sozinha (não há nada para perder: está só para leitura).
+    const offConnection = onConnectionChange(() => {
+        if (!offlineMode) return;
+        renderBanners();
+        if (!isOffline() && !hasOpenModal()) location.reload();
+    });
+
+    if (cloud && state.user && !offlineMode) {
         be.meta?.schemaVersion?.().then((v) => {
             if (v !== null && v < REQUIRED_SCHEMA) { schemaOutdated = true; renderBanners(); }
         }).catch(() => {});
     }
 
-    return () => { off(); offTabs(); offNewWork(); offShortcuts(); browser.destroy(); };
+    return () => { saveSnapshotNow(); offConnection(); off(); offTabs(); offNewWork(); offShortcuts(); browser.destroy(); };
 }

@@ -1,0 +1,966 @@
+diff --git a/README.md b/README.md
+index bce83a9..b802ee4 100644
+--- a/README.md
++++ b/README.md
+@@ -518,7 +518,22 @@ Para buscar séries e filmes:
+ ## Logo e novidades do site
+ 
+ - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
+-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.34`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
++- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.35`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
++
++## Ver offline e cor do app (v1.35)
++
++**Ver offline (só leitura)**
++- Com internet, o site guarda neste aparelho (IndexedDB `kamylist-offline`, `js/core/offlineStore.js`) duas coisas: a **conta** (usuário, perfil, cargo; sem senha nem token) e a **lista de obras** (`js/services/offlineCache.js`). A cópia da biblioteca é regravada a cada mudança (junta cliques seguidos, ~0,8 s) e ao carregar.
++- Sem internet (navegador offline **ou** chamada ao Supabase falhando), a biblioteca abre em `readonly` com um aviso (`[data-offline-notice]`) e a data da cópia: busca, filtros, Detalhes, Agenda e Estatísticas funcionam; **adicionar/editar/excluir/+1 Ep ficam desligados** e o botão "Nova obra" some. Quando a internet volta o aviso muda e a página recarrega sozinha (se não houver janela aberta).
++- Login vencido sem como renovar (offline): o site segue com a conta da cópia em vez de mandar para "Entrar" (`state.fromCache` em `js/services/session.js`). Ao voltar a internet o Supabase renova o login e os dados de verdade substituem a cópia.
++- Se a biblioteca do Supabase (jsDelivr) ainda não estava guardada, `js/services/offline-backend.js` faz as chamadas falharem como falha de rede e a biblioteca mostra a cópia. O service worker guarda o jsDelivr no uso e a página pede o "aquecimento" (`WARM_SDK`) na 1ª visita.
++- Telas que dependem do banco (Feed, Explorar, Configurações, perfis, entrar, painel) mostram "Esta tela precisa de internet" (`js/ui/offlineGate.js`) e abrem sozinhas quando a conexão volta. O modo local (sem Supabase) não é afetado.
++- **Privacidade:** sair da conta apaga a cópia; entrar com outra pessoa apaga a biblioteca da anterior. Quem usa um aparelho compartilhado deve sair da conta ao terminar (como já era).
++- Limites honestos: as capas e fotos vêm de outros sites e só aparecem offline se o navegador ainda as tiver guardadas; sem elas aparece o desenho padrão. Mudanças feitas offline **não** existem (não há fila de edição).
++
++**Cor do app (barra do navegador / do aplicativo instalado)**
++- `js/core/themeColor.js` mantém `<meta name="theme-color">` igual à cor principal que o CSS está usando (`--primary-color`): segue a **paleta do perfil** (inclusive ao ver o perfil de alguém com outra paleta), o **claro/escuro** (do sistema ou do botão de tema) e o **alto contraste** (preto no claro, amarelo no escuro). Muda na hora, sem recarregar.
++- A última cor fica em `localStorage.kamylist_theme_color` e o `js/boot.js` a aplica antes de qualquer coisa: o app já abre com a cor certa. Limite dos navegadores: a cor do manifesto e a tela de abertura (splash) são fixas.
+ 
+ ## Desempenho e app instalável (v1.34)
+ 
+@@ -533,7 +548,7 @@ Para buscar séries e filmes:
+ - Regras do cache: todos os arquivos são baixados juntos, numa pasta com o nome da versão (tudo ou nada, nunca uma mistura de versões); uma versão nova fica esperando e só assume quando a pessoa toca em **Atualizar o site** (rodapé e folha "Você"); `js/config.js` (as chaves) nunca entra na lista: vai pela internet primeiro e só usa a cópia guardada se a internet falhar; fontes do Google e a biblioteca do Supabase (jsDelivr) ficam guardadas no primeiro uso; Supabase (dados), Jikan, AniList e TMDB **não** passam pelo cache.
+ - `js/core/pwa.js` registra o worker, guarda o evento `beforeinstallprompt` (botão **Instalar o app**; no iOS o botão abre o passo a passo "Compartilhar → Adicionar à Tela de Início"), avisa quando a internet cai/volta (`<html data-offline>`) e mostra o botão de atualizar.
+ - Só funciona em `https://` (ou `localhost`). **Saída de emergência:** abrir o site com `?nosw` no endereço (ex.: `…/organizador-de-animes/?nosw`) apaga tudo o que o worker guardou e recomeça do zero (o site volta a se instalar limpo).
+-- Nesta versão o site **abre** sem internet (a casca), a partir da segunda visita; ler a biblioteca offline é o próximo patch.
++- O site **abre** sem internet a partir da segunda visita; a leitura offline da biblioteca está descrita em "Ver offline" acima.
+ 
+ ## Como o código está organizado
+ 
+diff --git a/css/components.css b/css/components.css
+index 7cd3274..4b43dfe 100644
+--- a/css/components.css
++++ b/css/components.css
+@@ -871,3 +871,9 @@ h1 .role-badge, h2 .role-badge, h3 .role-badge { font-size: .7rem; }
+    (cartão ≈ 22rem, linha ≈ 5rem) para não inflar as linhas do grid; "auto" faz o navegador lembrar a altura real depois de desenhar. */
+ .media-grid.is-long > .media-card { content-visibility: auto; contain-intrinsic-height: auto 22rem; }
+ .media-list.is-long > .media-row { content-visibility: auto; contain-intrinsic-height: auto 5rem; }
++
++/* Offline (v1.35): aviso da biblioteca em cópia e telas que precisam de internet */
++.offline-panel .stack-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
++.offline-panel .stack-row .button { max-width: 100%; white-space: normal; text-align: center; }
++.offline-notice .notice-actions .button { max-width: 100%; white-space: normal; text-align: center; }     /* telas de 240–280 px e fonte grande: o texto do botão quebra em vez de vazar */
++.offline-notice .grow { min-width: 0; overflow-wrap: anywhere; }
+diff --git a/index.html b/index.html
+index 68a4fc7..e99e2e7 100644
+--- a/index.html
++++ b/index.html
+@@ -41,11 +41,14 @@
+     <link rel="modulepreload" href="js/core/errors.js">
+     <link rel="modulepreload" href="js/core/icons.js">
+     <link rel="modulepreload" href="js/core/modal.js">
++    <link rel="modulepreload" href="js/core/offlineStore.js">
++    <link rel="modulepreload" href="js/core/online.js">
+     <link rel="modulepreload" href="js/core/palette.js">
+     <link rel="modulepreload" href="js/core/pwa.js">
+     <link rel="modulepreload" href="js/core/router.js">
+     <link rel="modulepreload" href="js/core/siteBackground.js">
+     <link rel="modulepreload" href="js/core/theme.js">
++    <link rel="modulepreload" href="js/core/themeColor.js">
+     <link rel="modulepreload" href="js/core/time.js">
+     <link rel="modulepreload" href="js/core/toast.js">
+     <link rel="modulepreload" href="js/domain/access.js">
+@@ -63,6 +66,7 @@
+     <link rel="modulepreload" href="js/domain/textSafety.js">
+     <link rel="modulepreload" href="js/main.js">
+     <link rel="modulepreload" href="js/services/local-backend.js">
++    <link rel="modulepreload" href="js/services/offlineCache.js">
+     <link rel="modulepreload" href="js/services/schema.js">
+     <link rel="modulepreload" href="js/services/search/index.js">
+     <link rel="modulepreload" href="js/services/session.js">
+@@ -76,6 +80,7 @@
+     <link rel="modulepreload" href="js/ui/mediaCard.js">
+     <link rel="modulepreload" href="js/ui/mediaFormModal.js">
+     <link rel="modulepreload" href="js/ui/newWork.js">
++    <link rel="modulepreload" href="js/ui/offlineGate.js">
+     <link rel="modulepreload" href="js/ui/pageBar.js">
+     <link rel="modulepreload" href="js/ui/patchNotesModal.js">
+     <link rel="modulepreload" href="js/ui/readProgressModal.js">
+diff --git a/js/boot.js b/js/boot.js
+index acd4d45..7b48abc 100644
+--- a/js/boot.js
++++ b/js/boot.js
+@@ -28,6 +28,12 @@
+         if (localStorage.getItem('kamylist_contrast') === 'high') root.setAttribute('data-contrast', 'high');
+     } catch (e) { /* ok */ }
+ 
++    try {   // última cor do app (barra do navegador/aplicativo): a barra já nasce na cor da paleta, sem piscar; o js/core/themeColor.js confirma depois
++        var tc = localStorage.getItem('kamylist_theme_color');
++        var meta = document.querySelector('meta[name="theme-color"]');
++        if (meta && tc && /^#[0-9a-f]{6}$/i.test(tc)) meta.setAttribute('content', tc);
++    } catch (e) { /* ok */ }
++
+     // A folha de estilo da fonte (Google) nasce com media="print" para não travar a pintura; quando chega, passa a valer para a tela.
+     var fontCss = document.querySelector('link[data-font-css]');
+     if (fontCss) {
+diff --git a/js/core/errors.js b/js/core/errors.js
+index c6d674f..ea7961b 100644
+--- a/js/core/errors.js
++++ b/js/core/errors.js
+@@ -11,3 +11,17 @@ export class AppError extends Error {
+ export function messageOf(err, fallback = 'Algo deu errado. Tente novamente.') {
+     return err?.userMessage || fallback;
+ }
++
++const NETWORK_RX = /failed to fetch|networkerror|network request failed|load failed|fetch failed|internet disconnected|network error|retryablefetch/i;
++
++/**
++ * O erro veio de falta de internet (e não de uma recusa do banco)? Olha o erro e a causa dele (o AppError guarda o erro original do Supabase).
++ * Serve para decidir se vale mostrar a cópia da biblioteca guardada neste aparelho.
++ */
++export function isNetworkError(err) {
++    for (let e = err, depth = 0; e && depth < 3; e = e.cause, depth += 1) {
++        if (e instanceof TypeError) return true;
++        if (NETWORK_RX.test(`${e.name || ''} ${e.message || ''}`)) return true;
++    }
++    return false;
++}
+diff --git a/js/core/offlineStore.js b/js/core/offlineStore.js
+new file mode 100644
+index 0000000..e7f8b2c
+--- /dev/null
++++ b/js/core/offlineStore.js
+@@ -0,0 +1,35 @@
++// Armazenamento para "ver offline": um IndexedDB minúsculo (chave → valor). Bem maior que o localStorage, que estouraria com bibliotecas grandes.
++// Tudo é à prova de falha: navegador sem IndexedDB, janela privada ou disco cheio devolvem "nada" e o site segue normal (só não há cópia offline).
++const DB = 'kamylist-offline';
++const STORE = 'kv';
++let opening = null;
++
++function open() {
++    if (opening) return opening;
++    opening = new Promise((resolve, reject) => {
++        if (typeof indexedDB === 'undefined') { reject(new Error('sem IndexedDB')); return; }
++        let req;
++        try { req = indexedDB.open(DB, 1); } catch (e) { reject(e); return; }
++        req.onupgradeneeded = () => { if (!req.result.objectStoreNames.contains(STORE)) req.result.createObjectStore(STORE); };
++        req.onsuccess = () => resolve(req.result);
++        req.onerror = () => reject(req.error);
++        req.onblocked = () => reject(new Error('bloqueado'));
++    }).catch((e) => { opening = null; throw e; });
++    return opening;
++}
++
++async function tx(mode, run) {
++    const db = await open();
++    return new Promise((resolve, reject) => {
++        const t = db.transaction(STORE, mode);
++        const out = run(t.objectStore(STORE));
++        t.oncomplete = () => resolve(out && 'result' in out ? out.result : undefined);
++        t.onerror = () => reject(t.error);
++        t.onabort = () => reject(t.error || new Error('cancelado'));
++    });
++}
++
++export async function kvGet(key) { try { return (await tx('readonly', (s) => s.get(key))) ?? null; } catch { return null; } }
++export async function kvSet(key, value) { try { await tx('readwrite', (s) => s.put(value, key)); return true; } catch { return false; } }
++export async function kvDel(key) { try { await tx('readwrite', (s) => s.delete(key)); return true; } catch { return false; } }
++export async function kvKeys() { try { return (await tx('readonly', (s) => s.getAllKeys())) || []; } catch { return []; } }
+diff --git a/js/core/online.js b/js/core/online.js
+new file mode 100644
+index 0000000..27c39e8
+--- /dev/null
++++ b/js/core/online.js
+@@ -0,0 +1,18 @@
++// "Estou sem internet?" em um lugar só. Vale quando o navegador avisa (navigator.onLine) e também quando uma chamada de rede falhou
++// mesmo com o navegador achando que há conexão (Wi-Fi sem sinal): `markNetworkFailure()` marca, e a próxima chamada que der certo
++// (`markNetworkOk()`) ou o evento "online" desmarca. Quem muda de comportamento sem internet (barra, biblioteca, telas) ouve onConnectionChange.
++const listeners = new Set();
++let failed = false;
++
++export const isOffline = () => (typeof navigator !== 'undefined' && navigator.onLine === false) || failed;
++export function onConnectionChange(fn) { listeners.add(fn); return () => listeners.delete(fn); }
++
++const emit = () => listeners.forEach((fn) => { try { fn(isOffline()); } catch (e) { console.error(e); } });
++
++export function markNetworkFailure() { if (!failed) { failed = true; emit(); } }
++export function markNetworkOk() { if (failed) { failed = false; emit(); } }
++
++if (typeof window !== 'undefined') {
++    window.addEventListener('offline', emit);
++    window.addEventListener('online', () => { failed = false; emit(); });
++}
+diff --git a/js/core/pwa.js b/js/core/pwa.js
+index 7ffbd21..ee9b3d9 100644
+--- a/js/core/pwa.js
++++ b/js/core/pwa.js
+@@ -5,9 +5,10 @@
+ //    Nunca recarrega sozinha: ela pode estar no meio de uma edição.
+ //  • Internet: avisa quando caiu e quando voltou, e marca <html data-offline> para o CSS e os testes.
+ //  • Saída de emergência: abrir o site com ?nosw no endereço apaga tudo o que o service worker guardou e recomeça do zero (se algo ficou preso).
+-import { config } from '../config.js';
++import { config, hasSupabase } from '../config.js';
+ import { el, html } from './dom.js';
+ import { openModal } from './modal.js';
++import { isOffline, onConnectionChange } from './online.js';
+ import { toast } from './toast.js';
+ 
+ const listeners = new Set();
+@@ -89,14 +90,24 @@ async function resetServiceWorker() {
+     location.replace(url.toString());
+ }
+ 
++// Biblioteca do Supabase (jsDelivr): baixada na 1ª visita, antes de o worker assumir, então não ficou guardada. Pedimos ao worker que a baixe
++// (e os módulos que ela importa) e guarde uma cópia: assim o site abre offline também na conta. Quem baixa é o worker, não a página,
++// porque a CSP da página só libera o jsDelivr para scripts (connect-src não). Melhor esforço, em silêncio.
++function warmSupabaseSdk() {
++    if (!hasSupabase() || isOffline()) return;
++    navigator.serviceWorker.controller?.postMessage({ type: 'WARM_SDK', url: config.supabaseEsmUrl });
++}
++const whenIdle = (fn) => ('requestIdleCallback' in window ? window.requestIdleCallback(fn, { timeout: 6000 }) : setTimeout(fn, 2500));
++
+ function watchConnection() {
++    let was = isOffline();
+     const sync = (announce) => {
+-        const off = navigator.onLine === false;
++        const off = isOffline();                          // navegador sem rede OU uma chamada que falhou (core/online.js)
+         document.documentElement.toggleAttribute('data-offline', off);
+-        if (announce) toast(off ? 'Você está sem internet.' : 'Internet de volta.', { type: off ? 'error' : 'success' });
++        if (announce && off !== was) toast(off ? 'Você está sem internet.' : 'Internet de volta.', { type: off ? 'error' : 'success' });
++        was = off;
+     };
+-    window.addEventListener('offline', () => sync(true));
+-    window.addEventListener('online', () => sync(true));
++    onConnectionChange(() => sync(true));
+     sync(false);
+ }
+ 
+@@ -116,6 +127,8 @@ export function initPwa() {
+             registration = await navigator.serviceWorker.register(new URL('sw.js', document.baseURI).href, { scope: './', updateViaCache: 'none' });
+         } catch (err) { console.warn('Service worker não registrado:', err); return; }
+         if (!registration) return;             // registro bloqueado (alguns navegadores/testes devolvem vazio em vez de erro)
++        if (navigator.serviceWorker.controller) whenIdle(warmSupabaseSdk);
++        else navigator.serviceWorker.addEventListener('controllerchange', () => whenIdle(warmSupabaseSdk), { once: true });     // 1ª visita: o worker acabou de assumir
+         if (registration.waiting && navigator.serviceWorker.controller) track(registration.waiting);
+         registration.addEventListener('updatefound', () => track(registration.installing));
+         let lastCheck = Date.now();
+diff --git a/js/core/theme.js b/js/core/theme.js
+index 22d113a..f5e8d4e 100644
+--- a/js/core/theme.js
++++ b/js/core/theme.js
+@@ -11,8 +11,6 @@ export function currentTheme() {
+ export function setTheme(theme) {
+     document.documentElement.setAttribute('data-theme', theme);
+     try { localStorage.setItem(KEY, theme); } catch { /* sem armazenamento: vale só nesta visita */ }
+-    const meta = document.querySelector('meta[name="theme-color"]');
+-    if (meta) meta.setAttribute('content', theme === 'dark' ? '#d178cd' : '#B35EAF');
+     listeners.forEach((fn) => fn(theme));
+ }
+ 
+diff --git a/js/core/themeColor.js b/js/core/themeColor.js
+new file mode 100644
+index 0000000..8df10ff
+--- /dev/null
++++ b/js/core/themeColor.js
+@@ -0,0 +1,49 @@
++// Cor do app: a barra do navegador / do aplicativo instalado (meta theme-color) acompanha o visual do site.
++//  • Cor do perfil: a paleta escolhida (data-palette) vale no site todo, então a barra usa a cor principal dela.
++//  • Sem paleta: o claro/escuro do sistema (ou o que a pessoa escolheu no botão de tema).
++//  • Alto contraste: preto no claro e amarelo no escuro, como o resto do site.
++// A cor sai do próprio CSS (a variável --primary-color de <html> já considera paleta, tema, sistema e alto contraste), então nada aqui
++// precisa saber os valores de cada paleta. A última cor fica guardada para o js/boot.js pintar a barra certa já na próxima abertura.
++// (O manifesto tem uma cor fixa, usada só antes da página abrir; a tela de abertura do app também é fixa: são limites dos navegadores.)
++const KEY = 'kamylist_theme_color';
++const FALLBACK = '#B35EAF';
++const HEX = /^#[0-9a-f]{6}$/i;
++
++/** "#abc", "#aabbcc" ou "rgb(1, 2, 3)" → "#aabbcc"; qualquer outra coisa → null. */
++export function normalizeColor(value) {
++    const v = String(value || '').trim();
++    if (HEX.test(v)) return v.toLowerCase();
++    const short = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i.exec(v);
++    if (short) return `#${short[1]}${short[1]}${short[2]}${short[2]}${short[3]}${short[3]}`.toLowerCase();
++    const rgb = /^rgba?\(\s*(\d{1,3})\s*[, ]\s*(\d{1,3})\s*[, ]\s*(\d{1,3})/i.exec(v);
++    if (rgb) return `#${[rgb[1], rgb[2], rgb[3]].map((n) => Math.min(255, Number(n)).toString(16).padStart(2, '0')).join('')}`;
++    return null;
++}
++
++/** A cor que o site está usando agora como cor principal. */
++export function currentThemeColor() {
++    try { return normalizeColor(getComputedStyle(document.documentElement).getPropertyValue('--primary-color')) || FALLBACK; } catch { return FALLBACK; }
++}
++
++let last = '';
++export function applyThemeColor() {
++    const color = currentThemeColor();
++    if (color === last) return color;
++    last = color;
++    document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute('content', color));
++    try { localStorage.setItem(KEY, color); } catch { /* sem armazenamento: vale só nesta visita */ }
++    return color;
++}
++
++/** Liga: pinta agora e repinta quando a paleta, o tema ou o alto contraste mudam (inclusive o claro/escuro do sistema). */
++export function initThemeColor() {
++    applyThemeColor();
++    let queued = false;
++    const later = () => {      // vários atributos mudam juntos (ex.: entrar numa conta): uma pintura só
++        if (queued) return;
++        queued = true;
++        queueMicrotask(() => { queued = false; applyThemeColor(); });
++    };
++    new MutationObserver(later).observe(document.documentElement, { attributes: true, attributeFilter: ['data-palette', 'data-theme', 'data-contrast'] });
++    try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', later); } catch { /* navegador antigo */ }
++}
+diff --git a/js/domain/changelog.js b/js/domain/changelog.js
+index d3a9489..11c0ab0 100644
+--- a/js/domain/changelog.js
++++ b/js/domain/changelog.js
+@@ -1,9 +1,19 @@
+ // Histórico de novidades do site (aparece no botão de versão do rodapé).
+ // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
+ // Escreva para a comunidade: frases curtas, sem termos técnicos.
+-export const SITE_VERSION = '1.34';
++export const SITE_VERSION = '1.35';
+ 
+ export const CHANGELOG = [
++    {
++        version: '1.35',
++        title: 'Biblioteca offline e cor do app',
++        items: [
++            'Sem internet, sua biblioteca abre em modo só leitura, com a última cópia guardada neste aparelho: dá para ver as obras, os detalhes, a Agenda e as Estatísticas, buscar e filtrar. Adicionar e editar voltam com a internet.',
++            'A cópia é atualizada a cada mudança feita com internet e apagada quando você sai da conta.',
++            'Quando a internet volta, a biblioteca se atualiza sozinha. As telas que precisam de internet (Feed, Explorar, Configurações...) mostram um aviso claro em vez de um erro.',
++            'A barra do navegador e do app instalado agora segue a cor do seu perfil. Sem cor de perfil, segue o claro/escuro do sistema; no alto contraste fica preta (claro) ou amarela (escuro).',
++        ],
++    },
+     {
+         version: '1.34',
+         title: 'Mais rápido e instalável como app',
+diff --git a/js/main.js b/js/main.js
+index a0da718..43bb3d7 100644
+--- a/js/main.js
++++ b/js/main.js
+@@ -4,11 +4,12 @@ import { html, setHtml } from './core/dom.js';
+ import { icon } from './core/icons.js';
+ import { initPwa } from './core/pwa.js';
+ import { navigate, onRouteChange, refresh, route, scrollToTop, setNotFound, start } from './core/router.js';
+-import { currentTheme } from './core/theme.js';
++import { initThemeColor } from './core/themeColor.js';
+ import { rankOf } from './domain/roles.js';
+ import { SETTINGS_ROOT, SETTINGS_THEMES } from './domain/settingsThemes.js';
+ import { initSession, isCloud, myRole, onSessionChange, refreshRequests, state } from './services/session.js';
+ import { mountChrome } from './ui/chrome.js';
++import { offlineGate } from './ui/offlineGate.js';
+ import { mountSuspensionGate } from './ui/suspendedScreen.js';
+ 
+ const $ = (id) => document.getElementById(id);
+@@ -25,22 +26,22 @@ const staffRank = (min) => () => {
+ 
+ function defineRoutes() {
+     route('/', () => import('./views/home.js'), { name: 'home' });
+-    route('/entrar', () => import('./views/auth.js'), { name: 'login', title: 'Entrar', guard: onlyVisitors });
+-    route('/criar-conta', () => import('./views/auth.js'), { name: 'signup', title: 'Criar conta', guard: onlyVisitors });
+-    route('/recuperar', () => import('./views/auth.js'), { name: 'forgot', title: 'Recuperar senha', guard: onlyVisitors });
++    route('/entrar', offlineGate(() => import('./views/auth.js')), { name: 'login', title: 'Entrar', guard: onlyVisitors });
++    route('/criar-conta', offlineGate(() => import('./views/auth.js')), { name: 'signup', title: 'Criar conta', guard: onlyVisitors });
++    route('/recuperar', offlineGate(() => import('./views/auth.js')), { name: 'forgot', title: 'Recuperar senha', guard: onlyVisitors });
+     // Link do e-mail de "esqueci a senha": a pessoa chega já logada numa sessão de recuperação.
+-    route('/nova-senha', () => import('./views/auth.js'), { name: 'recovery', title: 'Nova senha', guard: () => (isCloud() && state.user ? undefined : '/entrar') });
+-    route('/explorar', () => import('./views/explore.js'), { name: 'explore', title: 'Explorar' });
+-    route('/u/:username', () => import('./views/profile.js'), { name: 'profile', title: 'Perfil' });
+-    route('/feed', () => import('./views/feed.js'), { name: 'feed', title: 'Feed', guard: onlyMembers });
+-    route('/feed/pedidos', () => import('./views/feed.js'), { name: 'feed-requests', title: 'Pedidos para seguir', guard: onlyMembers });
++    route('/nova-senha', offlineGate(() => import('./views/auth.js')), { name: 'recovery', title: 'Nova senha', guard: () => (isCloud() && state.user ? undefined : '/entrar') });
++    route('/explorar', offlineGate(() => import('./views/explore.js')), { name: 'explore', title: 'Explorar' });
++    route('/u/:username', offlineGate(() => import('./views/profile.js')), { name: 'profile', title: 'Perfil' });
++    route('/feed', offlineGate(() => import('./views/feed.js')), { name: 'feed', title: 'Feed', guard: onlyMembers });
++    route('/feed/pedidos', offlineGate(() => import('./views/feed.js')), { name: 'feed-requests', title: 'Pedidos para seguir', guard: onlyMembers });
+     // Configurações: o índice e um endereço por tema (js/domain/settingsThemes.js); tudo na mesma tela.
+-    route(SETTINGS_ROOT, () => import('./views/settings.js'), { name: 'settings', title: 'Configurações', guard: onlyMembers });
+-    for (const t of SETTINGS_THEMES) route(t.path, () => import('./views/settings.js'), { name: `settings-${t.id}`, title: t.label, guard: onlyMembers });
+-    route('/admin', () => import('./views/admin.js'), { name: 'admin', title: 'Painel da equipe', guard: staffRank(1) });
+-    route('/admin/denuncias', () => import('./views/admin.js'), { name: 'admin-reports', title: 'Denúncias', guard: staffRank(1) });
+-    route('/admin/registro', () => import('./views/admin.js'), { name: 'admin-log', title: 'Registro de ações', guard: staffRank(1) });
+-    route('/admin/configuracoes', () => import('./views/admin.js'), { name: 'admin-settings', title: 'Configurações do site', guard: staffRank(2) });
++    route(SETTINGS_ROOT, offlineGate(() => import('./views/settings.js')), { name: 'settings', title: 'Configurações', guard: onlyMembers });
++    for (const t of SETTINGS_THEMES) route(t.path, offlineGate(() => import('./views/settings.js')), { name: `settings-${t.id}`, title: t.label, guard: onlyMembers });
++    route('/admin', offlineGate(() => import('./views/admin.js')), { name: 'admin', title: 'Painel da equipe', guard: staffRank(1) });
++    route('/admin/denuncias', offlineGate(() => import('./views/admin.js')), { name: 'admin-reports', title: 'Denúncias', guard: staffRank(1) });
++    route('/admin/registro', offlineGate(() => import('./views/admin.js')), { name: 'admin-log', title: 'Registro de ações', guard: staffRank(1) });
++    route('/admin/configuracoes', offlineGate(() => import('./views/admin.js')), { name: 'admin-settings', title: 'Configurações do site', guard: staffRank(2) });
+     setNotFound(() => import('./views/notFound.js'));
+ }
+ 
+@@ -59,7 +60,7 @@ function showFatal(err) {
+ 
+ async function boot() {
+     $('skip-link').addEventListener('click', () => $('main').focus());
+-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', currentTheme() === 'dark' ? '#d178cd' : '#B35EAF');
++    initThemeColor();        // a barra do navegador/app segue a paleta do perfil, o claro/escuro e o alto contraste (core/themeColor.js)
+ 
+     try {
+         await initSession({ onRecovery: () => navigate('/nova-senha') });
+diff --git a/js/services/offline-backend.js b/js/services/offline-backend.js
+new file mode 100644
+index 0000000..3e966c6
+--- /dev/null
++++ b/js/services/offline-backend.js
+@@ -0,0 +1,20 @@
++// Serviço de dados "de mentira" para quando o site abre SEM internet e a biblioteca do Supabase não está no aparelho (nunca foi baixada).
++// Todas as chamadas falham como falha de rede; a tela da biblioteca então mostra a cópia guardada (services/offlineCache.js).
++import { AppError } from '../core/errors.js';
++
++const down = () => new AppError('Sem conexão com a internet.', new TypeError('Failed to fetch'));
++// Qualquer caminho (backend.library.listMine(), backend.follows.requests()...) vira uma promessa recusada por falta de rede.
++const dead = () => new Proxy(function () {}, {
++    apply: () => Promise.reject(down()),
++    get: (_, key) => (key === 'then' || typeof key === 'symbol' ? undefined : dead()),
++});
++
++export function createOfflineBackend() {
++    return {
++        mode: 'cloud',
++        features: { accounts: true },
++        offlineStub: true,
++        auth: { getUser: async () => null, onChange: () => () => {}, signOut: () => Promise.reject(down()) },
++        meta: dead(), profiles: dead(), follows: dead(), access: dead(), moderation: dead(), library: dead(),
++    };
++}
+diff --git a/js/services/offlineCache.js b/js/services/offlineCache.js
+new file mode 100644
+index 0000000..68b610b
+--- /dev/null
++++ b/js/services/offlineCache.js
+@@ -0,0 +1,41 @@
++// Cópia da conta e da biblioteca neste aparelho, para "ver offline". Só leitura: nada daqui é enviado ao banco.
++//  • account: quem estava logada (usuário, perfil, cargo) — para o site abrir com o nome, a foto e as cores certas mesmo sem internet.
++//  • library:<id>: a lista de obras da última vez que carregou com internet.
++// Sair da conta (ou entrar com outra) apaga tudo: a cópia não fica no aparelho depois do logout.
++import { kvDel, kvGet, kvKeys, kvSet } from '../core/offlineStore.js';
++import { normalizeEntry } from '../domain/entry.js';
++
++const ACCOUNT = 'account';
++const libKey = (uid) => `library:${uid}`;
++const isId = (v) => typeof v === 'string' && v.length > 0 && v.length <= 80;
++
++/** Guarda quem está logada. Se mudou de pessoa, apaga a biblioteca guardada da anterior. */
++export async function saveAccount({ user, profile, access }) {
++    if (!user || !isId(user.id)) return;
++    const old = await kvGet(ACCOUNT);
++    if (old?.user?.id && old.user.id !== user.id) await kvDel(libKey(old.user.id));
++    await kvSet(ACCOUNT, { user: { id: user.id, email: String(user.email || '') }, profile: profile || null, access: access || null, savedAt: Date.now() });
++}
++
++export async function loadAccount() {
++    const a = await kvGet(ACCOUNT);
++    return a && isId(a.user?.id) ? a : null;
++}
++
++export async function saveLibrary(uid, entries) {
++    if (!isId(uid) || !Array.isArray(entries)) return;
++    await kvSet(libKey(uid), { savedAt: Date.now(), entries });
++}
++
++/** { entries, savedAt } ou null. As obras passam pela mesma limpeza de sempre (normalizeEntry). */
++export async function loadLibrary(uid) {
++    if (!isId(uid)) return null;
++    const lib = await kvGet(libKey(uid));
++    if (!lib || !Array.isArray(lib.entries)) return null;
++    return { savedAt: Number(lib.savedAt) || 0, entries: lib.entries.map(normalizeEntry) };
++}
++
++/** Logout: some tudo (conta e bibliotecas). */
++export async function clearOffline() {
++    for (const key of await kvKeys()) await kvDel(key);
++}
+diff --git a/js/services/session.js b/js/services/session.js
+index 587934e..37e0363 100644
+--- a/js/services/session.js
++++ b/js/services/session.js
+@@ -3,14 +3,18 @@
+ import { hasSupabase } from '../config.js';
+ import { clearHighContrast, setHighContrast } from '../core/contrast.js';
+ import { clearOwnPalette, setOwnPalette } from '../core/palette.js';
++import { isNetworkError } from '../core/errors.js';
++import { isOffline, markNetworkFailure } from '../core/online.js';
+ import { clearOwnBackground, setOwnBackground } from '../core/siteBackground.js';
+ import { NO_ACCESS } from '../domain/access.js';
++import * as offlineCache from './offlineCache.js';
+ 
+ const OPEN_SITE = { signupsOpen: true, announcement: '', discordUrl: '' };
+ 
+ // access = cargo em vigor, suspensão (com prazo ou banimento), travas de privacidade e avisos de quem está logado (veja domain/access.js)
+ // site = configurações públicas (aviso, cadastros e link do Discord)
+-export const state = { backend: null, user: null, profile: null, requests: 0, ready: false, access: NO_ACCESS, site: OPEN_SITE };
++// fromCache = o site abriu sem internet e a conta (usuário, perfil, cargo) veio da cópia guardada neste aparelho (só leitura)
++export const state = { backend: null, user: null, profile: null, requests: 0, ready: false, access: NO_ACCESS, site: OPEN_SITE, fromCache: false };
+ 
+ const listeners = new Set();
+ // reason: 'local' (mudança feita por esta aba) ou 'external' (outra aba, expiração de sessão...)
+@@ -47,7 +51,10 @@ export function setProfile(profile) {
+ }
+ 
+ async function safeProfile() {
+-    try { return await state.backend.profiles.getMine(); } catch (e) { console.error(e); return null; }
++    try { return await state.backend.profiles.getMine(); } catch (e) {
++        if (isNetworkError(e)) markNetworkFailure(); else console.error(e);
++        return null;
++    }
+ }
+ 
+ /** Cargo e suspensão de quem está logado. Só existe com o Supabase; sem a v7 do banco todo mundo é membro. */
+@@ -72,6 +79,21 @@ export async function refreshAccess() {
+ async function loadAccount() {
+     if (!state.user) { state.profile = null; state.access = NO_ACCESS; return; }
+     const [profile, access] = await Promise.all([safeProfile(), safeAccess()]);
++    if (profile) {
++        state.profile = profile;
++        state.access = access;
++        state.fromCache = false;
++        offlineCache.saveAccount({ user: state.user, profile, access });       // cópia para abrir sem internet da próxima vez
++        return;
++    }
++    // Sem perfil e sem internet: usa a cópia guardada (nome, foto, cores, cargo) se ela for desta mesma pessoa.
++    const saved = isOffline() ? await offlineCache.loadAccount() : null;
++    if (saved && saved.user.id === state.user.id && saved.profile) {
++        state.profile = saved.profile;
++        state.access = saved.access || NO_ACCESS;
++        state.fromCache = true;
++        return;
++    }
+     state.profile = profile;
+     state.access = access;
+ }
+@@ -98,6 +120,7 @@ export async function refreshRequests() {
+ 
+ /** Relê quem está logado agora. Chame logo depois de entrar/sair para a tela já refletir o novo estado. */
+ export async function refreshSession() {
++    state.fromCache = false;
+     state.user = await state.backend.auth.getUser();
+     await loadAccount();
+     emit();
+@@ -108,7 +131,15 @@ export async function refreshSession() {
+ export async function initSession({ onRecovery } = {}) {
+     if (hasSupabase()) {
+         const { createSupabaseBackend } = await import('./supabase-backend.js');
+-        state.backend = await createSupabaseBackend();
++        try {
++            state.backend = await createSupabaseBackend();
++        } catch (err) {
++            // Sem internet e a biblioteca do Supabase (CDN) nunca foi baixada: se há cópia da conta, abre só para leitura.
++            if (!(isOffline() || isNetworkError(err)) || !(await offlineCache.loadAccount())) throw err;
++            const { createOfflineBackend } = await import('./offline-backend.js');
++            state.backend = createOfflineBackend();
++            markNetworkFailure();
++        }
+     } else {
+         const { createLocalBackend } = await import('./local-backend.js');
+         state.backend = createLocalBackend();
+@@ -116,6 +147,16 @@ export async function initSession({ onRecovery } = {}) {
+ 
+     // Registra o ouvinte ANTES de ler a sessão: o evento PASSWORD_RECOVERY sai durante a inicialização.
+     state.backend.auth.onChange(async (event, user) => {
++        if (event === 'SIGNED_OUT') offlineCache.clearOffline();     // saiu da conta: a cópia da biblioteca não fica no aparelho
++        // Aberto sem internet com a conta da cópia: o "sem sessão" que o Supabase avisa por não conseguir renovar o login não é um logout.
++        if (state.fromCache && !user && event !== 'SIGNED_OUT') return;
++        if (user && state.fromCache && user.id === state.user?.id) {   // internet voltou e o login foi renovado: troca a cópia pelos dados de verdade
++            state.fromCache = false;
++            await loadAccount();
++            emit('external');
++            refreshRequests();
++            return;
++        }
+         const changed = (user?.id || null) !== (state.user?.id || null);
+         if (changed) {            // SIGNED_IN também dispara ao voltar para a aba: sem mudança de usuário, ignora
+             state.user = user;
+@@ -128,6 +169,10 @@ export async function initSession({ onRecovery } = {}) {
+ 
+     const sitePromise = safeSite();        // em paralelo com o login: aviso do site e cadastros abertos
+     state.user = await state.backend.auth.getUser();
++    if (!state.user && isOffline()) {       // login vencido e sem internet para renová-lo: segue com a conta da cópia (só leitura)
++        const saved = await offlineCache.loadAccount();
++        if (saved) { state.user = saved.user; state.fromCache = true; }
++    }
+     await loadAccount();
+     state.site = await sitePromise;
+     state.ready = true;
+diff --git a/js/services/supabase-backend.js b/js/services/supabase-backend.js
+index e0dc5fd..59f3155 100644
+--- a/js/services/supabase-backend.js
++++ b/js/services/supabase-backend.js
+@@ -2,7 +2,8 @@
+ // As regras de quem pode ver/editar o quê estão no banco (sql/schema.sql);
+ // este arquivo só conversa com ele.
+ import { config } from '../config.js';
+-import { AppError } from '../core/errors.js';
++import { AppError, isNetworkError } from '../core/errors.js';
++import { markNetworkFailure } from '../core/online.js';
+ import { safeUrl } from '../core/dom.js';
+ import { cleanUnicode } from '../domain/textSafety.js';
+ import { SECTION_KEYS, normalizeEntry, normalizeSections } from '../domain/entry.js';
+@@ -223,7 +224,8 @@ export async function createSupabaseBackend() {
+ 
+         auth: {
+             async getUser() {
+-                const { data } = await sb.auth.getSession();
++                const { data, error } = await sb.auth.getSession();
++                if (!data?.session && error && isNetworkError(error)) markNetworkFailure();   // login vencido e sem como renovar: o site segue pela cópia offline
+                 const u = data?.session?.user;
+                 return u ? { id: u.id, email: u.email || '' } : null;
+             },
+diff --git a/js/ui/chrome.js b/js/ui/chrome.js
+index e1d3747..dd4094b 100644
+--- a/js/ui/chrome.js
++++ b/js/ui/chrome.js
+@@ -5,6 +5,7 @@ import { brandKanji, icon } from '../core/icons.js';
+ import { currentPath, navigate, onRouteChange } from '../core/router.js';
+ import { currentTheme, onThemeChange, toggleTheme } from '../core/theme.js';
+ import { timeAgo } from '../core/time.js';
++import { onConnectionChange } from '../core/online.js';
+ import { applyUpdate, installKind, onPwaChange, promptInstall, updateReady } from '../core/pwa.js';
+ import { toast } from '../core/toast.js';
+ import { messageOf } from '../core/errors.js';
+@@ -13,7 +14,7 @@ import { SITE_VERSION } from '../domain/changelog.js';
+ import { state, isCloud, myRole, onSessionChange, refreshSession } from '../services/session.js';
+ import { accountMenuHtml, bindAccountMenu, captureAccountFocus, closeAccountMenu } from './accountMenu.js';
+ import { mountPageBar } from './pageBar.js';
+-import { requestNewWork, showsNewWork } from './newWork.js';
++import { hasLibraryHere, requestNewWork, showsNewWork } from './newWork.js';
+ import { openPatchNotesModal } from './patchNotesModal.js';
+ import { SECTION_EVENT, loadSection } from './sectionTabs.js';
+ import { requestShortcut, shortcutsFor } from './shortcuts.js';
+@@ -115,7 +116,7 @@ function renderYou(host) {
+     setHtml(host, youSheetHtml({
+         ...youContext(),
+         dark: currentTheme() === 'dark',
+-        canLibrary: showsNewWork(currentPath()),          // quem tem biblioteca (modo local ou conta logada) tem Agenda e Estatísticas
++        canLibrary: hasLibraryHere(currentPath()),          // quem tem biblioteca (modo local ou conta logada) tem Agenda e Estatísticas
+         showAgenda: shortcutsFor(loadSection()).includes('schedule'),
+         install: installKind(),                          // 'prompt' | 'ios' | 'none' (core/pwa.js)
+         update: updateReady(),
+@@ -233,6 +234,7 @@ export function mountChrome({ nav, tabBar, footer, notice, side, main }) {
+     });
+     onSessionChange(paint);
+     onThemeChange(paint);
++    onConnectionChange(paint);      // sem internet some o "Nova obra" (a biblioteca fica só para leitura)
+ 
+     bindAccountMenu(nav);
+     on(nav, 'click', '[data-theme-toggle]', () => toggleTheme());
+diff --git a/js/ui/libraryBrowser.js b/js/ui/libraryBrowser.js
+index 669e304..d002024 100644
+--- a/js/ui/libraryBrowser.js
++++ b/js/ui/libraryBrowser.js
+@@ -32,13 +32,14 @@ const FILTERS_ID = 'filters-panel';
+  * @param {object} opts
+  * @param {Array} opts.entries
+  * @param {boolean} [opts.readonly]
++ * @param {boolean} [opts.ownReadonly]  só leitura da PRÓPRIA biblioteca (cópia offline): os textos de lista vazia falam de "você", não de "esta pessoa"
+  * @param {'anime'|'manga'|'novel'} [opts.section]  Aba mostrada (Anime, Mangá ou Light Novel). Troque depois com setSection().
+  * @param {Record<string,(entry:object, el:Element)=>void>} [opts.actions]  inc, seasons, progress, details, share, edit, delete, add, status
+  *        ("cover" = clique na capa = "details"; "status" recebe o novo valor em el.value)
+  * @param {(status:string)=>void} [opts.onStatusChange]  chamado quando o filtro de status muda (sub-abas)
+  * @param {(section:string)=>void} [opts.onSectionRequest]  chamado quando a pessoa clica numa aba que também tem a obra buscada
+  */
+-export function mountLibraryBrowser(root, { entries = [], readonly = false, section: initialSection = DEFAULT_SECTION, actions = {}, onStatusChange = null, onSectionRequest = null }) {
++export function mountLibraryBrowser(root, { entries = [], readonly = false, ownReadonly = false, section: initialSection = DEFAULT_SECTION, actions = {}, onStatusChange = null, onSectionRequest = null }) {
+     const filters = { status: 'all', category: 'all', sort: 'recent', query: '', favorites: false };
+     let section = normalizeSection(initialSection);
+     let view = loadView();
+@@ -170,8 +171,8 @@ export function mountLibraryBrowser(root, { entries = [], readonly = false, sect
+             setHtml(results, html`
+                 <div class="empty-state glass-panel">
+                     ${icon('film', { size: 44 })}
+-                    <h3>${empty ? (readonly ? 'Nada por aqui ainda' : (all.length === 0 ? 'Sua biblioteca está vazia' : EMPTY_TITLE[section])) : 'Nenhuma obra encontrada'}</h3>
+-                    <p>${empty ? (readonly ? 'Esta pessoa ainda não adicionou obras aqui.' : FIRST_WORK[section]) : 'Tente mudar os filtros ou a busca.'}</p>
++                    <h3>${empty ? (readonly && !ownReadonly ? 'Nada por aqui ainda' : (all.length === 0 ? 'Sua biblioteca está vazia' : EMPTY_TITLE[section])) : 'Nenhuma obra encontrada'}</h3>
++                    <p>${empty ? (readonly && !ownReadonly ? 'Esta pessoa ainda não adicionou obras aqui.' : FIRST_WORK[section]) : 'Tente mudar os filtros ou a busca.'}</p>
+                     ${empty && !readonly && actions.add ? html`<button type="button" class="button button-primary" data-action="add">${icon('plus', { size: 18 })} Adicionar obra</button>` : ''}
+                     ${!empty && narrowed ? html`<button type="button" class="button button-secondary" data-clear-all>Limpar filtros e busca</button>` : ''}
+                 </div>${others}`);
+diff --git a/js/ui/newWork.js b/js/ui/newWork.js
+index 9309bec..c248f62 100644
+--- a/js/ui/newWork.js
++++ b/js/ui/newWork.js
+@@ -2,6 +2,7 @@
+ // Na biblioteca, quem abre o formulário é a própria tela (ela guarda a lista na memória e atualiza os cartões na hora).
+ // Nas outras telas o formulário abre daqui, com a aba lembrada, e a obra é salva do mesmo jeito (mesmos dados, mesmas regras).
+ import { messageOf } from '../core/errors.js';
++import { isOffline } from '../core/online.js';
+ import { currentPath, navigate, refresh } from '../core/router.js';
+ import { toast } from '../core/toast.js';
+ import { sectionOf } from '../domain/entry.js';
+@@ -21,7 +22,10 @@ export const canAddWork = () => !isCloud() || Boolean(state.user);
+ 
+ /** Telas em que o botão não aparece: a de nova senha (a pessoa está no meio de trocar a senha). */
+ const HIDDEN_ON = ['/nova-senha'];
+-export const showsNewWork = (path = currentPath()) => canAddWork() && !HIDDEN_ON.includes(path);
++/** Tem biblioteca nesta tela (mesmo sem internet, quando ela abre só para leitura): Agenda e Estatísticas continuam à mão. */
++export const hasLibraryHere = (path = currentPath()) => canAddWork() && !HIDDEN_ON.includes(path);
++/** O botão "Nova obra" só aparece com internet (a conta guarda no banco; offline a biblioteca é só leitura). O modo local não depende de rede. */
++export const showsNewWork = (path = currentPath()) => hasLibraryHere(path) && !(isCloud() && isOffline());
+ 
+ let opening = false;
+ 
+diff --git a/js/ui/offlineGate.js b/js/ui/offlineGate.js
+new file mode 100644
+index 0000000..7a80247
+--- /dev/null
++++ b/js/ui/offlineGate.js
+@@ -0,0 +1,31 @@
++// Telas que dependem do banco (Feed, Explorar, perfis, Configurações, entrar...) não têm o que mostrar sem internet.
++// Em vez do erro cru, elas mostram este aviso, com o caminho para a biblioteca (que abre offline) e o retorno automático quando a internet volta.
++// Só vale na conta (nuvem): o modo local não usa rede.
++import { html, setHtml } from '../core/dom.js';
++import { icon } from '../core/icons.js';
++import { isOffline, onConnectionChange } from '../core/online.js';
++import { refresh } from '../core/router.js';
++import { isCloud, state } from '../services/session.js';
++
++function mountOfflinePanel(root) {
++    setHtml(root, html`
++        <div class="glass-panel empty-state offline-panel" role="status">
++            ${icon('info', { size: 44 })}
++            <h3>Esta tela precisa de internet</h3>
++            <p>Você está offline. Quando a conexão voltar, ela abre sozinha.${state.user ? ' Enquanto isso, sua biblioteca continua disponível para leitura.' : ''}</p>
++            <div class="stack-row">
++                ${state.user ? html`<a class="button button-primary" href="#/">${icon('film', { size: 17 })} Abrir minha biblioteca</a>` : ''}
++                <button type="button" class="button button-secondary" data-retry>${icon('refresh', { size: 17 })} Tentar de novo</button>
++            </div>
++        </div>`);
++    root.querySelector('[data-retry]').addEventListener('click', () => { if (isOffline()) return; refresh(); });
++    return onConnectionChange((off) => { if (!off) refresh(); });
++}
++
++/** Envolve o carregador de uma rota: sem internet (e na conta), mostra o aviso no lugar da tela. */
++export function offlineGate(loader) {
++    return async () => {
++        const mod = await loader();
++        return { ...mod, mount: (root, ctx) => (isCloud() && isOffline() ? mountOfflinePanel(root) : mod.mount(root, ctx)) };
++    };
++}
+diff --git a/js/views/library.js b/js/views/library.js
+index f36355b..1b75b33 100644
+--- a/js/views/library.js
++++ b/js/views/library.js
+@@ -1,11 +1,14 @@
+ // Tela principal: a sua biblioteca (adicionar, editar, +1 Ep, temporadas...).
+ import { copyText, html, on, setHtml } from '../core/dom.js';
+ import { confirmDialog } from '../core/dialogs.js';
+-import { messageOf } from '../core/errors.js';
++import { isNetworkError, messageOf } from '../core/errors.js';
++import { hasOpenModal } from '../core/modal.js';
++import { isOffline, markNetworkFailure, markNetworkOk, onConnectionChange } from '../core/online.js';
+ import { icon } from '../core/icons.js';
+ import { toast } from '../core/toast.js';
+ import { SECTIONS, addNextChapter, addNextEpisode, applyStatus, isReading, sectionOf, statusLabel } from '../domain/entry.js';
+ import { readLegacyEntries } from '../domain/backup.js';
++import { loadLibrary, saveLibrary } from '../services/offlineCache.js';
+ import { REQUIRED_SCHEMA } from '../services/schema.js';
+ import { backend, isCloud, state } from '../services/session.js';
+ import { openDetailsModal, openScheduleModal, openStatsModal } from '../ui/infoModals.js';
+@@ -30,15 +33,26 @@ export async function mount(root) {
+         <div class="media-grid"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>`);
+ 
+     let entries;
++    let offlineMode = false;     // true = sem internet: mostra a cópia guardada neste aparelho, só para leitura
++    let savedAt = 0;
+     try {
+         entries = await be.library.listMine();
++        markNetworkOk();
++        if (cloud && state.user) saveLibrary(state.user.id, entries);        // cópia para ver offline
+     } catch (err) {
+-        console.error(err);
+-        setHtml(root, html`<div class="glass-panel empty-state">${icon('alert', { size: 40 })}<h3>Não foi possível carregar sua biblioteca</h3>
+-            <p>${messageOf(err, 'Verifique sua conexão e tente de novo.')}</p>
+-            <button type="button" class="button button-primary" data-retry>Tentar de novo</button></div>`);
+-        root.querySelector('[data-retry]').addEventListener('click', () => location.reload());
+-        return;
++        const netDown = cloud && Boolean(state.user) && (isOffline() || state.fromCache || isNetworkError(err));
++        const snap = netDown ? await loadLibrary(state.user.id) : null;
++        if (snap) {
++            entries = snap.entries; savedAt = snap.savedAt; offlineMode = true;
++            if (isNetworkError(err)) markNetworkFailure();
++        } else {
++            console.error(err);
++            setHtml(root, html`<div class="glass-panel empty-state">${icon(netDown ? 'info' : 'alert', { size: 40 })}<h3>${netDown ? 'Sem internet' : 'Não foi possível carregar sua biblioteca'}</h3>
++                <p>${netDown ? 'Este aparelho ainda não tem uma cópia da sua biblioteca. Abra o site uma vez com internet e carregue a biblioteca: depois ela abre também offline.' : messageOf(err, 'Verifique sua conexão e tente de novo.')}</p>
++                <button type="button" class="button button-primary" data-retry>Tentar de novo</button></div>`);
++            root.querySelector('[data-retry]').addEventListener('click', () => location.reload());
++            return;
++        }
+     }
+ 
+     setHtml(root, html`
+@@ -75,9 +89,21 @@ export async function mount(root) {
+         root.querySelector('[data-lead]').textContent = LEADS[section];
+         root.querySelector('[data-act="schedule"]').hidden = section !== 'anime';
+     };
++    // A cópia offline acompanha cada mudança feita com internet (adiar um pouco junta cliques seguidos em uma gravação só).
++    let snapTimer = null;
++    const saveSnapshotNow = () => {
++        if (snapTimer) { clearTimeout(snapTimer); snapTimer = null; }
++        if (cloud && state.user && !offlineMode) saveLibrary(state.user.id, entries);
++    };
+     const refresh = () => {
+         paintTabs();
+         browser?.setEntries(entries);     // atualiza também os números das sub-abas de status
++        if (cloud && state.user && !offlineMode) { clearTimeout(snapTimer); snapTimer = setTimeout(saveSnapshotNow, 800); }
++    };
++    const blocked = () => {
++        if (!offlineMode) return false;
++        toast('Sem internet: a biblioteca está só para leitura. Volte a ficar online para adicionar ou editar.', { type: 'info' });
++        return true;
+     };
+     function switchSection(next) {
+         if (!SECTIONS[next] || next === section) return;
+@@ -94,6 +120,19 @@ export async function mount(root) {
+     function renderBanners() {
+         const parts = [];
+ 
++        if (offlineMode) {        // só este aviso: o resto (link do perfil, importação, banco) precisa de internet
++            const when = savedAt ? new Date(savedAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
++            const back = !isOffline();
++            parts.push(html`<div class="notice-box is-warn offline-notice" role="status" data-offline-notice>${icon('info')}<div class="grow">
++                ${back
++                    ? html`<strong>A internet voltou.</strong> Atualize para ver a biblioteca de verdade e voltar a editar.`
++                    : html`<strong>Você está offline.</strong> Mostrando a cópia da sua biblioteca${when ? html` de ${when}` : ''}. Dá para ver as obras, os detalhes, a Agenda e as Estatísticas; para adicionar ou editar, espere a internet voltar.`}
++                <div class="notice-actions"><button type="button" class="button ${back ? 'button-primary' : 'button-secondary'} button-sm" data-act="reload">${icon('refresh', { size: 15 })} ${back ? 'Atualizar a biblioteca' : 'Tentar de novo'}</button></div>
++            </div></div>`);
++            setHtml(banners, html`${parts}`);
++            return;
++        }
++
+         if (schemaOutdated) {
+             parts.push(html`<div class="notice-box is-warn" role="alert">${icon('alert')}<div>
+                 <strong>O banco de dados precisa ser atualizado.</strong> No Supabase, abra <strong>SQL Editor → New query</strong>, cole o conteúdo de
+@@ -167,6 +206,7 @@ export async function mount(root) {
+ 
+     // --- ações ----------------------------------------------------------------------
+     function openForm(entry = null) {
++        if (blocked()) return;
+         openMediaForm({
+             entry,
+             section: entry ? sectionOf(entry) : section,
+@@ -192,6 +232,7 @@ export async function mount(root) {
+     }
+ 
+     function increment(entry) {
++        if (blocked()) return;
+         if ((isReading(entry) ? addNextChapter(entry) : addNextEpisode(entry))) schedulePersist(entry.id);
+         refresh();
+     }
+@@ -237,14 +278,18 @@ export async function mount(root) {
+         },
+     };
+ 
+-    browser = mountLibraryBrowser(root.querySelector('[data-browser]'), { entries, section, actions, onSectionRequest: switchSection });
++    // Offline: só "Detalhes" (a capa e o botão Detalhes); os cartões saem sem seletor de status, +1 Ep, favorito e menu de edição.
++    browser = mountLibraryBrowser(root.querySelector('[data-browser]'), offlineMode
++        ? { entries, section, actions: { details: actions.details }, readonly: true, ownReadonly: true, onSectionRequest: switchSection }
++        : { entries, section, actions, onSectionRequest: switchSection });
+     const offTabs = bindSectionTabs(sectionsEl, switchSection);
+     // O botão "Nova obra" do topo (computador) e o flutuante (celular) abrem o formulário daqui enquanto a biblioteca está na tela.
+-    const offNewWork = registerLibraryOpener(() => openForm(null));
++    const offNewWork = offlineMode ? () => {} : registerLibraryOpener(() => openForm(null));
+ 
+     // --- cabeçalho e avisos ---------------------------------------------------------
+     const off = on(root, 'click', '[data-act]', async (_, btn) => {
+         switch (btn.dataset.act) {
++            case 'reload': location.reload(); break;
+             case 'stats': openStatsModal(entries, { section }); break;
+             case 'schedule': openScheduleModal({ getEntries: () => entries, onIncrement: increment }); break;
+             case 'copy-link': {
+@@ -292,11 +337,18 @@ export async function mount(root) {
+         stats: () => openStatsModal(entries, { section }),
+     });
+ 
+-    if (cloud && state.user) {
++    // Sem internet: quando ela volta o aviso muda e, se não houver janela aberta, a página recarrega sozinha (não há nada para perder: está só para leitura).
++    const offConnection = onConnectionChange(() => {
++        if (!offlineMode) return;
++        renderBanners();
++        if (!isOffline() && !hasOpenModal()) location.reload();
++    });
++
++    if (cloud && state.user && !offlineMode) {
+         be.meta?.schemaVersion?.().then((v) => {
+             if (v !== null && v < REQUIRED_SCHEMA) { schemaOutdated = true; renderBanners(); }
+         }).catch(() => {});
+     }
+ 
+-    return () => { off(); offTabs(); offNewWork(); offShortcuts(); browser.destroy(); };
++    return () => { saveSnapshotNow(); offConnection(); off(); offTabs(); offNewWork(); offShortcuts(); browser.destroy(); };
+ }
+diff --git a/sw.js b/sw.js
+index 57f81cb..83d4f31 100644
+--- a/sw.js
++++ b/sw.js
+@@ -8,7 +8,7 @@
+ // Depois de mexer em qualquer arquivo do site, rode:  node tools/build-sw.mjs --write   (atualiza a lista e a versão abaixo)
+ 
+ // precache:start (gerado por tools/build-sw.mjs; não edite à mão)
+-const VERSION = 'be40f3d844dc';
++const VERSION = 'd0e88d8837fa';
+ const PRECACHE = [
+     'css/base.css',
+     'css/components.css',
+@@ -30,11 +30,14 @@ const PRECACHE = [
+     'js/core/errors.js',
+     'js/core/icons.js',
+     'js/core/modal.js',
++    'js/core/offlineStore.js',
++    'js/core/online.js',
+     'js/core/palette.js',
+     'js/core/pwa.js',
+     'js/core/router.js',
+     'js/core/siteBackground.js',
+     'js/core/theme.js',
++    'js/core/themeColor.js',
+     'js/core/time.js',
+     'js/core/toast.js',
+     'js/domain/access.js',
+@@ -58,6 +61,8 @@ const PRECACHE = [
+     'js/services/backgroundImage.js',
+     'js/services/http.js',
+     'js/services/local-backend.js',
++    'js/services/offline-backend.js',
++    'js/services/offlineCache.js',
+     'js/services/schema.js',
+     'js/services/search/anilist.js',
+     'js/services/search/index.js',
+@@ -82,6 +87,7 @@ const PRECACHE = [
+     'js/ui/mediaLimits.js',
+     'js/ui/memberModal.js',
+     'js/ui/newWork.js',
++    'js/ui/offlineGate.js',
+     'js/ui/pageBar.js',
+     'js/ui/palettePicker.js',
+     'js/ui/patchNotesModal.js',
+@@ -150,8 +156,27 @@ self.addEventListener('activate', (event) => {
+     })());
+ });
+ 
++// Aquecimento: a página pede para guardar a biblioteca do Supabase (jsDelivr) e os módulos que ela importa (o "+esm" aponta para /npm/...).
++async function warm(url, seen = new Set(), depth = 0) {
++    if (seen.has(url) || depth > 4 || seen.size >= 25) return;
++    let u;
++    try { u = new URL(url); } catch { return; }
++    if (u.origin !== 'https://cdn.jsdelivr.net') return;          // só o jsDelivr
++    seen.add(url);
++    try {
++        const req = new Request(url, { mode: 'cors' });
++        const res = await fetch(req);
++        if (!res.ok) return;
++        await (await caches.open(RUNTIME)).put(req, res.clone());
++        const code = await res.text();
++        for (const m of code.matchAll(/(?:from|import)\s*["'](\/npm\/[^"']+)["']/g)) await warm(new URL(m[1], url).href, seen, depth + 1);
++    } catch { /* sem rede agora: fica para a próxima visita */ }
++}
++
+ self.addEventListener('message', (event) => {
+-    if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
++    const data = event.data || {};
++    if (data.type === 'SKIP_WAITING') self.skipWaiting();
++    else if (data.type === 'WARM_SDK' && typeof data.url === 'string') event.waitUntil(warm(data.url));
+ });
+ 
+ const fromPrecache = async (path) => (await caches.open(PRE)).match(new URL(path, SCOPE), { ignoreSearch: true });

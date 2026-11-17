@@ -28,6 +28,12 @@
         if (localStorage.getItem('kamylist_contrast') === 'high') root.setAttribute('data-contrast', 'high');
     } catch (e) { /* ok */ }
 
+    try {   // última cor do app (barra do navegador/aplicativo): a barra já nasce na cor da paleta, sem piscar; o js/core/themeColor.js confirma depois
+        var tc = localStorage.getItem('kamylist_theme_color');
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta && tc && /^#[0-9a-f]{6}$/i.test(tc)) meta.setAttribute('content', tc);
+    } catch (e) { /* ok */ }
+
     // A folha de estilo da fonte (Google) nasce com media="print" para não travar a pintura; quando chega, passa a valer para a tela.
     var fontCss = document.querySelector('link[data-font-css]');
     if (fontCss) {

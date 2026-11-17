@@ -5,9 +5,10 @@
 //    Nunca recarrega sozinha: ela pode estar no meio de uma edição.
 //  • Internet: avisa quando caiu e quando voltou, e marca <html data-offline> para o CSS e os testes.
 //  • Saída de emergência: abrir o site com ?nosw no endereço apaga tudo o que o service worker guardou e recomeça do zero (se algo ficou preso).
-import { config } from '../config.js';
+import { config, hasSupabase } from '../config.js';
 import { el, html } from './dom.js';
 import { openModal } from './modal.js';
+import { isOffline, onConnectionChange } from './online.js';
 import { toast } from './toast.js';
 
 const listeners = new Set();
@@ -89,14 +90,24 @@ async function resetServiceWorker() {
     location.replace(url.toString());
 }
 
+// Biblioteca do Supabase (jsDelivr): baixada na 1ª visita, antes de o worker assumir, então não ficou guardada. Pedimos ao worker que a baixe
+// (e os módulos que ela importa) e guarde uma cópia: assim o site abre offline também na conta. Quem baixa é o worker, não a página,
+// porque a CSP da página só libera o jsDelivr para scripts (connect-src não). Melhor esforço, em silêncio.
+function warmSupabaseSdk() {
+    if (!hasSupabase() || isOffline()) return;
+    navigator.serviceWorker.controller?.postMessage({ type: 'WARM_SDK', url: config.supabaseEsmUrl });
+}
+const whenIdle = (fn) => ('requestIdleCallback' in window ? window.requestIdleCallback(fn, { timeout: 6000 }) : setTimeout(fn, 2500));
+
 function watchConnection() {
+    let was = isOffline();
     const sync = (announce) => {
-        const off = navigator.onLine === false;
+        const off = isOffline();                          // navegador sem rede OU uma chamada que falhou (core/online.js)
         document.documentElement.toggleAttribute('data-offline', off);
-        if (announce) toast(off ? 'Você está sem internet.' : 'Internet de volta.', { type: off ? 'error' : 'success' });
+        if (announce && off !== was) toast(off ? 'Você está sem internet.' : 'Internet de volta.', { type: off ? 'error' : 'success' });
+        was = off;
     };
-    window.addEventListener('offline', () => sync(true));
-    window.addEventListener('online', () => sync(true));
+    onConnectionChange(() => sync(true));
     sync(false);
 }
 
@@ -116,6 +127,8 @@ export function initPwa() {
             registration = await navigator.serviceWorker.register(new URL('sw.js', document.baseURI).href, { scope: './', updateViaCache: 'none' });
         } catch (err) { console.warn('Service worker não registrado:', err); return; }
         if (!registration) return;             // registro bloqueado (alguns navegadores/testes devolvem vazio em vez de erro)
+        if (navigator.serviceWorker.controller) whenIdle(warmSupabaseSdk);
+        else navigator.serviceWorker.addEventListener('controllerchange', () => whenIdle(warmSupabaseSdk), { once: true });     // 1ª visita: o worker acabou de assumir
         if (registration.waiting && navigator.serviceWorker.controller) track(registration.waiting);
         registration.addEventListener('updatefound', () => track(registration.installing));
         let lastCheck = Date.now();

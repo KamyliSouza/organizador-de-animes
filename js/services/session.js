@@ -3,14 +3,18 @@
 import { hasSupabase } from '../config.js';
 import { clearHighContrast, setHighContrast } from '../core/contrast.js';
 import { clearOwnPalette, setOwnPalette } from '../core/palette.js';
+import { isNetworkError } from '../core/errors.js';
+import { isOffline, markNetworkFailure } from '../core/online.js';
 import { clearOwnBackground, setOwnBackground } from '../core/siteBackground.js';
 import { NO_ACCESS } from '../domain/access.js';
+import * as offlineCache from './offlineCache.js';
 
 const OPEN_SITE = { signupsOpen: true, announcement: '', discordUrl: '' };
 
 // access = cargo em vigor, suspensão (com prazo ou banimento), travas de privacidade e avisos de quem está logado (veja domain/access.js)
 // site = configurações públicas (aviso, cadastros e link do Discord)
-export const state = { backend: null, user: null, profile: null, requests: 0, ready: false, access: NO_ACCESS, site: OPEN_SITE };
+// fromCache = o site abriu sem internet e a conta (usuário, perfil, cargo) veio da cópia guardada neste aparelho (só leitura)
+export const state = { backend: null, user: null, profile: null, requests: 0, ready: false, access: NO_ACCESS, site: OPEN_SITE, fromCache: false };
 
 const listeners = new Set();
 // reason: 'local' (mudança feita por esta aba) ou 'external' (outra aba, expiração de sessão...)
@@ -47,7 +51,10 @@ export function setProfile(profile) {
 }
 
 async function safeProfile() {
-    try { return await state.backend.profiles.getMine(); } catch (e) { console.error(e); return null; }
+    try { return await state.backend.profiles.getMine(); } catch (e) {
+        if (isNetworkError(e)) markNetworkFailure(); else console.error(e);
+        return null;
+    }
 }
 
 /** Cargo e suspensão de quem está logado. Só existe com o Supabase; sem a v7 do banco todo mundo é membro. */
@@ -72,6 +79,21 @@ export async function refreshAccess() {
 async function loadAccount() {
     if (!state.user) { state.profile = null; state.access = NO_ACCESS; return; }
     const [profile, access] = await Promise.all([safeProfile(), safeAccess()]);
+    if (profile) {
+        state.profile = profile;
+        state.access = access;
+        state.fromCache = false;
+        offlineCache.saveAccount({ user: state.user, profile, access });       // cópia para abrir sem internet da próxima vez
+        return;
+    }
+    // Sem perfil e sem internet: usa a cópia guardada (nome, foto, cores, cargo) se ela for desta mesma pessoa.
+    const saved = isOffline() ? await offlineCache.loadAccount() : null;
+    if (saved && saved.user.id === state.user.id && saved.profile) {
+        state.profile = saved.profile;
+        state.access = saved.access || NO_ACCESS;
+        state.fromCache = true;
+        return;
+    }
     state.profile = profile;
     state.access = access;
 }
@@ -98,6 +120,7 @@ export async function refreshRequests() {
 
 /** Relê quem está logado agora. Chame logo depois de entrar/sair para a tela já refletir o novo estado. */
 export async function refreshSession() {
+    state.fromCache = false;
     state.user = await state.backend.auth.getUser();
     await loadAccount();
     emit();
@@ -108,7 +131,15 @@ export async function refreshSession() {
 export async function initSession({ onRecovery } = {}) {
     if (hasSupabase()) {
         const { createSupabaseBackend } = await import('./supabase-backend.js');
-        state.backend = await createSupabaseBackend();
+        try {
+            state.backend = await createSupabaseBackend();
+        } catch (err) {
+            // Sem internet e a biblioteca do Supabase (CDN) nunca foi baixada: se há cópia da conta, abre só para leitura.
+            if (!(isOffline() || isNetworkError(err)) || !(await offlineCache.loadAccount())) throw err;
+            const { createOfflineBackend } = await import('./offline-backend.js');
+            state.backend = createOfflineBackend();
+            markNetworkFailure();
+        }
     } else {
         const { createLocalBackend } = await import('./local-backend.js');
         state.backend = createLocalBackend();
@@ -116,6 +147,16 @@ export async function initSession({ onRecovery } = {}) {
 
     // Registra o ouvinte ANTES de ler a sessão: o evento PASSWORD_RECOVERY sai durante a inicialização.
     state.backend.auth.onChange(async (event, user) => {
+        if (event === 'SIGNED_OUT') offlineCache.clearOffline();     // saiu da conta: a cópia da biblioteca não fica no aparelho
+        // Aberto sem internet com a conta da cópia: o "sem sessão" que o Supabase avisa por não conseguir renovar o login não é um logout.
+        if (state.fromCache && !user && event !== 'SIGNED_OUT') return;
+        if (user && state.fromCache && user.id === state.user?.id) {   // internet voltou e o login foi renovado: troca a cópia pelos dados de verdade
+            state.fromCache = false;
+            await loadAccount();
+            emit('external');
+            refreshRequests();
+            return;
+        }
         const changed = (user?.id || null) !== (state.user?.id || null);
         if (changed) {            // SIGNED_IN também dispara ao voltar para a aba: sem mudança de usuário, ignora
             state.user = user;
@@ -128,6 +169,10 @@ export async function initSession({ onRecovery } = {}) {
 
     const sitePromise = safeSite();        // em paralelo com o login: aviso do site e cadastros abertos
     state.user = await state.backend.auth.getUser();
+    if (!state.user && isOffline()) {       // login vencido e sem internet para renová-lo: segue com a conta da cópia (só leitura)
+        const saved = await offlineCache.loadAccount();
+        if (saved) { state.user = saved.user; state.fromCache = true; }
+    }
     await loadAccount();
     state.site = await sitePromise;
     state.ready = true;

@@ -11,8 +11,6 @@ export function currentTheme() {
 export function setTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
     try { localStorage.setItem(KEY, theme); } catch { /* sem armazenamento: vale só nesta visita */ }
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', theme === 'dark' ? '#d178cd' : '#B35EAF');
     listeners.forEach((fn) => fn(theme));
 }
 
