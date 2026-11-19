@@ -518,7 +518,7 @@ Para buscar séries e filmes:
 ## Logo e novidades do site
 
 - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.35`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.36`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
 
 ## Ver offline e cor do app (v1.35)
 
@@ -534,6 +534,14 @@ Para buscar séries e filmes:
 **Cor do app (barra do navegador / do aplicativo instalado)**
 - `js/core/themeColor.js` mantém `<meta name="theme-color">` igual à cor principal que o CSS está usando (`--primary-color`): segue a **paleta do perfil** (inclusive ao ver o perfil de alguém com outra paleta), o **claro/escuro** (do sistema ou do botão de tema) e o **alto contraste** (preto no claro, amarelo no escuro). Muda na hora, sem recarregar.
 - A última cor fica em `localStorage.kamylist_theme_color` e o `js/boot.js` a aplica antes de qualquer coisa: o app já abre com a cor certa. Limite dos navegadores: a cor do manifesto e a tela de abertura (splash) são fixas.
+
+## Barra de baixo do Android no app instalado (v1.36)
+
+- No Android, a **barra de navegação** (botões/gestos) e a **tela de abertura** do app instalado vêm do **manifesto**, não da página: o `<meta name="theme-color">` só mexe na barra de cima (status), e em tempo real. Como o manifesto é um arquivo fixo, existe **um por paleta**: `manifest-<paleta>.webmanifest` (o padrão continua `manifest.webmanifest`). Eles diferem só em `theme_color` e `background_color` (cor principal e fundo claro da paleta); `id`, `start_url`, `scope` e ícones são os mesmos, então o Android entende que é o mesmo app.
+- O `<link rel="manifest">` aponta para o manifesto da **sua** paleta (`js/boot.js` na abertura e `js/core/themeColor.js` ao trocar). Visitar o perfil de alguém com outra paleta **não** troca o manifesto (só a barra de cima, que é a cor que você está vendo).
+- **Quando chega ao app já instalado:** o Chrome compara o manifesto com o do app instalado e o atualiza sozinho (no máximo ~1x por dia, em segundo plano). Para ver na hora: escolha a paleta, desinstale o app e instale de novo.
+- **Ao mudar as cores de uma paleta** (css/palettes.css), rode `node tools/make-manifests.mjs` (precisa do Playwright) e depois `node tools/build-sw.mjs --write`. Os testes conferem que cada manifesto bate com a cor da paleta.
+- Limite: não há como mudar a barra de baixo em tempo real pelo site; e a cor do manifesto é a do **tema claro** da paleta (o manifesto não tem versão escura).
 
 ## Desempenho e app instalável (v1.34)
 

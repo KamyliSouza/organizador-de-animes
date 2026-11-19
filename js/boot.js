@@ -28,6 +28,12 @@
         if (localStorage.getItem('kamylist_contrast') === 'high') root.setAttribute('data-contrast', 'high');
     } catch (e) { /* ok */ }
 
+    try {   // manifesto da minha paleta (cores da barra de navegação do Android no app instalado): já certo antes de o navegador ler o manifesto
+        var pal = localStorage.getItem('kamylist_palette');
+        var mf = document.querySelector('link[rel="manifest"]');
+        if (mf && pal && pal !== 'default' && /^[a-z]+(-[a-z]+)*$/.test(pal) && pal.length < 24) mf.setAttribute('href', 'manifest-' + pal + '.webmanifest');
+    } catch (e) { /* ok */ }
+
     try {   // última cor do app (barra do navegador/aplicativo): a barra já nasce na cor da paleta, sem piscar; o js/core/themeColor.js confirma depois
         var tc = localStorage.getItem('kamylist_theme_color');
         var meta = document.querySelector('meta[name="theme-color"]');

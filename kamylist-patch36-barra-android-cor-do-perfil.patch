@@ -1,0 +1,540 @@
+diff --git a/README.md b/README.md
+index b802ee4..3a5b93f 100644
+--- a/README.md
++++ b/README.md
+@@ -518,7 +518,7 @@ Para buscar séries e filmes:
+ ## Logo e novidades do site
+ 
+ - **Logo:** o kanji **菫** (*sumire*, "violeta"). O contorno foi tirado da fonte Noto Sans CJK JP Bold (licença SIL Open Font License) e guardado como forma SVG, por isso aparece igual em qualquer aparelho, sem depender de fonte instalada. Está em `js/core/icons.js` (`brandKanji`, usada no topo do site) e em `favicon.svg` (ícone da aba).
+-- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.35`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
++- **Novidades:** o rodapé tem um botão discreto com a versão do site (`v1.36`). Ao clicar, abre a janela **Novidades do site** com o histórico de atualizações (a versão atual aberta e as anteriores recolhidas). O texto fica em `js/domain/changelog.js`: a cada atualização, acrescente um bloco **no topo** de `CHANGELOG` e troque `SITE_VERSION` pelo mesmo número.
+ 
+ ## Ver offline e cor do app (v1.35)
+ 
+@@ -535,6 +535,14 @@ Para buscar séries e filmes:
+ - `js/core/themeColor.js` mantém `<meta name="theme-color">` igual à cor principal que o CSS está usando (`--primary-color`): segue a **paleta do perfil** (inclusive ao ver o perfil de alguém com outra paleta), o **claro/escuro** (do sistema ou do botão de tema) e o **alto contraste** (preto no claro, amarelo no escuro). Muda na hora, sem recarregar.
+ - A última cor fica em `localStorage.kamylist_theme_color` e o `js/boot.js` a aplica antes de qualquer coisa: o app já abre com a cor certa. Limite dos navegadores: a cor do manifesto e a tela de abertura (splash) são fixas.
+ 
++## Barra de baixo do Android no app instalado (v1.36)
++
++- No Android, a **barra de navegação** (botões/gestos) e a **tela de abertura** do app instalado vêm do **manifesto**, não da página: o `<meta name="theme-color">` só mexe na barra de cima (status), e em tempo real. Como o manifesto é um arquivo fixo, existe **um por paleta**: `manifest-<paleta>.webmanifest` (o padrão continua `manifest.webmanifest`). Eles diferem só em `theme_color` e `background_color` (cor principal e fundo claro da paleta); `id`, `start_url`, `scope` e ícones são os mesmos, então o Android entende que é o mesmo app.
++- O `<link rel="manifest">` aponta para o manifesto da **sua** paleta (`js/boot.js` na abertura e `js/core/themeColor.js` ao trocar). Visitar o perfil de alguém com outra paleta **não** troca o manifesto (só a barra de cima, que é a cor que você está vendo).
++- **Quando chega ao app já instalado:** o Chrome compara o manifesto com o do app instalado e o atualiza sozinho (no máximo ~1x por dia, em segundo plano). Para ver na hora: escolha a paleta, desinstale o app e instale de novo.
++- **Ao mudar as cores de uma paleta** (css/palettes.css), rode `node tools/make-manifests.mjs` (precisa do Playwright) e depois `node tools/build-sw.mjs --write`. Os testes conferem que cada manifesto bate com a cor da paleta.
++- Limite: não há como mudar a barra de baixo em tempo real pelo site; e a cor do manifesto é a do **tema claro** da paleta (o manifesto não tem versão escura).
++
+ ## Desempenho e app instalável (v1.34)
+ 
+ **Abrir mais rápido**
+diff --git a/js/boot.js b/js/boot.js
+index 7b48abc..7fc7b6f 100644
+--- a/js/boot.js
++++ b/js/boot.js
+@@ -28,6 +28,12 @@
+         if (localStorage.getItem('kamylist_contrast') === 'high') root.setAttribute('data-contrast', 'high');
+     } catch (e) { /* ok */ }
+ 
++    try {   // manifesto da minha paleta (cores da barra de navegação do Android no app instalado): já certo antes de o navegador ler o manifesto
++        var pal = localStorage.getItem('kamylist_palette');
++        var mf = document.querySelector('link[rel="manifest"]');
++        if (mf && pal && pal !== 'default' && /^[a-z]+(-[a-z]+)*$/.test(pal) && pal.length < 24) mf.setAttribute('href', 'manifest-' + pal + '.webmanifest');
++    } catch (e) { /* ok */ }
++
+     try {   // última cor do app (barra do navegador/aplicativo): a barra já nasce na cor da paleta, sem piscar; o js/core/themeColor.js confirma depois
+         var tc = localStorage.getItem('kamylist_theme_color');
+         var meta = document.querySelector('meta[name="theme-color"]');
+diff --git a/js/core/themeColor.js b/js/core/themeColor.js
+index 8df10ff..99e9494 100644
+--- a/js/core/themeColor.js
++++ b/js/core/themeColor.js
+@@ -5,6 +5,8 @@
+ // A cor sai do próprio CSS (a variável --primary-color de <html> já considera paleta, tema, sistema e alto contraste), então nada aqui
+ // precisa saber os valores de cada paleta. A última cor fica guardada para o js/boot.js pintar a barra certa já na próxima abertura.
+ // (O manifesto tem uma cor fixa, usada só antes da página abrir; a tela de abertura do app também é fixa: são limites dos navegadores.)
++import { ownPalette } from './palette.js';
++
+ const KEY = 'kamylist_theme_color';
+ const FALLBACK = '#B35EAF';
+ const HEX = /^#[0-9a-f]{6}$/i;
+@@ -25,6 +27,18 @@ export function currentThemeColor() {
+     try { return normalizeColor(getComputedStyle(document.documentElement).getPropertyValue('--primary-color')) || FALLBACK; } catch { return FALLBACK; }
+ }
+ 
++// No app instalado do Android, a barra de navegação de baixo e a tela de abertura usam as cores do MANIFESTO, que a página não muda em tempo real.
++// Por isso existe um manifesto por paleta (manifest-<paleta>.webmanifest, gerado por tools/make-manifests.mjs) e o <link rel="manifest"> aponta
++// para o da MINHA paleta (não para a do perfil que estou visitando: senão o app "piscaria" de manifesto a cada perfil aberto).
++// O Chrome aplica ao app já instalado na próxima atualização dele (ou na hora, instalando de novo).
++export const manifestFor = (paleta) => (paleta && paleta !== 'default' ? `manifest-${paleta}.webmanifest` : 'manifest.webmanifest');
++export function applyManifest() {
++    const link = document.querySelector('link[rel="manifest"]');
++    if (!link) return;
++    const want = manifestFor(ownPalette());
++    if (link.getAttribute('href') !== want) link.setAttribute('href', want);
++}
++
+ let last = '';
+ export function applyThemeColor() {
+     const color = currentThemeColor();
+@@ -38,11 +52,12 @@ export function applyThemeColor() {
+ /** Liga: pinta agora e repinta quando a paleta, o tema ou o alto contraste mudam (inclusive o claro/escuro do sistema). */
+ export function initThemeColor() {
+     applyThemeColor();
++    applyManifest();
+     let queued = false;
+     const later = () => {      // vários atributos mudam juntos (ex.: entrar numa conta): uma pintura só
+         if (queued) return;
+         queued = true;
+-        queueMicrotask(() => { queued = false; applyThemeColor(); });
++        queueMicrotask(() => { queued = false; applyThemeColor(); applyManifest(); });
+     };
+     new MutationObserver(later).observe(document.documentElement, { attributes: true, attributeFilter: ['data-palette', 'data-theme', 'data-contrast'] });
+     try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', later); } catch { /* navegador antigo */ }
+diff --git a/js/domain/changelog.js b/js/domain/changelog.js
+index 11c0ab0..7ac0531 100644
+--- a/js/domain/changelog.js
++++ b/js/domain/changelog.js
+@@ -1,9 +1,17 @@
+ // Histórico de novidades do site (aparece no botão de versão do rodapé).
+ // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
+ // Escreva para a comunidade: frases curtas, sem termos técnicos.
+-export const SITE_VERSION = '1.35';
++export const SITE_VERSION = '1.36';
+ 
+ export const CHANGELOG = [
++    {
++        version: '1.36',
++        title: 'Barra do Android com a cor do perfil',
++        items: [
++            'No app instalado do Android, a barra de navegação de baixo e a tela de abertura agora usam a cor da sua paleta (o app instalado lê essas cores do manifesto, então o site passou a ter um manifesto por paleta).',
++            'A mudança chega ao app já instalado quando o Android o atualiza (pode levar até 1 dia); para ver na hora, escolha a paleta e instale o app de novo.',
++        ],
++    },
+     {
+         version: '1.35',
+         title: 'Biblioteca offline e cor do app',
+diff --git a/manifest-cereja.webmanifest b/manifest-cereja.webmanifest
+new file mode 100644
+index 0000000..d20bd38
+--- /dev/null
++++ b/manifest-cereja.webmanifest
+@@ -0,0 +1,44 @@
++{
++    "id": "./",
++    "name": "KamyList — sua lista de animes",
++    "short_name": "KamyList",
++    "description": "Organize seus animes, séries e filmes, marque episódios e compartilhe sua lista com quem quiser.",
++    "lang": "pt-BR",
++    "dir": "ltr",
++    "start_url": "./",
++    "scope": "./",
++    "display": "standalone",
++    "orientation": "any",
++    "background_color": "#fdf0f3",
++    "theme_color": "#d2506f",
++    "categories": [
++        "entertainment",
++        "lifestyle"
++    ],
++    "icons": [
++        {
++            "src": "icons/icon-192.png",
++            "sizes": "192x192",
++            "type": "image/png",
++            "purpose": "any"
++        },
++        {
++            "src": "icons/icon-512.png",
++            "sizes": "512x512",
++            "type": "image/png",
++            "purpose": "any"
++        },
++        {
++            "src": "icons/icon-maskable-512.png",
++            "sizes": "512x512",
++            "type": "image/png",
++            "purpose": "maskable"
++        },
++        {
++            "src": "favicon.svg",
++            "sizes": "any",
++            "type": "image/svg+xml",
++            "purpose": "any"
++        }
++    ]
++}
+diff --git a/manifest-floresta.webmanifest b/manifest-floresta.webmanifest
+new file mode 100644
+index 0000000..48612f0
+--- /dev/null
++++ b/manifest-floresta.webmanifest
+@@ -0,0 +1,44 @@
++{
++    "id": "./",
++    "name": "KamyList — sua lista de animes",
++    "short_name": "KamyList",
++    "description": "Organize seus animes, séries e filmes, marque episódios e compartilhe sua lista com quem quiser.",
++    "lang": "pt-BR",
++    "dir": "ltr",
++    "start_url": "./",
++    "scope": "./",
++    "display": "standalone",
++    "orientation": "any",
++    "background_color": "#f0f7f1",
++    "theme_color": "#3f9b62",
++    "categories": [
++        "entertainment",
++        "lifestyle"
++    ],
++    "icons": [
++        {
++            "src": "icons/icon-192.png",
++            "sizes": "192x192",
++            "type": "image/png",
++            "purpose": "any"
++        },
++        {
++            "src": "icons/icon-512.png",
++            "sizes": "512x512",
++            "type": "image/png",
++            "purpose": "any"
++        },
++        {
++            "src": "icons/icon-maskable-512.png",
++            "sizes": "512x512",
++            "type": "image/png",
++            "purpose": "maskable"
++        },
++        {
++            "src": "favicon.svg",
++            "sizes": "any",
++            "type": "image/svg+xml",
++            "purpose": "any"
++        }
++    ]
++}
+diff --git a/manifest-grafite.webmanifest b/manifest-grafite.webmanifest
+new file mode 100644
+index 0000000..925ad32
+--- /dev/null
++++ b/manifest-grafite.webmanifest
+@@ -0,0 +1,44 @@
++{
++    "id": "./",
++    "name": "KamyList — sua lista de animes",
++    "short_name": "KamyList",
++    "description": "Organize seus animes, séries e filmes, marque episódios e compartilhe sua lista com quem quiser.",
++    "lang": "pt-BR",
++    "dir": "ltr",
++    "start_url": "./",
++    "scope": "./",
++    "display": "standalone",
++    "orientation": "any",
++    "background_color": "#f4f4f5",
++    "theme_color": "#71717a",
++    "categories": [
++        "entertainment",
++        "lifestyle"
++    ],
++    "icons": [
++        {
++            "src": "icons/icon-192.png",
++            "sizes": "192x192",
++            "type": "image/png",
++            "purpose": "any"
++        },
++        {
++            "src": "icons/icon-512.png",
++            "sizes": "512x512",
++            "type": "image/png",
++            "purpose": "any"
++        },
++        {
++            "src": "icons/icon-maskable-512.png",
++            "sizes": "512x512",
++            "type": "image/png",
++            "purpose": "maskable"
++        },
++        {
++            "src": "favicon.svg",
++            "sizes": "any",
++            "type": "image/svg+xml",
++            "purpose": "any"
++        }
++    ]
++}
+diff --git a/manifest-indigo.webmanifest b/manifest-indigo.webmanifest
+new file mode 100644
+index 0000000..1e36f8e
+--- /dev/null
++++ b/manifest-indigo.webmanifest
+@@ -0,0 +1,44 @@
++{
++    "id": "./",
++    "name": "KamyList — sua lista de animes",
++    "short_name": "KamyList",
++    "description": "Organize seus animes, séries e filmes, marque episódios e compartilhe sua lista com quem quiser.",
++    "lang": "pt-BR",
++    "dir": "ltr",
++    "start_url": "./",
++    "scope": "./",
++    "display": "standalone",
++    "orientation": "any",
++    "background_color": "#f1f1fc",
++    "theme_color": "#6366f1",
++    "categories": [
++        "entertainment",
++        "lifestyle"
++    ],
++    "icons": [
++        {
++            "src": "icons/icon-192.png",
++            "sizes": "192x192",
++            "type": "image/png",
++            "purpose": "any"
++        },
++        {
++            "src": "icons/icon-512.png",
++            "sizes": "512x512",
++            "type": "image/png",
++            "purpose": "any"
++        },
++        {
++            "src": "icons/icon-maskable-512.png",
++            "sizes": "512x512",
++            "type": "image/png",
++            "purpose": "maskable"
++        },
++        {
++            "src": "favicon.svg",
++            "sizes": "any",
++            "type": "image/svg+xml",
++            "purpose": "any"
++        }
++    ]
++}
+diff --git a/manifest-oceano.webmanifest b/manifest-oceano.webmanifest
+new file mode 100644
+index 0000000..d3f5d2c
+--- /dev/null
++++ b/manifest-oceano.webmanifest
+@@ -0,0 +1,44 @@
++{
++    "id": "./",
++    "name": "KamyList — sua lista de animes",
++    "short_name": "KamyList",
++    "description": "Organize seus animes, séries e filmes, marque episódios e compartilhe sua lista com quem quiser.",
++    "lang": "pt-BR",
++    "dir": "ltr",
++    "start_url": "./",
++    "scope": "./",
++    "display": "standalone",
++    "orientation": "any",
++    "background_color": "#eef7f9",
++    "theme_color": "#2b8aa3",
++    "categories": [
++        "entertainment",
++        "lifestyle"
++    ],
++    "icons": [
++        {
++            "src": "icons/icon-192.png",
++            "sizes": "192x192",
++            "type": "image/png",
++            "purpose": "any"
++        },
++        {
++            "src": "icons/icon-512.png",
++            "sizes": "512x512",
++            "type": "image/png",
++            "purpose": "any"
++        },
++        {
++            "src": "icons/icon-maskable-512.png",
++            "sizes": "512x512",
++            "type": "image/png",
++            "purpose": "maskable"
++        },
++        {
++            "src": "favicon.svg",
++            "sizes": "any",
++            "type": "image/svg+xml",
++            "purpose": "any"
++        }
++    ]
++}
+diff --git a/manifest-por-do-sol.webmanifest b/manifest-por-do-sol.webmanifest
+new file mode 100644
+index 0000000..75dd7b8
+--- /dev/null
++++ b/manifest-por-do-sol.webmanifest
+@@ -0,0 +1,44 @@
++{
++    "id": "./",
++    "name": "KamyList — sua lista de animes",
++    "short_name": "KamyList",
++    "description": "Organize seus animes, séries e filmes, marque episódios e compartilhe sua lista com quem quiser.",
++    "lang": "pt-BR",
++    "dir": "ltr",
++    "start_url": "./",
++    "scope": "./",
++    "display": "standalone",
++    "orientation": "any",
++    "background_color": "#fdf3ec",
++    "theme_color": "#c8642a",
++    "categories": [
++        "entertainment",
++        "lifestyle"
++    ],
++    "icons": [
++        {
++            "src": "icons/icon-192.png",
++            "sizes": "192x192",
++            "type": "image/png",
++            "purpose": "any"
++        },
++        {
++            "src": "icons/icon-512.png",
++            "sizes": "512x512",
++            "type": "image/png",
++            "purpose": "any"
++        },
++        {
++            "src": "icons/icon-maskable-512.png",
++            "sizes": "512x512",
++            "type": "image/png",
++            "purpose": "maskable"
++        },
++        {
++            "src": "favicon.svg",
++            "sizes": "any",
++            "type": "image/svg+xml",
++            "purpose": "any"
++        }
++    ]
++}
+diff --git a/manifest-strong-violet.webmanifest b/manifest-strong-violet.webmanifest
+new file mode 100644
+index 0000000..cc04709
+--- /dev/null
++++ b/manifest-strong-violet.webmanifest
+@@ -0,0 +1,44 @@
++{
++    "id": "./",
++    "name": "KamyList — sua lista de animes",
++    "short_name": "KamyList",
++    "description": "Organize seus animes, séries e filmes, marque episódios e compartilhe sua lista com quem quiser.",
++    "lang": "pt-BR",
++    "dir": "ltr",
++    "start_url": "./",
++    "scope": "./",
++    "display": "standalone",
++    "orientation": "any",
++    "background_color": "#f5effb",
++    "theme_color": "#7f29c5",
++    "categories": [
++        "entertainment",
++        "lifestyle"
++    ],
++    "icons": [
++        {
++            "src": "icons/icon-192.png",
++            "sizes": "192x192",
++            "type": "image/png",
++            "purpose": "any"
++        },
++        {
++            "src": "icons/icon-512.png",
++            "sizes": "512x512",
++            "type": "image/png",
++            "purpose": "any"
++        },
++        {
++            "src": "icons/icon-maskable-512.png",
++            "sizes": "512x512",
++            "type": "image/png",
++            "purpose": "maskable"
++        },
++        {
++            "src": "favicon.svg",
++            "sizes": "any",
++            "type": "image/svg+xml",
++            "purpose": "any"
++        }
++    ]
++}
+diff --git a/sw.js b/sw.js
+index 83d4f31..06f8b1b 100644
+--- a/sw.js
++++ b/sw.js
+@@ -8,7 +8,7 @@
+ // Depois de mexer em qualquer arquivo do site, rode:  node tools/build-sw.mjs --write   (atualiza a lista e a versão abaixo)
+ 
+ // precache:start (gerado por tools/build-sw.mjs; não edite à mão)
+-const VERSION = 'd0e88d8837fa';
++const VERSION = '99f5ca2a6df3';
+ const PRECACHE = [
+     'css/base.css',
+     'css/components.css',
+@@ -124,6 +124,13 @@ const PRECACHE = [
+     'js/views/notFound.js',
+     'js/views/profile.js',
+     'js/views/settings.js',
++    'manifest-cereja.webmanifest',
++    'manifest-floresta.webmanifest',
++    'manifest-grafite.webmanifest',
++    'manifest-indigo.webmanifest',
++    'manifest-oceano.webmanifest',
++    'manifest-por-do-sol.webmanifest',
++    'manifest-strong-violet.webmanifest',
+     'manifest.webmanifest',
+ ];
+ // precache:end
+diff --git a/tools/build-sw.mjs b/tools/build-sw.mjs
+index ec56270..f91494b 100644
+--- a/tools/build-sw.mjs
++++ b/tools/build-sw.mjs
+@@ -27,7 +27,8 @@ function walk(dir, ext, out = []) {
+ }
+ 
+ export function files() {
+-    const list = [...FIXED, ...walk('css', ['.css']), ...walk('js', ['.js']), ...walk('icons', ['.png'])]
++    const manifests = fs.readdirSync(ROOT).filter((f) => /^manifest(-[a-z-]+)?\.webmanifest$/.test(f));     // um por paleta (tools/make-manifests.mjs)
++    const list = [...FIXED, ...manifests, ...walk('css', ['.css']), ...walk('js', ['.js']), ...walk('icons', ['.png'])]
+         .filter((f) => !SKIP.has(f) && fs.existsSync(path.join(ROOT, f)));
+     return [...new Set(list)].sort();
+ }
+diff --git a/tools/make-manifests.mjs b/tools/make-manifests.mjs
+new file mode 100644
+index 0000000..78f6ff2
+--- /dev/null
++++ b/tools/make-manifests.mjs
+@@ -0,0 +1,29 @@
++// Gera um manifesto por paleta (manifest-<paleta>.webmanifest) a partir de manifest.webmanifest, trocando só theme_color e background_color
++// pelas cores da paleta (tema claro). Motivo: no Android, a barra de navegação de baixo e a tela de abertura do app instalado usam as cores do
++// MANIFESTO (a página não consegue mudá-las em tempo real). O site troca o <link rel="manifest"> para o da paleta da pessoa (js/core/themeColor.js
++// e js/boot.js); o Chrome aplica ao app instalado na próxima atualização dele (ou ao instalar de novo).
++// Uso (só quem mantém o site; precisa do Playwright): node tools/make-manifests.mjs
++import { readFileSync, writeFileSync } from 'node:fs';
++import { dirname, join } from 'node:path';
++import { fileURLToPath, pathToFileURL } from 'node:url';
++import { createRequire } from 'node:module';
++
++const root = join(dirname(fileURLToPath(import.meta.url)), '..');
++const { chromium } = createRequire(import.meta.url)('playwright');
++const base = JSON.parse(readFileSync(join(root, 'manifest.webmanifest'), 'utf8'));
++const { PALETTES } = await import(pathToFileURL(join(root, 'js/domain/palettes.js')).href);
++
++const browser = await chromium.launch();
++const page = await browser.newPage({ colorScheme: 'light' });
++const css = ['css/tokens.css', 'css/palettes.css'].map((f) => readFileSync(join(root, f), 'utf8')).join('\n');
++await page.setContent(`<style>${css}</style>`);
++const hex = (page, name) => page.evaluate((n) => { const c = document.createElement('canvas').getContext('2d'); c.fillStyle = getComputedStyle(document.documentElement).getPropertyValue(n).trim(); return c.fillStyle; }, name);
++
++for (const p of PALETTES) {
++    if (p.id === 'default') continue;             // o padrão é o próprio manifest.webmanifest
++    await page.evaluate((id) => document.documentElement.setAttribute('data-palette', id), p.id);
++    const out = { ...base, theme_color: await hex(page, '--primary-color'), background_color: await hex(page, '--bg-color') };
++    writeFileSync(join(root, `manifest-${p.id}.webmanifest`), JSON.stringify(out, null, 4) + '\n');
++    console.log(p.id, out.theme_color, out.background_color);
++}
++await browser.close();

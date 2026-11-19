@@ -1,9 +1,17 @@
 // Histórico de novidades do site (aparece no botão de versão do rodapé).
 // Para cada atualização nova: acrescente um bloco NO TOPO da lista e troque SITE_VERSION pelo mesmo número.
 // Escreva para a comunidade: frases curtas, sem termos técnicos.
-export const SITE_VERSION = '1.35';
+export const SITE_VERSION = '1.36';
 
 export const CHANGELOG = [
+    {
+        version: '1.36',
+        title: 'Barra do Android com a cor do perfil',
+        items: [
+            'No app instalado do Android, a barra de navegação de baixo e a tela de abertura agora usam a cor da sua paleta (o app instalado lê essas cores do manifesto, então o site passou a ter um manifesto por paleta).',
+            'A mudança chega ao app já instalado quando o Android o atualiza (pode levar até 1 dia); para ver na hora, escolha a paleta e instale o app de novo.',
+        ],
+    },
     {
         version: '1.35',
         title: 'Biblioteca offline e cor do app',

@@ -27,7 +27,8 @@ function walk(dir, ext, out = []) {
 }
 
 export function files() {
-    const list = [...FIXED, ...walk('css', ['.css']), ...walk('js', ['.js']), ...walk('icons', ['.png'])]
+    const manifests = fs.readdirSync(ROOT).filter((f) => /^manifest(-[a-z-]+)?\.webmanifest$/.test(f));     // um por paleta (tools/make-manifests.mjs)
+    const list = [...FIXED, ...manifests, ...walk('css', ['.css']), ...walk('js', ['.js']), ...walk('icons', ['.png'])]
         .filter((f) => !SKIP.has(f) && fs.existsSync(path.join(ROOT, f)));
     return [...new Set(list)].sort();
 }

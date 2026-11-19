@@ -1,0 +1,44 @@
+{
+    "id": "./",
+    "name": "KamyList — sua lista de animes",
+    "short_name": "KamyList",
+    "description": "Organize seus animes, séries e filmes, marque episódios e compartilhe sua lista com quem quiser.",
+    "lang": "pt-BR",
+    "dir": "ltr",
+    "start_url": "./",
+    "scope": "./",
+    "display": "standalone",
+    "orientation": "any",
+    "background_color": "#f0f7f1",
+    "theme_color": "#3f9b62",
+    "categories": [
+        "entertainment",
+        "lifestyle"
+    ],
+    "icons": [
+        {
+            "src": "icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "favicon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        }
+    ]
+}

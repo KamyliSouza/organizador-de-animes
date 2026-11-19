@@ -8,7 +8,7 @@
 // Depois de mexer em qualquer arquivo do site, rode:  node tools/build-sw.mjs --write   (atualiza a lista e a versão abaixo)
 
 // precache:start (gerado por tools/build-sw.mjs; não edite à mão)
-const VERSION = 'd0e88d8837fa';
+const VERSION = '99f5ca2a6df3';
 const PRECACHE = [
     'css/base.css',
     'css/components.css',
@@ -124,6 +124,13 @@ const PRECACHE = [
     'js/views/notFound.js',
     'js/views/profile.js',
     'js/views/settings.js',
+    'manifest-cereja.webmanifest',
+    'manifest-floresta.webmanifest',
+    'manifest-grafite.webmanifest',
+    'manifest-indigo.webmanifest',
+    'manifest-oceano.webmanifest',
+    'manifest-por-do-sol.webmanifest',
+    'manifest-strong-violet.webmanifest',
     'manifest.webmanifest',
 ];
 // precache:end

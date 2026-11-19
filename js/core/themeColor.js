@@ -5,6 +5,8 @@
 // A cor sai do próprio CSS (a variável --primary-color de <html> já considera paleta, tema, sistema e alto contraste), então nada aqui
 // precisa saber os valores de cada paleta. A última cor fica guardada para o js/boot.js pintar a barra certa já na próxima abertura.
 // (O manifesto tem uma cor fixa, usada só antes da página abrir; a tela de abertura do app também é fixa: são limites dos navegadores.)
+import { ownPalette } from './palette.js';
+
 const KEY = 'kamylist_theme_color';
 const FALLBACK = '#B35EAF';
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -25,6 +27,18 @@ export function currentThemeColor() {
     try { return normalizeColor(getComputedStyle(document.documentElement).getPropertyValue('--primary-color')) || FALLBACK; } catch { return FALLBACK; }
 }
 
+// No app instalado do Android, a barra de navegação de baixo e a tela de abertura usam as cores do MANIFESTO, que a página não muda em tempo real.
+// Por isso existe um manifesto por paleta (manifest-<paleta>.webmanifest, gerado por tools/make-manifests.mjs) e o <link rel="manifest"> aponta
+// para o da MINHA paleta (não para a do perfil que estou visitando: senão o app "piscaria" de manifesto a cada perfil aberto).
+// O Chrome aplica ao app já instalado na próxima atualização dele (ou na hora, instalando de novo).
+export const manifestFor = (paleta) => (paleta && paleta !== 'default' ? `manifest-${paleta}.webmanifest` : 'manifest.webmanifest');
+export function applyManifest() {
+    const link = document.querySelector('link[rel="manifest"]');
+    if (!link) return;
+    const want = manifestFor(ownPalette());
+    if (link.getAttribute('href') !== want) link.setAttribute('href', want);
+}
+
 let last = '';
 export function applyThemeColor() {
     const color = currentThemeColor();
@@ -38,11 +52,12 @@ export function applyThemeColor() {
 /** Liga: pinta agora e repinta quando a paleta, o tema ou o alto contraste mudam (inclusive o claro/escuro do sistema). */
 export function initThemeColor() {
     applyThemeColor();
+    applyManifest();
     let queued = false;
     const later = () => {      // vários atributos mudam juntos (ex.: entrar numa conta): uma pintura só
         if (queued) return;
         queued = true;
-        queueMicrotask(() => { queued = false; applyThemeColor(); });
+        queueMicrotask(() => { queued = false; applyThemeColor(); applyManifest(); });
     };
     new MutationObserver(later).observe(document.documentElement, { attributes: true, attributeFilter: ['data-palette', 'data-theme', 'data-contrast'] });
     try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', later); } catch { /* navegador antigo */ }
